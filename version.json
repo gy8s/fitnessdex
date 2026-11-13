@@ -1,5 +1,5 @@
 {
-  "version": "0.7.2",
+  "version": "0.7.3",
   "released": "2026-11-13",
-  "notes": "ExerciseDex: separate supported and unsupported deep-squat holds and show supported practice before unsupported, keeping original deep-squat records intact."
+  "notes": "Progression UI polish: clear set targets and actual results, accurate completion feedback, milestone progress, and a more engaging, uncluttered session result."
 }
