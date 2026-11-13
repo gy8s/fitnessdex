@@ -1,5 +1,5 @@
 {
-  "version": "0.7.4",
+  "version": "0.8.0",
   "released": "2026-11-13",
-  "notes": "Urgent hotfix: align HTML version and release version; make updates dismissible, non-blocking and resilient to service worker errors."
+  "notes": "Daily care: hydration tracking and consistency rewards, supplement routines and timing, safe local/cloud v9 records. No nutrition."
 }
