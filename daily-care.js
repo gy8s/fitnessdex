@@ -64,3 +64,72 @@ function carePersist(mutate,message){
 const top=(sub,title,detail,back=true)=>'<div class="fd-care-top">'+(back?'<button class="fd-care-back" onclick="fdCareHome()">‹ Daily care</button>':'')+'<small>'+sub+'</small><h1>'+title+'</h1><p>'+detail+'</p></div>';
 const gauge=(value,max)=>'<div class="fd-care-gauge"><span style="width:'+Math.min(100,Math.max(0,Math.round(value/Math.max(1,max)*100)))+'%"></span></div>';
 const goalChoices=choice=>[1000,1500,2000,2250,2500,2750,3000,3500,4000,4500,5000].map(x=>'<option value="'+x+'" '+(x===choice?'selected':'')+'>'+fmt(x)+'</option>').join('');
+
+function careHomePage(){
+ const d=today(),w=amount(d),g=waterGoal(d),s=checkIns(d);
+ return '<section class="fd-care-page">'+top('DAILY CARE','Small habits, every day','Water and supplement check-ins. No nutrition tracking.',false)+
+ '<button class="fd-care-option" onclick="fdCareWater()"><span class="fd-care-icon water">◉</span><span><strong>Hydration</strong><small>'+fmt(w)+' of '+fmt(g)+'</small>'+gauge(w,g)+'</span><b>›</b></button>'+
+ '<button class="fd-care-option" onclick="fdCareSupplements()"><span class="fd-care-icon supp">◇</span><span><strong>Supplements</strong><small>'+(s.due?s.done+' of '+s.due+' scheduled today':'Register a supplement routine')+'</small></span><b>›</b></button>'+
+ '<p class="fd-care-note">Only water counts towards hydration. Supplement timing is based on the routine you choose.</p></section>';
+}
+function careWaterPage(){
+ const d=today(),m=care(),w=amount(d,m),g=waterGoal(d,m),rows=drinks(d,m);
+ return '<section class="fd-care-page">'+top('WATER','Hydration','Log water as you drink it. More is not always better.')+
+ '<div class="fd-care-water-hero"><small>WATER TODAY</small><div><strong>'+fmt(w)+'</strong><span> / '+fmt(g)+'</span></div>'+gauge(w,g)+'<p>'+(waterMet(d,m)?'Daily target reached':fmt(Math.max(0,g-w))+' until your target')+'</p></div>'+
+ '<div class="fd-care-section-title">Add water</div><div class="fd-care-add-row">'+[250,500,750].map(x=>'<button onclick="fdCareAddWater('+x+')"><b>+'+x+'</b><small>ml</small></button>').join('')+'</div>'+
+ '<details class="fd-care-details"><summary>Custom amount or earlier drink</summary>'+
+ '<label for="fd-care-ml">Water (ml)</label><input type="number" inputmode="numeric" id="fd-care-ml" min="50" max="1500" step="50" value="250">'+
+ '<label for="fd-care-at">Time today</label><input type="time" id="fd-care-at" value="'+localTime(new Date())+'">'+
+ '<button class="fd-care-secondary" onclick="fdCareCustomWater()">Log water</button></details>'+
+ '<details class="fd-care-details"><summary>Adjust your water target</summary><p>The initial goal is 2 L. Increase it for long or sweaty activity if appropriate, or choose your own goal.</p>'+
+ '<label for="fd-care-daygoal">Target for today</label><select id="fd-care-daygoal">'+goalChoices(g)+'</select><button class="fd-care-secondary" onclick="fdCareChangeGoal()">Update today</button>'+
+ '<label for="fd-care-basegoal">Default for future days</label><select id="fd-care-basegoal">'+goalChoices(m.water.baseGoal)+'</select><button class="fd-care-secondary" onclick="fdCareChangeDefault()">Change default</button></details>'+
+ '<div class="fd-care-rewards"><strong>Progress rewards</strong><div class="'+(waterMet(d,m)?'done':'')+'"><span>Reach daily water target</span><b>10 XP</b></div>'+
+ '<div class="'+(spaced(d,m)?'done':'')+'"><span>Three spaced drinks across 3 hours</span><b>5 XP</b></div>'+
+ (g>=2500?'<div class="'+(waterMet(d,m)?'done':'')+'"><span>Reach your higher target</span><b>+5 XP</b></div>':'')+'</div>'+
+ '<div class="fd-care-section-title">Today: '+rows.length+' water entries</div>'+
+ '<div class="fd-care-history">'+(rows.length?rows.map(x=>'<div><span>'+atTime(x.at)+'</span><strong>'+fmt(x.ml)+'</strong><button aria-label="Delete water entry" onclick="fdCareUndoWater(\''+x.id+'\')">×</button></div>').join(''):'<p class="fd-care-note">Nothing logged yet.</p>')+'</div>'+
+ '<p class="fd-care-note">There are no rewards for drinking beyond your target. Needs vary with temperature, exercise and health.</p></section>';
+}
+function routineRow(x,date){
+ const hit=taken(x.id,date),state=hit?(hit.onTime===true?'On schedule':hit.onTime===false?'Outside chosen time':'Recorded'):'Not recorded';
+ return '<div class="fd-care-routine"><span class="fd-care-routine-mark '+(hit?'done':'')+'">'+(hit?'✓':'○')+'</span>'+
+ '<div><strong>'+esc(x.name)+'</strong><small>'+esc(x.note||'')+(x.note?' · ':'')+esc(x.time||'Any time')+'</small><small>'+state+(hit?' · '+atTime(hit.at):'')+'</small></div>'+
+ (hit?'<button onclick="fdCareUndoTaken(\''+x.id+'\')">Undo</button>':'<button class="fd-care-taken" onclick="fdCareLogTaken(\''+x.id+'\')">Taken</button>')+'</div>';
+}
+function careSuppPage(){
+ const m=care(),d=today(),all=m.supplements.items.filter(x=>!x.archivedAt),list=due(d,m),other=all.filter(x=>!list.includes(x)),state=checkIns(d,m);
+ return '<section class="fd-care-page">'+top('SUPPLEMENTS','Your routine','Register each routine once; tap when you have taken it.')+
+ '<div class="fd-care-supp-hero"><div><strong>'+state.done+'</strong><span> / '+state.due+'</span></div><p>scheduled check-ins today</p>'+gauge(state.done,state.due)+'</div>'+
+ '<div class="fd-care-section-title">Scheduled today</div>'+
+ '<div class="fd-care-routines">'+(list.length?list.map(x=>routineRow(x,d)).join(''):'<p class="fd-care-note">No supplements scheduled today.</p>')+'</div>'+
+ (other.length?'<details class="fd-care-details"><summary>Other registered supplements</summary>'+other.map(x=>routineRow(x,d)).join('')+'</details>':'')+
+ '<button class="fd-care-primary" onclick="fdCareNewSupp()">+ Register supplement</button>'+
+ (all.length?'<details class="fd-care-details"><summary>Edit or archive routines</summary>'+all.map(x=>'<button class="fd-care-secondary" onclick="fdCareEditSupp(\''+x.id+'\')">Edit '+esc(x.name)+'</button>').join('')+'</details>':'')+
+ '<div class="fd-care-rewards"><strong>Routine rewards</strong><div class="'+(state.all?'done':'')+'"><span>Complete scheduled check-ins</span><b>5 XP</b></div>'+
+ '<div class="'+(state.onTime?'done':'')+'"><span>Check in around chosen times</span><b>+2 XP</b></div></div>'+
+ '<p class="fd-care-note">Points are capped per day, not per supplement or dose. Follow your clinician or product guidance for timing, doses and interactions.</p></section>';
+}
+function careEditPage(){
+ const x=care().supplements.items.find(v=>v.id===careEdit);
+ return '<section class="fd-care-page">'+top('SUPPLEMENT ROUTINE',x?'Edit routine':'Register supplement','Set your preferred schedule. FitnessDex does not recommend doses or medically optimal times.')+
+ '<div class="fd-care-form"><label for="fd-care-name">Supplement name</label><input id="fd-care-name" maxlength="70" value="'+esc(x?.name||'')+'" placeholder="e.g. Vitamin D">'+
+ '<label for="fd-care-note">Dose or note (optional)</label><input id="fd-care-note" maxlength="100" value="'+esc(x?.note||'')+'" placeholder="Follow product directions">'+
+ '<label for="fd-care-time">Your usual time (optional)</label><input type="time" id="fd-care-time" value="'+esc(x?.time||'')+'">'+
+ '<p class="fd-care-note">Check-ins within 90 minutes of your chosen time count as on schedule. No timing means there is no timing bonus.</p>'+
+ '<div class="fd-care-section-title">Days</div><div class="fd-care-days">'+[1,2,3,4,5,6,0].map(d=>'<label><input type="checkbox" id="fd-care-week-'+d+'" '+(!x||x.days.includes(d)?'checked':'')+'><span>'+CARE_DAYS[d]+'</span></label>').join('')+'</div>'+
+ '<button class="fd-care-primary" onclick="fdCareSaveSupp()">'+(x?'Save routine':'Register supplement')+'</button>'+
+ (x?'<button class="fd-care-muted" onclick="fdCareArchiveSupp()">Archive routine</button>':'')+'</div></section>';
+}
+function careAchievements(){
+ const m=care();if(!m.water.entries.length&&!m.supplements.taken.length)return '';
+ const rewards=careRewards(m);
+ return '<section class="fd-care-achievements"><h2>Daily care consistency</h2><p class="hint">Persistence badges for meeting water goals and completing a chosen supplement routine.</p>'+
+ [['Water',rewards.waterStreak],['Supplements',rewards.supplementStreak]].map(([title,n])=>
+ '<div class="fd-care-achievement-row"><strong>'+title+'</strong><small>Longest streak: '+n+' days</small><div>'+CARE_STREAKS.map(x=>'<span class="'+(n>=x?'earned':'')+'">'+x+'d</span>').join('')+'</div></div>').join('')+'</section>';
+}
+window.fdCareView=()=>carePage==='water'?careWaterPage():carePage==='supplements'?careSuppPage():carePage==='editor'?careEditPage():careHomePage();
+const careShow=next=>{carePage=next;tab='care';render();window.scrollTo({top:0,behavior:'instant'});};
+window.fdCareHome=()=>careShow('home');
+window.fdCareWater=()=>careShow('water');
+window.fdCareSupplements=()=>careShow('supplements');
