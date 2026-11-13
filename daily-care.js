@@ -21,7 +21,7 @@ function spaced(d,m=care()){
  }
  return false;
 }
-const due=(d,m=care())=>m.supplements.items.filter(x=>stamp(new Date(x.createdAt))<=d&&(!x.archivedAt||stamp(new Date(x.archivedAt))>=d)&&x.days.includes(dateFrom(d).getDay())).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99')||a.name.localeCompare(b.name));
+const due=(d,m=care())=>m.supplements.items.filter(x=>stamp(new Date(x.createdAt))<=d&&(!x.archivedAt||stamp(new Date(x.archivedAt))>d)&&x.days.includes(dateFrom(d).getDay())).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99')||a.name.localeCompare(b.name));
 const taken=(id,d,m=care())=>m.supplements.taken.find(x=>x.supplementId===id&&x.date===d);
 function checkIns(d,m=care()){
  const routine=due(d,m),hits=routine.map(x=>taken(x.id,d,m));
@@ -63,6 +63,7 @@ function carePersist(mutate,message){
 }
 const top=(sub,title,detail,back=true)=>'<div class="fd-care-top">'+(back?'<button class="fd-care-back" onclick="fdCareHome()">‹ Daily care</button>':'')+'<small>'+sub+'</small><h1>'+title+'</h1><p>'+detail+'</p></div>';
 const gauge=(value,max)=>'<div class="fd-care-gauge"><span style="width:'+Math.min(100,Math.max(0,Math.round(value/Math.max(1,max)*100)))+'%"></span></div>';
+const cardioLogged=day=>completedLogs().some(l=>l.date===day&&ex(l.id)?.cat==='Cardio'&&(logMetrics(l).minutes>=20||logMetrics(l).distance>=3));
 const goalChoices=choice=>[1000,1500,2000,2250,2500,2750,3000,3500,4000,4500,5000].map(x=>'<option value="'+x+'" '+(x===choice?'selected':'')+'>'+fmt(x)+'</option>').join('');
 
 function careHomePage(){
@@ -76,6 +77,7 @@ function careWaterPage(){
  const d=today(),m=care(),w=amount(d,m),g=waterGoal(d,m),rows=drinks(d,m);
  return '<section class="fd-care-page">'+top('WATER','Hydration','Log water as you drink it. More is not always better.')+
  '<div class="fd-care-water-hero"><small>WATER TODAY</small><div><strong>'+fmt(w)+'</strong><span> / '+fmt(g)+'</span></div>'+gauge(w,g)+'<p>'+(waterMet(d,m)?'Daily target reached':fmt(Math.max(0,g-w))+' until your target')+'</p></div>'+
+ (cardioLogged(d)&&g<Math.min(5000,m.water.baseGoal+500)?'<div class="fd-care-active-suggest"><strong>Cardio logged today</strong><p>For a longer or sweaty session, you might prefer a higher water goal. You decide.</p><button onclick="fdCareActiveGoal()">Use '+fmt(Math.min(5000,m.water.baseGoal+500))+' goal</button></div>':'')+
  '<div class="fd-care-section-title">Add water</div><div class="fd-care-add-row">'+[250,500,750].map(x=>'<button onclick="fdCareAddWater('+x+')"><b>+'+x+'</b><small>ml</small></button>').join('')+'</div>'+
  '<details class="fd-care-details"><summary>Custom amount or earlier drink</summary>'+
  '<label for="fd-care-ml">Water (ml)</label><input type="number" inputmode="numeric" id="fd-care-ml" min="50" max="1500" step="50" value="250">'+
@@ -161,6 +163,10 @@ window.fdCareChangeDefault=()=>{
  const goal=Number(document.getElementById('fd-care-basegoal')?.value);
  if(!Number.isInteger(goal)||goal<1000||goal>5000)return toast('Choose a target between 1 and 5 L.');
  carePersist(m=>{m.water.baseGoal=goal;},'Default target updated');
+};
+window.fdCareActiveGoal=()=>{
+ const goal=Math.min(5000,care().water.baseGoal+500);
+ carePersist(m=>{const x=m.water.goals.find(x=>x.date===today());if(x)x.ml=goal;else m.water.goals.push({date:today(),ml:goal});},'Active-day water goal updated');
 };
 window.fdCareNewSupp=()=>{careEdit=null;careShow('editor');};
 window.fdCareEditSupp=id=>{if(!care().supplements.items.some(x=>x.id===id))return;careEdit=id;careShow('editor');};
