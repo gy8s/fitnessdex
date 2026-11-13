@@ -292,7 +292,7 @@ function stats(id){
  const rows=logsFor(id),m=rows.map(logMetrics),sessionMap={};
  const base={sessions:countSessions(rows),records:rows.length,sets:m.reduce((a,x)=>a+x.sets,0),lifetimeReps:m.reduce((a,x)=>a+x.reps,0),lifetimeKgReps:m.reduce((a,x)=>a+x.kgReps,0),lifetimeDistance:m.reduce((a,x)=>a+x.distance,0),lifetimeMinutes:m.reduce((a,x)=>a+x.minutes,0),lifetimeSeconds:m.reduce((a,x)=>a+x.seconds,0),bestSet:Math.max(0,...m.map(x=>x.bestReps)),bestSessionReps:0,bestVolume:0,topLoad:Math.max(0,...m.map(x=>x.topLoad)),e1rm:Math.max(0,...m.map(x=>x.e1rm)),bestDistance:Math.max(0,...m.map(x=>x.distance)),bestMinutes:Math.max(0,...m.map(x=>x.minutes)),bestHold:Math.max(0,...m.map(x=>x.seconds)),bestPace:null,rangeBySide:{},rangeBaseline:{},repsAtLoad:{}};
  for(let i=0;i<rows.length;i++){
-  const row=rows[i],t=m[i],key=row.progression?.runId||row.sessionId||'legacy-'+(logId(row)||i);
+  const row=rows[i],t=m[i],key=row.progression?.runId||row.quickSessionId||row.sessionId||'legacy-'+(logId(row)||i);
   const session=sessionMap[key]||(sessionMap[key]={reps:0,volume:0});
   session.reps+=t.reps;session.volume+=t.kgReps;
   if(row.mode==='sets')for(const set of row.sets||[])if(n(set.weight)>0&&n(set.reps)>0){const w=String(n(set.weight));base.repsAtLoad[w]=Math.max(base.repsAtLoad[w]||0,n(set.reps));}
@@ -1120,4 +1120,4 @@ function render(){
 }
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>b.dataset.tab==='dex'?openDexRoot():navigate(b.dataset.tab)));
 render();
-</script><script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="./exercise-reference.js"></script><script defer src="./workouts.js"></script><script defer src="./habits.js"></script><script defer src="./log-flow.js"></script><script defer src="./ui-shell.js"></script><script defer src="./campaigns.js"></script><script defer src="./progression.js"></script><script defer src="./updates.js"></script><script defer src="./cloud.js"></script><script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("Offline installation not available:",e)));}</script></body></html>
+</script><script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script defer src="./exercise-reference.js"></script><script defer src="./workouts.js"></script><script defer src="./habits.js"></script><script defer src="./log-flow.js"></script><script defer src="./ui-shell.js"></script><script defer src="./campaigns.js"></script><script defer src="./progression.js"></script><script defer src="./quick-set.js"></script><script defer src="./updates.js"></script><script defer src="./cloud.js"></script><script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("Offline installation not available:",e)));}</script></body></html>
