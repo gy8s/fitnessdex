@@ -48,16 +48,19 @@ function sessionsFor(id){
  const map=new Map();
  for(const l of S.logs){
   if(l.progression?.trackId!==id||!l.progression.runId||!ex(l.id))continue;
-  const k=l.progression.runId,old=map.get(k)||{id:k,at:0,sets:[],primary:0};
+  const k=l.progression.runId,old=map.get(k)||{id:k,at:0,sets:[],missed:[]};
   old.at=Math.max(old.at,logWhen(l)||0);
+  if(Array.isArray(l.progression.missedIds))old.missed=[...new Set([...old.missed,...l.progression.missedIds])];
   const m=logMetrics(l);old.sets.push({id:l.id,target:l.progression.target||0,actual:ex(l.id).mode==='time'?m.seconds:m.reps,at:logWhen(l)});
   map.set(k,old);
  }
  return [...map.values()].sort((a,b)=>a.at-b.at);
 }
 function trackAwards(t){
- const sessions=sessionsFor(t.id),weeks=new Set(sessions.map(x=>{const d=new Date(x.at);const monday=new Date(d);monday.setDate(d.getDate()-((d.getDay()+6)%7));return stamp(monday);}));
- return AWARDS.filter(a=>(a.sessions&&sessions.length>=a.sessions)||(a.weeks&&weeks.size>=a.weeks));
+ const sessions=sessionsFor(t.id);
+ const dates=new Set(sessions.map(x=>stamp(new Date(x.at))));
+ const weeks=new Set(sessions.map(x=>{const d=new Date(x.at);const monday=new Date(d);monday.setDate(d.getDate()-((d.getDay()+6)%7));return stamp(monday);}));
+ return AWARDS.filter(a=>(a.sessions&&dates.size>=a.sessions)||(a.weeks&&weeks.size>=a.weeks));
 }
 window.fdProgressionXP=()=>tracks().reduce((sum,t)=>sum+trackAwards(t).reduce((a,b)=>a+b.xp,0),0);
 function recentSamples(id){
@@ -73,9 +76,9 @@ function lastStats(id){
 }
 function outcomesFor(t,id){
  const sessions=sessionsFor(t.id).slice(-4);
- return sessions.filter(s=>s.sets.some(x=>x.id===id)).map(s=>{
+ return sessions.filter(s=>s.sets.some(x=>x.id===id)||s.missed.includes(id)).map(s=>{
   const sets=s.sets.filter(x=>x.id===id);
-  return {at:s.at,met:sets.length>0&&sets.every(x=>x.actual>=x.target),peak:Math.max(0,...sets.map(x=>x.actual))};
+  return {at:s.at,met:sets.length>0&&!s.missed.includes(id)&&sets.every(x=>x.actual>=x.target),peak:Math.max(0,...sets.map(x=>x.actual))};
  });
 }
 function proposed(t,id){
@@ -146,7 +149,7 @@ function page(){
  const root='<div class="fd-prog fd-prog-session"><div class="fd-prog-top"><button onclick="fdProgPause()">‹ Back</button><span>Set '+Math.min(finished+1,draft.plan.length)+' / '+draft.plan.length+'</span></div>'+toolbar;
  if(resting){
   return root+'<section class="fd-prog-focus"><small>SET RECORDED</small><h1>Rest</h1><div id="fd-prog-countdown" class="fd-prog-clock">'+roundTime(remaining)+'</div><p>'+(draft.done[finished-1]?.actual>=draft.done[finished-1]?.target?'Take the time you need before the next set.':'You fell short of the target. Consider extra rest or a different variation.')+'</p><button class="primary fd-prog-wide" onclick="fdProgContinue()">Next set <span id="fd-prog-rest-label">'+(remaining>0?'· skip rest':'· ready')+'</span></button></section>'+
-  '<div class="fd-prog-rest-options">'+[30,60,90,120].map(n=>'<button onclick="fdProgRestSet('+n+')">'+roundTime(n)+'</button>').join('')+'</div></div>';
+  '<div class="fd-prog-rest-options">'+[30,60,90,120].map(n=>'<button onclick="fdProgRestSet('+n+')">'+roundTime(n)+'</button>').join('')+'</div><button class="fd-prog-undo" onclick="fdProgFinishEarly()">Finish session early</button></div>';
  }
  return root+'<section class="fd-prog-focus"><small>'+h(exercise.mode==='time'?'HOLD':'WORK SET')+'</small>'+
  '<h1>'+h(exercise.name)+'</h1><div class="fd-prog-target">Suggested: <strong>'+target+' '+(exercise.mode==='time'?'seconds':'reps')+'</strong>'+(exercise.mode==='sets'?' · '+(weight||suggest.kg||'—')+' kg':'')+'</div>'+
@@ -157,7 +160,7 @@ function page(){
  '<button class="fd-prog-skip" onclick="fdProgSkip()">Couldn’t complete this set</button></section>'+
  '<details class="fd-prog-switch"><summary>Change exercise variation</summary><p>Any set can use a different variation, including an easier one. Each is logged under its real exercise name.</p>'+
  '<select id="fd-prog-switch" onchange="fdProgVariant(this.value)">'+options.map(x=>'<option value="'+x.id+'" '+(x.id===id?'selected':'')+'>'+h(x.name)+'</option>').join('')+'</select></details>'+
- (finished?'<button class="fd-prog-undo" onclick="fdProgUndo()">Undo previous set</button>':'')+'</div>';
+ (finished?'<button class="fd-prog-undo" onclick="fdProgUndo()">Undo previous set</button><button class="fd-prog-undo" onclick="fdProgFinishEarly()">Finish early</button>':'')+'</div>';
 }
 function review(){
  const t=track(draft.trackId),rows=draft.done.filter(x=>x.actual>0),total=rows.reduce((a,x)=>a+x.actual,0);
@@ -207,7 +210,7 @@ window.fdProgFocus=f=>{if(!FOCI.includes(f))return;setup.focus=f;view='setup';re
 window.fdProgSetupVariant=id=>{setup.variantId=variants(setup.exerciseId).some(e=>e.id===id&&e.id!==setup.exerciseId)?id:null;};
 function buildPlan(t){
  const p=t.primaryId,v=t.variantId&&eligible(t.variantId)?t.variantId:p;
- const ids=t.focus==='volume'?[p,p,p,p]:t.focus==='variants'?[p,v,v,p]:[p,p,v,p];
+ const ids=t.focus==='volume'?[p,p,p,p,p]:t.focus==='variants'?[p,v,v,p,p]:[p,p,v,v,p];
  return ids.map((id,i)=>({id,role:id===p?'main':'variant',target:proposed(t,id).reps}));
 }
 function setInputValues(){
@@ -285,6 +288,12 @@ window.fdProgLogSet=()=>recordSet(false);
 window.fdProgSkip=()=>recordSet(true);
 window.fdProgRestSet=seconds=>{if(!draft||draft.stage!=='rest'||!RESTS.includes(seconds))return;draft.restUntil=Date.now()+seconds*1000;storeDraft();render();};
 window.fdProgContinue=()=>{if(!draft)return;draft.stage='set';draft.restUntil=0;storeDraft();render();};
+window.fdProgFinishEarly=()=>{
+ if(!draft||draft.stage==='review'||draft.done.length===0)return;
+ if(!confirm('Finish with '+draft.done.length+' completed or attempted sets? The remaining targets will be skipped.'))return;
+ draft.plan=draft.plan.slice(0,draft.done.length);draft.stage='review';draft.restUntil=0;
+ storeDraft();render();
+};
 window.fdProgUndo=()=>{
  if(!draft||!draft.done.length)return;
  const last=draft.done.pop();draft.stage='set';draft.restUntil=0;activeId=last.id;actual=last.actual;weight=last.weight||0;
@@ -302,8 +311,9 @@ window.fdProgFinish=()=>{
  const previous=JSON.stringify(S),now=new Date(),date=today(),xpBefore=playerXP(),priorMilestones=new Set(earnedMilestones().map(x=>x.id));
  const entries=items.map((item,i)=>{
   const e=ex(item.id);
-  const row={at:now.toISOString()+'-'+uid(),id:e.id,mode:e.mode,date,performedAt:new Date(item.at).toISOString(),notes:'',sessionId:null,
-   progression:{runId:token,trackId:t.id,focusId:t.primaryId,role:item.role,setOrder:draft.done.indexOf(item)+1,target:item.target}};
+  const when=new Date(item.at);
+  const row={at:now.toISOString()+'-'+uid(),id:e.id,mode:e.mode,date:stamp(when),performedAt:when.toISOString(),notes:'',sessionId:null,
+   progression:{runId:token,trackId:t.id,focusId:t.primaryId,role:item.role,setOrder:draft.done.indexOf(item)+1,target:item.target,missedIds:[...new Set(draft.done.filter(x=>x.actual<x.target).map(x=>x.id))]}};
   if(e.mode==='time')row.value=item.actual;
   else row.sets=[e.mode==='sets'?{weight:item.weight,reps:item.actual}:{reps:item.actual}];
   return row;
@@ -322,4 +332,14 @@ window.fdProgFinish=()=>{
 };
 window.fdProgressionDefinitions=()=>({foci:FOCI.slice(),awards:AWARDS.map(x=>({...x})),tracks:tracks().map(x=>({...x}))});
 draft=readDraft();
+if(typeof setInterval==='function'){
+ restTimer=setInterval(()=>{
+  if(tab!=='progressions'||view!=='session'||draft?.stage!=='rest')return;
+  const seconds=Math.max(0,Math.ceil((draft.restUntil-Date.now())/1000));
+  const clock=document.getElementById('fd-prog-countdown');
+  if(clock)clock.textContent=roundTime(seconds);
+  const label=document.getElementById('fd-prog-rest-label');
+  if(label)label.textContent=seconds>0?'· skip rest':'· ready';
+ },1000);
+}
 })();
