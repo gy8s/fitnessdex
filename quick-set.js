@@ -19,6 +19,7 @@ function restore(){
 const time=seconds=>{const s=Math.max(0,Math.ceil(seconds));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
 function resetInput(id){variantId=id;const x=last(id);number=x.n||0;kg=x.kg||0;}
 function html(){
+ if(!draft&&stage==='done')return '<div class="fd-prog fd-prog-done"><div class="fd-prog-done-icon">✓</div><h1>Activity saved</h1><p>Your completed sets now count in ExerciseDex, challenges and campaigns.</p><button class="primary fd-prog-wide" onclick="fdQuickAgain()">Log another</button><button class="fd-prog-secondary fd-prog-wide" onclick="navigate(\'home\')">Done for now</button></div>';
  if(!draft)return '<div class="fd-prog"><p>No quick session is open.</p><button onclick="navigate(\'log\')">Log an activity</button></div>';
  const e=ex(variantId),items=family(draft.root),done=draft.sets.length;
  const header='<div class="fd-prog fd-prog-session"><div class="fd-prog-top"><button onclick="fdQuickClose()">‹ Back</button><span>Quick sets · '+done+' logged in draft</span></div>';
@@ -94,10 +95,11 @@ window.fdQuickSave=()=>{
  if(!entries.every(isSafeEntry))return alert('One or more sets were invalid. Nothing was saved.');
  S.logs.push(...entries);resetDerived();
  if(!save()){S=JSON.parse(before);resetDerived();return;}
+ const finishedSets=draft.sets.length;
  lastRoot=draft.root;draft=null;persist();
  const revoked=reconcileCompleted(),claimed=claimReady();
  S.v4=S.v4||{hunts:[],lastResult:null};
- S.v4.lastResult={logId:entries[entries.length-1].at,exercise:ex(lastRoot).name,summary:entries.length+' exercise records · '+draft?.sets?.length+' sets',xpGain:0,challengeNames:claimed.map(x=>x.label),milestones:[]};
+ S.v4.lastResult={logId:entries[entries.length-1].at,exercise:ex(lastRoot).name,summary:finishedSets+' sets of '+new Set(entries.map(x=>x.id)).size+' exercises',xpGain:0,challengeNames:claimed.map(x=>x.label),milestones:[]};
  save();stage='done';tab='quick';render();window.scrollTo({top:0,behavior:'instant'});
  if(revoked)toast('A corrected challenge was recalculated.');
 };
