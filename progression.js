@@ -38,7 +38,7 @@ const readSet=r=>refLog(r.logId)?.sets?.[r.setIndex];
 const priorLogs=id=>S.logs.filter(l=>l.id===id&&Array.isArray(l.sets)&&validDate(l.date)&&Number.isFinite(logWhen(l))&&logWhen(l)<=Date.now()+60000);
 const observedBest=id=>Math.max(0,...priorLogs(id).flatMap(l=>(l.sets||[]).map(s=>toN(s.reps))));
 const observedWeight=id=>{const all=priorLogs(id).sort((a,b)=>logWhen(b)-logWhen(a));return all[0]?.sets?.find(s=>toN(s.weight)>0)?.weight||0;};
-const weeksOfTraining=items=>new Set(items.map(s=>{const d=new Date(s.completedAt);const day=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate());const monday=day-((d.getUTCDay()+6)%7)*86400000;return monday;})).size;
+const weeksOfTraining=items=>new Set(items.map(s=>{const d=new Date(s.completedAt);const monday=new Date(d.getFullYear(),d.getMonth(),d.getDate());monday.setDate(monday.getDate()-((monday.getDay()+6)%7));return stamp(monday);})).size;
 function awards(){
  const seq=model().sessions.filter(settledSession).sort((a,b)=>Date.parse(a.completedAt)-Date.parse(b.completedAt));
  const weeks=weeksOfTraining(seq);
