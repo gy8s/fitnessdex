@@ -235,3 +235,83 @@ footer{display:none}body[data-fd-tab="history"] footer{display:block}
  @keyframes fdV3Rise{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
  @keyframes fdV3Appear{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
 }
+
+
+/* v0.8 Daily care — focused, compact, tap-friendly. */
+.fd-care-page{max-width:570px;margin:0 auto 105px;display:grid;gap:15px}
+.fd-care-top{display:grid;gap:8px;margin-bottom:2px}
+.fd-care-top>small{color:#9bdcc9;letter-spacing:.13em;font-size:11px;font-weight:850}
+.fd-care-top h1{margin:0;font-size:clamp(28px,6vw,35px)}
+.fd-care-top p{font-size:13px;line-height:1.6;color:#b8cadb;margin:0}
+.fd-care-back{background:transparent;border:0;color:#aae5d6;padding:8px 0;text-align:left;justify-self:start}
+.fd-care-option{display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:14px;padding:19px 16px;border:1px solid #355568;background:linear-gradient(125deg,#182f43,#142537);border-radius:16px;text-align:left;width:100%}
+.fd-care-option>span:nth-child(2){display:grid;gap:8px}
+.fd-care-option strong{font-size:17px}
+.fd-care-option small{color:#b3cddd;font-size:12px}
+.fd-care-option b{color:#a2e8d6;font-size:23px}
+.fd-care-icon{border-radius:14px;width:48px;height:48px;display:grid;place-items:center;font-size:30px;background:#244a5a;color:#8edcea}
+.fd-care-icon.supp{background:#4a3e5b;color:#d4b2fa}
+.fd-care-note{font-size:12px;color:#b1c6d6;line-height:1.65;margin:0}
+.fd-care-gauge{width:100%;height:9px;background:#101b2c;border-radius:100px;overflow:hidden}
+.fd-care-gauge>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#39a7dd,#8cebd0);min-width:0}
+.fd-care-water-hero,.fd-care-supp-hero{border:1px solid #36677b;background:radial-gradient(ellipse at 70% 0%,#1b4960,#142438 76%);border-radius:19px;padding:25px;display:grid;gap:14px}
+.fd-care-water-hero>small{letter-spacing:.13em;font-size:11px;color:#ade7d9;font-weight:800}
+.fd-care-water-hero>div:nth-child(2){display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.fd-care-water-hero>div:nth-child(2) strong{font-size:clamp(37px,10vw,54px);letter-spacing:-.04em;color:#f4fbff}
+.fd-care-water-hero>div:nth-child(2) span{font-size:17px;color:#b7d3df}
+.fd-care-water-hero p,.fd-care-supp-hero p{font-size:12px;color:#b5d1dc;margin:0}
+.fd-care-add-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.fd-care-add-row button{border:1px solid #4b92a6;background:linear-gradient(135deg,#235976,#19495c);border-radius:13px;display:grid;gap:4px;justify-items:center;min-height:85px;align-content:center}
+.fd-care-add-row strong,.fd-care-add-row b{font-size:20px;color:#e6fff7}
+.fd-care-add-row small{font-size:11px;color:#aadee0}
+.fd-care-section-title{font-weight:750;font-size:14px;color:#dfebf4;margin-top:3px}
+.fd-care-details{border:1px solid #365069;border-radius:13px;background:#172638;padding:14px;display:grid}
+.fd-care-details summary{font-size:13px;font-weight:750;color:#b5eadd;cursor:pointer}
+.fd-care-details>p{font-size:12px;color:#b6c9d9;line-height:1.6}
+.fd-care-details>label,.fd-care-form>label{display:block;font-size:12px;color:#b6ccda;font-weight:700;margin:17px 0 7px}
+.fd-care-details input,.fd-care-details select,.fd-care-form input{display:block;width:100%;border-radius:10px;background:#0e1b2b;border:1px solid #587085;color:#fff;padding:12px;font-size:16px}
+.fd-care-details>button,.fd-care-secondary{background:#254a58;border:1px solid #558c91;color:#e6f9f4;border-radius:10px;padding:11px 12px;margin-top:11px;width:100%;font-size:13px}
+.fd-care-rewards{border:1px solid #3f5269;background:#182639;border-radius:14px;padding:14px;display:grid;gap:8px}
+.fd-care-rewards>strong{font-size:14px;margin-bottom:4px}
+.fd-care-rewards>div{display:flex;align-items:center;gap:10px;color:#afc0ce;border:1px solid #354458;background:#1a2a3a;border-radius:9px;padding:11px}
+.fd-care-rewards>div:before{content:"○";color:#8793a4;font-size:17px}
+.fd-care-rewards>div.done{background:#1b3b39;border-color:#539f81;color:#d5f9e6}
+.fd-care-rewards>div.done:before{content:"✓";color:#9ce9c7;font-weight:900}
+.fd-care-rewards>div>span{flex:1;font-size:12px}
+.fd-care-rewards>div>b{font-size:12px;white-space:nowrap;color:#bfd7dc}
+.fd-care-rewards>div.done>b{color:#aef4da}
+.fd-care-history{display:grid;gap:7px}
+.fd-care-history>div{background:#182b3e;border:1px solid #344b65;border-radius:11px;display:flex;align-items:center;gap:12px;padding:9px 12px}
+.fd-care-history>div span{color:#b0c9d9;font-size:12px}
+.fd-care-history>div strong{margin-left:auto;font-size:14px}
+.fd-care-history>div button{background:transparent;border:0;color:#aac6d7;font-size:21px;padding:5px 8px}
+.fd-care-supp-hero{padding:22px 24px}
+.fd-care-supp-hero>div:first-child strong{font-size:42px;color:#e5fff6}
+.fd-care-supp-hero>div:first-child span{color:#b6cbd8;font-size:22px}
+.fd-care-routines{display:grid;gap:8px}
+.fd-care-routine{display:flex;align-items:center;gap:12px;border:1px solid #3b536a;background:#1a2b3d;border-radius:14px;padding:12px}
+.fd-care-routine-mark{display:grid;place-items:center;flex-shrink:0;width:34px;height:34px;border-radius:50%;background:#273749;color:#8ca3b6;font-size:19px}
+.fd-care-routine-mark.done{background:#2b6c57;color:#bafadd}
+.fd-care-routine>div{display:grid;gap:4px;flex:1;min-width:0}
+.fd-care-routine>div strong{font-size:14px}
+.fd-care-routine>div small{font-size:11px;color:#aec7d7;line-height:1.4}
+.fd-care-routine>button{border:1px solid #4d7489;color:#d6e8f0;padding:9px 10px;border-radius:9px;font-size:12px}
+.fd-care-routine>button.fd-care-taken{background:#277866;border-color:#63b79e;color:#fff;font-weight:750}
+.fd-care-primary{width:100%;background:linear-gradient(110deg,#268c9f,#4abca5);border:0;border-radius:13px;color:#f3fff9;padding:15px;font-size:15px;font-weight:800;min-height:51px}
+.fd-care-muted{width:100%;background:transparent;border:1px solid #445265;color:#b7cbda;border-radius:10px;padding:12px;margin-top:11px}
+.fd-care-form{background:#172639;border:1px solid #36546a;border-radius:14px;padding:15px;display:grid;gap:2px}
+.fd-care-form .fd-care-note{margin:9px 0}
+.fd-care-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin:8px 0 19px}
+.fd-care-days>label{margin:0;display:grid;justify-items:center;border:1px solid #4a6476;background:#1c3042;border-radius:9px;padding:9px 1px;gap:6px}
+.fd-care-days input{width:17px;height:17px;min-height:0;margin:0;accent-color:#4ed9b5}
+.fd-care-days span{font-size:10px;color:#c6d9e6}
+.fd-care-achievements{border:1px solid #355368;background:#16283a;padding:15px;border-radius:13px;margin:15px 0}
+.fd-care-achievements h2{margin:0 0 12px;font-size:17px}
+.fd-care-achievement-row{display:grid;gap:7px;padding:11px;border-top:1px solid #364b63}
+.fd-care-achievement-row strong{font-size:13px}
+.fd-care-achievement-row small{font-size:11px;color:#b5c7d5}
+.fd-care-achievement-row>div{display:flex;flex-wrap:wrap;gap:5px}
+.fd-care-achievement-row>div>span{padding:5px 8px;border:1px solid #526075;border-radius:100px;color:#93a8b6;font-size:10px}
+.fd-care-achievement-row>div>span.earned{background:#254b40;color:#baf7e0;border-color:#5ba785}
+.fd-care-page button:focus-visible{outline:3px solid #b4f5d8;outline-offset:2px}
+@media(max-width:390px){.fd-care-routine{padding:10px;gap:8px}.fd-care-routine>button{padding:8px}.fd-care-water-hero{padding:20px}}
