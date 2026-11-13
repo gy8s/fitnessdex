@@ -1,5 +1,5 @@
 {
-  "version": "0.7.3",
+  "version": "0.7.4",
   "released": "2026-11-13",
-  "notes": "Progression UI polish: clear set targets and actual results, accurate completion feedback, milestone progress, and a more engaging, uncluttered session result."
+  "notes": "Urgent hotfix: align HTML version and release version; make updates dismissible, non-blocking and resilient to service worker errors."
 }
