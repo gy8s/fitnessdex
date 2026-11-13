@@ -1,7 +1,7 @@
 /* FitnessDex 0.6 — one decision per logging screen. */
 (() => {
 'use strict';
-let stage='type', category=null, family=null, query='';
+let stage='type', category=null, family=null, query='', returnStage='variants';
 const baseNavigate=navigate, baseChoose=choose, baseSubmit=submitLog;
 const categoryNames={
  'Calisthenics':['◆','Bodyweight','Push-ups, pull-ups and core'],
@@ -73,10 +73,10 @@ window.fdLogStage=()=>stage;
 window.fdPickActivityType=cat=>{if(!CATS.includes(cat))return;category=cat;family=null;query='';stage='find';render();top();};
 window.fdPickExerciseGroup=group=>{if(!DATA.some(e=>e.cat===category&&familyName(e)===group))return;family=group;stage='variants';render();top();};
 window.fdExerciseQuery=value=>{query=value;render();const input=document.getElementById('fd-exercise-search');if(input){input.focus();input.setSelectionRange(value.length,value.length);}};
-window.fdSelectExercise=id=>{if(!ex(id))return;stage='record';family=familyName(ex(id));category=ex(id).cat;editId=null;baseChoose(id);};
-window.fdLogBack=()=>{if(editId){editId=null;stage='variants';}else if(stage==='record')stage='variants';else if(stage==='variants')stage='find';else if(stage==='find')stage='type';else return navigate('home');render();top();};
+window.fdSelectExercise=id=>{if(!ex(id))return;returnStage=stage;stage='record';family=familyName(ex(id));category=ex(id).cat;editId=null;baseChoose(id);};
+window.fdLogBack=()=>{if(editId){editId=null;stage='variants';}else if(stage==='record')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='variants')stage='find';else if(stage==='find')stage='type';else return navigate('home');render();top();};
 navigate=function(next){if(next==='log'){stage='type';query='';family=null;editId=null;}baseNavigate(next);};
-choose=function(id){if(!ex(id))return;stage='record';category=ex(id).cat;family=familyName(ex(id));baseChoose(id);};
+choose=function(id){if(!ex(id))return;returnStage='variants';stage='record';category=ex(id).cat;family=familyName(ex(id));baseChoose(id);};
 logForm=function(){return editId?record():stage==='type'?categories():stage==='find'?find():stage==='variants'?variants():stage==='done'?done():record();};
 submitLog=function(){const before=S.logs.length,wasEdit=!!editId;baseSubmit();if(!wasEdit&&S.logs.length>before){stage='done';tab='log';render();top();}};
 })();
