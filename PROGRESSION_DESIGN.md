@@ -1,6 +1,8 @@
 # FitnessDex — Adaptive progression and exercise-variant design
 
-Status: **Design only**. Nothing in this document is implemented or part of a saved activity schema. Written 13 November 2026.
+Status: **Initial implementation in FitnessDex v0.7.0**, with future refinements still specified below. Written 13 November 2026.
+
+Implemented: optional volume/variant/both training modes, conservative per-variation target changes, one-set logging, changeable variations, rest timer, optional plateau-support suggestions, persistence badges and validated v8 track/session references. Not yet implemented: a scientifically validated individualised training prescription, sophisticated fatigue modelling, broader mixed-unit exercise families, automated recovery programming or native push notifications. Exercise/workout save stability and actual-phone testing remain priorities.
 
 ## Product intent
 
@@ -76,4 +78,4 @@ A user could be increasing standard push-ups from 12 to 20 **while learning two 
 
 ## Development decision
 
-**Do not implement the adaptive progression engine in the current campaign release.** First verify exercise/workout structure and cloud-save reliability, then prototype the session flow and adaptable algorithm using push-ups with saved fixtures, followed by multi-variant and fallback tests. Only after that should the general engine be exposed to all eligible movements.
+**Initial engine released as an opt-in feature:** Continue verifying exercise/workout structure and cloud-save reliability, and test the new session flow using push-ups, mixed variants and weighted sets. Do not treat current target recommendations as validated training prescriptions. The full adaptive programme should be refined only after user testing and monitoring reliable save behaviour.

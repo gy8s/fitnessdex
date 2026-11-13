@@ -45,6 +45,17 @@ The 5K Engine uses ordinary running logs, not an inferred interval/easy/tempo ta
 
 **Separate research/design:** [PROGRESSION_DESIGN.md](./PROGRESSION_DESIGN.md) describes how an independent Just 6 Weeks-style repetition/hold progression engine could run alongside variant progressions and simpler fallback exercises. Not implemented in v0.6.2.
 
+## Progressive Overload — v0.7.0
+
+- Choose **Just log sets & reps** or **Follow a progression** after selecting a suitable exercise.
+- Log mode uses a StrongLifts-style compact set grid. Progression mode follows a Just 6 Weeks-style one-set screen, with editable targets and rest timer.
+- Tracks have three independent focus modes: increase volume, develop variants, or combine both. Existing exercises remain separate real records, even if a user switches variation during a session.
+- Each variant's suggested reps increase conservatively after two successful sessions involving that exact movement; three persistent misses can reduce an elevated target. This is an initial testable heuristic, **not a verified clinical exercise prescription**.
+- A varied session is productive even when targets are missed. Missing a target does not automatically fail a workout. On a plateau, optional supporting exercises can be suggested without diagnosing the limiting muscle.
+- Persistence awards derive from logged, referenced real sets (First Steps, 5 and 10 sessions, four and twelve distinct weeks, returning after a break). They do not add duplicate exercise XP.
+- A separately validated **v8** state stores track plans and session-to-log references; existing logs remain the source of truth. An unsaved draft is kept locally for same-device recovery, separate from cloud data.
+- Keep testing real-device behaviour, rest timers when backgrounded, cloud-conflict handling and interrupted saves as the next **Priority 0** checks. The adaptive formula must be tuned with real training evidence before strong training recommendations.
+
 ## Priority 2 — Smart movement prompts and Quick Missions (deferred)
 
 **Goal:** Encourage useful spontaneous activity throughout the day without making every movement a formal workout.
