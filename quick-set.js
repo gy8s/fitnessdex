@@ -38,7 +38,10 @@ function html(){
 window.fdQuickView=()=>html();
 window.fdQuickStart=id=>{
  if(!supported(id))return;
- if(draft&&draft.sets.length&&!confirm('Discard your unfinished quick-set draft?'))return;
+ if(draft?.sets?.length){
+  stage='after';tab='quick';render();window.scrollTo({top:0,behavior:'instant'});
+  return;
+ }
  draft={id:'q-'+uid(),root:id,sets:[]};resetInput(id);stage='entry';persist();tab='quick';render();window.scrollTo({top:0,behavior:'instant'});
 };
 window.fdQuickResume=()=>{draft=restore();if(!draft)return navigate('log');resetInput(draft.sets.at(-1)?.id||draft.root);stage=draft.sets.length?'after':'entry';tab='quick';render();};
@@ -103,6 +106,7 @@ window.fdQuickSave=()=>{
  save();stage='done';tab='quick';render();window.scrollTo({top:0,behavior:'instant'});
  if(revoked)toast('A corrected challenge was recalculated.');
 };
+draft=restore();
 if(typeof setInterval==='function'){
  interval=setInterval(()=>{
   if(tab==='quick'&&stage==='rest'){
