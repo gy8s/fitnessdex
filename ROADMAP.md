@@ -20,6 +20,16 @@ This file records priorities and planned features. A roadmap item is **not** an 
 - [ ] Improve visual feedback for completed exercises, earned rewards and the collection without crowding logging screens.
 - [ ] Keep the media architecture inactive/hidden until genuinely usable and appropriately licensed exercise illustrations or GIFs can appear directly in the app.
 
+## Long-term Campaigns (v0.6.1)
+
+- **Arm Forge — 12 weeks:** biceps/pulling, triceps/pressing, shoulders, grip
+- **Core Foundation — 12 weeks:** front bracing, lateral/anti-rotation, controlled core movement
+- **Squat Masterwork — 52 weeks:** squat pattern, single-leg control, hips/posterior chain, mobility
+
+Each programme is a time-boxed training track with two training days per week and required movement families, not a fixed weight or bodyweight target. Only existing exercises are counted. Campaign credit is derived from original logs; standalone sets work just like grouped workouts. There are three or four chapters; chapter medals require at least 70% of its weeks meeting targets and the campaign finale needs 75% of all weeks. These thresholds are **gamification choices**, not medical training prescriptions. Missed weeks don't destroy past progress and neither campaign enrolment nor weekly credit grants duplicate XP. Comparisons use the same logged exercise over time, and performance is not compared between exercise variations.
+
+Campaigns are deliberately separate from the daily/weekly challenge generator and don't modify workout assignments. Future versions may add user-customisable schedules, equipment options, campaign artwork, planned deloads and other long-term masterworks. Existing **Priority 0 stability work** still applies, including cloud-save and restoration tests.
+
 ## Priority 2 — Smart movement prompts and Quick Missions (deferred)
 
 **Goal:** Encourage useful spontaneous activity throughout the day without making every movement a formal workout.
