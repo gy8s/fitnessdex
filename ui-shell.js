@@ -21,8 +21,10 @@ render=function(){
   document.getElementById('app').innerHTML=more();
  }else if(tab==='progressions'){
   document.getElementById('app').innerHTML=window.fdProgressionsView?.()||'<p>Loading progressions…</p>';
+ }else if(tab==='quick'){
+  document.getElementById('app').innerHTML=window.fdQuickView?.()||'<p>Loading quick sets…</p>';
  }else originalRender();
- for(const btn of document.querySelectorAll('.nav button'))btn.classList.toggle('active',btn.dataset.tab===(['home','log','dex'].includes(tab)?tab:'more'));
+ for(const btn of document.querySelectorAll('.nav button'))btn.classList.toggle('active',btn.dataset.tab===(['home','log','dex'].includes(tab)?tab:tab==='quick'?'log':'more'));
  document.body.dataset.fdTab=tab;
  document.body.dataset.fdMore=tab==='more'?moreView:'';
 };
