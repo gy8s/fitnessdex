@@ -1,5 +1,5 @@
 {
-  "version": "0.7.1",
+  "version": "0.7.2",
   "released": "2026-11-13",
-  "notes": "Save-stability refinement: guided sessions use stable draft IDs to prevent duplicate saves after interruptions; persistence counts distinct training days."
+  "notes": "ExerciseDex: separate supported and unsupported deep-squat holds and show supported practice before unsupported, keeping original deep-squat records intact."
 }
