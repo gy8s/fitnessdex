@@ -71,7 +71,7 @@ function modeChoice(){
  const e=ex(chosen)||DATA[0];
  return '<div class="fd-step-screen fd-log-mode">'+back('Training mode',4)+'<header class="fd-step-hero"><small>'+esc(e.cat)+'</small><h1>'+esc(e.name)+'</h1><p>How do you want to train?</p></header>'+
   '<div class="fd-mode-choices"><button onclick="fdLogChooseQuick()"><span class="fd-mode-symbol">＋</span><span><strong>Just log sets & reps</strong><small>Record what you do, without targets or a programme</small></span><span class="fd-arrow">›</span></button>'+
-  '<button onclick="fdLogChooseGuided()"><span class="fd-mode-symbol">↗</span><span><strong>Progressive overload</strong><small>Guided sets, rest and optional variation progression</small></span><span class="fd-arrow">›</span></button></div></div>';
+  '<button onclick="fdLogChooseGuided()"><span class="fd-mode-symbol">↗</span><span><strong>Progressive overload</strong><small>Guided sets, rest and optional variation progression</small></span><span class="fd-arrow">›</span></button></div><button class="fd-log-detail-link" onclick="fdLogUseDetailed()">Use detailed form (notes, dates and workout grouping)</button></div>';
 }
 
 function done(){const last=S.v4?.lastResult||{},xp=last.xpGain||0;
@@ -82,7 +82,8 @@ window.fdPickActivityType=cat=>{if(!CATS.includes(cat))return;category=cat;famil
 window.fdPickExerciseGroup=group=>{if(!DATA.some(e=>e.cat===category&&familyName(e)===group))return;family=group;stage='variants';render();top();};
 window.fdExerciseQuery=value=>{query=value;render();const input=document.getElementById('fd-exercise-search');if(input){input.focus();input.setSelectionRange(value.length,value.length);}};
 window.fdSelectExercise=id=>{if(!ex(id))return;returnStage=stage;stage=['sets','bodysets','time'].includes(ex(id).mode)?'mode':'record';family=familyName(ex(id));category=ex(id).cat;editId=null;baseChoose(id);};
-window.fdLogChooseQuick=()=>{stage='record';render();top();};
+window.fdLogChooseQuick=()=>{if(typeof window.fdQuickStart==='function')window.fdQuickStart(chosen);else{stage='record';render();top();}};
+window.fdLogUseDetailed=()=>{stage='record';tab='log';render();top();};
 window.fdLogChooseGuided=()=>{if(typeof window.fdProgressionFromExercise!=='function')return alert('Guided training is unavailable.');window.fdProgressionFromExercise(chosen);};
 window.fdLogBack=()=>{if(editId){editId=null;stage='variants';}else if(stage==='record'&&['sets','bodysets','time'].includes(ex(chosen)?.mode))stage='mode';else if(stage==='mode')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='record')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='variants')stage='find';else if(stage==='find')stage='type';else return navigate('home');render();top();};
 navigate=function(next){if(next==='log'){stage='type';query='';family=null;editId=null;}baseNavigate(next);};
