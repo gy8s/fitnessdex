@@ -66,6 +66,14 @@ function record(){
  const details='<details class="fd-log-details"><summary>More details <small>Time, notes, workout</small></summary><div class="fd-log-details-inner"><div class="two"><div class="field"><label for="date">Date</label><input id="date" type="date" value="'+esc(l?.date||today())+'"></div><div class="field"><label for="clock">Time</label><input id="clock" type="time" value="'+timeText(l)+'"></div></div>'+mobility+groupPicker+'<div class="field"><label for="notes">Notes (optional)</label><input id="notes" maxlength="500" value="'+esc(l?.notes||'')+'" placeholder="Technique, route, how it felt…"></div></div></details>';
  return '<div class="fd-step-screen fd-log-record">'+back('Record activity',4)+'<header class="fd-step-hero"><small>'+esc(e.cat)+'</small><h1>'+esc(e.name)+'</h1></header><section class="fd-entry-card"><h2>What did you complete?</h2>'+metrics+extra+swim+side+'</section>'+details+'<details class="fd-log-details"><summary>How to do this exercise</summary><p>'+esc(EXERCISE_GUIDES[e.id]||'')+'</p></details><div class="fd-save-actions"><button class="primary" onclick="submitLog()">'+(l?'Save corrections':'Save activity')+'</button></div></div>';
 }
+
+function modeChoice(){
+ const e=ex(chosen)||DATA[0];
+ return '<div class="fd-step-screen fd-log-mode">'+back('Training mode',4)+'<header class="fd-step-hero"><small>'+esc(e.cat)+'</small><h1>'+esc(e.name)+'</h1><p>How do you want to train?</p></header>'+
+  '<div class="fd-mode-choices"><button onclick="fdLogChooseQuick()"><span class="fd-mode-symbol">＋</span><span><strong>Just log sets & reps</strong><small>Record what you do, without targets or a programme</small></span><span class="fd-arrow">›</span></button>'+
+  '<button onclick="fdLogChooseGuided()"><span class="fd-mode-symbol">↗</span><span><strong>Progressive overload</strong><small>Guided sets, rest and optional variation progression</small></span><span class="fd-arrow">›</span></button></div></div>';
+}
+
 function done(){const last=S.v4?.lastResult||{},xp=last.xpGain||0;
  return '<div class="fd-step-screen fd-logged"><div class="fd-logged-symbol">✓</div><small>Activity saved</small><h1>'+esc(last.exercise||'Exercise')+' logged</h1><p>'+esc(last.summary||'')+'</p>'+(xp?'<div class="fd-logged-xp">+'+Math.round(xp)+' XP</div>':'')+(last.milestones?.length?'<p>New milestone: '+esc(last.milestones.slice(0,2).join(' · '))+'</p>':'')+(last.challengeNames?.length?'<p>Challenge complete: '+esc(last.challengeNames.slice(0,2).join(' · '))+'</p>':'')+'<div class="fd-logged-actions"><button class="primary" onclick="navigate(\'log\')">Log another</button><button onclick="navigate(\'home\')">Done for now</button></div></div>';
 }
@@ -73,10 +81,12 @@ window.fdLogStage=()=>stage;
 window.fdPickActivityType=cat=>{if(!CATS.includes(cat))return;category=cat;family=null;query='';stage='find';render();top();};
 window.fdPickExerciseGroup=group=>{if(!DATA.some(e=>e.cat===category&&familyName(e)===group))return;family=group;stage='variants';render();top();};
 window.fdExerciseQuery=value=>{query=value;render();const input=document.getElementById('fd-exercise-search');if(input){input.focus();input.setSelectionRange(value.length,value.length);}};
-window.fdSelectExercise=id=>{if(!ex(id))return;returnStage=stage;stage='record';family=familyName(ex(id));category=ex(id).cat;editId=null;baseChoose(id);};
-window.fdLogBack=()=>{if(editId){editId=null;stage='variants';}else if(stage==='record')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='variants')stage='find';else if(stage==='find')stage='type';else return navigate('home');render();top();};
+window.fdSelectExercise=id=>{if(!ex(id))return;returnStage=stage;stage=['sets','bodysets','time'].includes(ex(id).mode)?'mode':'record';family=familyName(ex(id));category=ex(id).cat;editId=null;baseChoose(id);};
+window.fdLogChooseQuick=()=>{stage='record';render();top();};
+window.fdLogChooseGuided=()=>{if(typeof window.fdProgressionFromExercise!=='function')return alert('Guided training is unavailable.');window.fdProgressionFromExercise(chosen);};
+window.fdLogBack=()=>{if(editId){editId=null;stage='variants';}else if(stage==='record'&&['sets','bodysets','time'].includes(ex(chosen)?.mode))stage='mode';else if(stage==='mode')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='record')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='variants')stage='find';else if(stage==='find')stage='type';else return navigate('home');render();top();};
 navigate=function(next){if(next==='log'){stage='type';query='';family=null;editId=null;}baseNavigate(next);};
 choose=function(id){if(!ex(id))return;returnStage='variants';stage='record';category=ex(id).cat;family=familyName(ex(id));baseChoose(id);};
-logForm=function(){return editId?record():stage==='type'?categories():stage==='find'?find():stage==='variants'?variants():stage==='done'?done():record();};
+logForm=function(){return editId?record():stage==='type'?categories():stage==='find'?find():stage==='variants'?variants():stage==='mode'?modeChoice():stage==='done'?done():record();};
 submitLog=function(){const before=S.logs.length,wasEdit=!!editId;baseSubmit();if(!wasEdit&&S.logs.length>before){stage='done';tab='log';render();top();}};
 })();
