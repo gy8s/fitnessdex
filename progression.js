@@ -76,14 +76,14 @@ function plateau(track,id){
  const r=metricsFor(track,id).results;
  if(r.length<4)return false;
  const last=r.slice(-3),earlier=r.slice(0,-3);
- return Math.max(...last.map(x=>x.best))<=Math.max(...earlier.map(x=>x.best))&&last.some(x=>!x.hit);
+ return Math.max(...last.map(x=>x.best))<=Math.max(...earlier.map(x=>x.best));
 }
 function support(track){
  const e=ex(track.baseId);
  const choices=SUPPORT[e?.family]||(['bodysets','sets'].includes(e?.mode)?['e017','e010','e109']:[]);
  return choices.filter(id=>id!==track.baseId&&exists(id)).map(id=>({id,name:ex(id).name})).slice(0,3);
 }
-let view={kind:'list',id:null,exercise:null},draft=null,restTicker=null;
+let view={kind:'list',id:null,exercise:null},draft=null,restTicker=null,newBadges=[];
 function stopTick(){if(restTicker!==null){clearInterval(restTicker);restTicker=null;}}
 function draftSave(){
  if(!draft)return;
@@ -134,11 +134,11 @@ function hub(){
  return '<section class="fd-p-page"><button class="fd-p-back" onclick="fdProgBack()">‹ Progressions</button>'+
   '<div class="fd-p-heading"><small>'+escP(FOCI[t.focus])+'</small><h1>'+escP(ex(t.baseId).name)+'</h1><p>Only your completed sets determine improvement. Session targets are suggestions you can change.</p></div>'+
   '<div class="fd-p-stats"><div><strong>'+done.length+'</strong><span>Sessions</span></div><div><strong>'+best+'</strong><span>Best recorded set</span></div><div><strong>+'+primary.level+'</strong><span>Target increases</span></div></div>'+
-  (draft?.trackId===t.id?'<button class="fd-p-primary" onclick="fdProgResume()">Resume unfinished session</button>':'<button class="fd-p-primary" onclick="fdProgBegin()">Begin next session</button>')+
+  (draft?.trackId===t.id?'<button class="fd-p-primary" onclick="fdProgResume()">Resume unfinished session</button>':draft?'<div class="fd-p-support"><strong>Another session is unfinished</strong><p>You can resume it or discard that unsaved draft before starting here.</p><button onclick="fdProgResume()">Resume unfinished session</button><button onclick="fdProgDiscardDraft()">Discard unfinished draft</button></div>':'<button class="fd-p-primary" onclick="fdProgBegin()">Begin next session</button>')+
   '<p class="fd-p-help">Targets increase after two successful sessions of each variation. Three difficult sessions can ease the targets. Switching variations does not erase progress.</p>'+
   (supports.length?'<div class="fd-p-support"><strong>Possible plateau</strong><p>Several comparable attempts have not improved. Try one optional supporting exercise, or take an easier session.</p><button onclick="fdProgSupport(\''+supports[0].id+'\')">Try '+escP(supports[0].name)+'</button></div>':'')+
   '<details class="fd-p-fold"><summary>Persistence awards · '+badges.length+' earned</summary>'+awardRows()+'</details>'+
-  '<details class="fd-p-fold"><summary>Rest & plan settings</summary><label for="fd-p-rest-update">Rest timer</label><select id="fd-p-rest-update">'+[60,90,120,180].map(x=>'<option value="'+x+'" '+(x===t.restSec?'selected':'')+'>'+x+' seconds</option>').join('')+'</select><button onclick="fdProgRestUpdate()">Save rest setting</button></details></section>';
+  '<details class="fd-p-fold"><summary>Training balance & rest</summary>'+  '<label for="fd-p-focus-update">Training focus</label><select id="fd-p-focus-update">'+Object.keys(FOCI).map(x=>'<option value="'+x+'" '+(x===t.focus?'selected':'')+'>'+FOCI[x]+'</option>').join('')+'</select>'+  '<label for="fd-p-variant-update">Practice variation</label><select id="fd-p-variant-update">'+variants(t.baseId).filter(x=>x.id!==t.baseId).map(x=>'<option value="'+x.id+'" '+(x.id===t.variantId?'selected':'')+'>'+escP(x.name)+'</option>').join('')+'</select>'+  '<label for="fd-p-count-update">Sets per session</label><select id="fd-p-count-update">'+[3,5].map(x=>'<option value="'+x+'" '+(x===t.setCount?'selected':'')+'>'+x+' sets</option>').join('')+'</select>'+  '<label for="fd-p-rest-update">Rest timer</label><select id="fd-p-rest-update">'+[60,90,120,180].map(x=>'<option value="'+x+'" '+(x===t.restSec?'selected':'')+'>'+x+' seconds</option>').join('')+'</select>'+  '<button onclick="fdProgUpdatePlan()">Save plan settings</button><button onclick="fdProgNewTrack()">Start a separate progression</button></details></section>';
 }
 function awardRows(){
  return BADGES.map((a,i)=>{const x=awards()[i];return '<div class="fd-p-award"><span class="'+(x.earned?'earned':'')+'">'+(x.earned?'◆':'○')+'</span><div><b>'+a.name+'</b><small>'+a.detail+'</small></div></div>';}).join('');
@@ -214,6 +214,7 @@ function outcome(){
  const counts=ss.setRefs.reduce((a,r)=>a+toN(readSet(r)?.reps),0);
  const variations=new Set(ss.setRefs.map(x=>x.id)).size;
  return '<section class="fd-p-page fd-p-result"><div class="fd-p-result-icon">◆</div><small>PROGRESSION SAVED</small><h1>'+counts+' repetitions logged</h1><p>'+ss.setRefs.length+' actual sets · '+variations+' variation'+(variations===1?'':'s')+'</p>'+
+  (newBadges.length?'<div class="fd-p-granted"><strong>New persistence award'+(newBadges.length===1?'':'s')+'</strong><p>'+newBadges.map(escP).join(' · ')+'</p></div>':'')+
   '<div class="fd-p-support"><strong>Persistence matters</strong><p>Each completed progression session contributes towards long-term consistency awards. Hard sets and substitutions still count.</p></div>'+
   '<details class="fd-p-fold"><summary>Persistence awards</summary>'+awardRows()+'</details>'+
   '<button class="fd-p-primary" onclick="fdProgHub(\''+ss.trackId+'\')">Back to progression</button><button class="fd-p-muted" onclick="navigate(\'home\')">Done for now</button></section>';
@@ -244,9 +245,22 @@ window.fdProgCreate=()=>{
  if(!save()){S=JSON.parse(old);return;}
  view={kind:'hub',id:t.id,exercise:e.id};render();scrollTop();
 };
-window.fdProgRestUpdate=()=>{
- const t=byTrack(view.id),sec=Number(document.getElementById('fd-p-rest-update')?.value);if(!t||![60,90,120,180].includes(sec))return;
- const previous=t.restSec;t.restSec=sec;if(!save()){t.restSec=previous;return;}render();
+window.fdProgUpdatePlan=()=>{
+ const t=byTrack(view.id);if(!t)return;
+ const focus=document.getElementById('fd-p-focus-update')?.value;
+ const variantId=focus==='volume'?null:document.getElementById('fd-p-variant-update')?.value||null;
+ const sec=Number(document.getElementById('fd-p-rest-update')?.value);
+ const count=Number(document.getElementById('fd-p-count-update')?.value);
+ if(!Object.keys(FOCI).includes(focus)||![60,90,120,180].includes(sec)||![3,5].includes(count)||focus!=='volume'&&!variants(t.baseId).some(x=>x.id===variantId&&x.id!==t.baseId))return alert('Choose a valid training focus and variation.');
+ const previous=JSON.stringify(S);
+ Object.assign(t,{focus,variantId,variantBaseline:variantId?(observedBest(variantId)||1):null,setCount:count,restSec:sec});
+ if(!save()){S=JSON.parse(previous);return;}
+ render();
+};
+window.fdProgNewTrack=()=>{const t=byTrack(view.id);if(!t)return;view={kind:'setup',exercise:t.baseId,id:null};render();scrollTop();};
+window.fdProgDiscardDraft=()=>{
+ if(!draft||!confirm('Discard the unfinished progression session? No activity records were saved from this draft.'))return;
+ draftClear();render();scrollTop();
 };
 window.fdProgBegin=()=>{start();};
 window.fdProgResume=()=>{if(!draft)return;view={kind:draft.actual.length>=draft.planned.length?'review':'session',id:draft.trackId,exercise:byTrack(draft.trackId)?.baseId};tab='progression';render();scrollTop();};
@@ -289,7 +303,7 @@ window.fdProgSave=()=>{
  const t=byTrack(draft.trackId),completed=draft.actual.filter(x=>!x.skipped);
  if(!t||!completed.length)return alert('Record at least one actual set.');
  if(model().sessions.length>=10000||S.logs.length+new Set(completed.map(x=>x.id)).size>100000)return alert('Storage limit reached. Export your history first.');
- const before=JSON.stringify(S),oldXP=playerXP(),beforeMilestones=new Set(earnedMilestones().map(x=>x.id));
+ const before=JSON.stringify(S),oldXP=playerXP(),beforeMilestones=new Set(earnedMilestones().map(x=>x.id)),beforeAwards=new Set(awards().filter(x=>x.earned).map(x=>x.id));
  const grouped=new Map(),sessionId='ps-'+uid(),logIds=[],refs=[];
  for(const a of completed){
   const d=stamp(new Date(a.performedAt)),key=a.id+'|'+d;
@@ -313,11 +327,14 @@ window.fdProgSave=()=>{
  S.v4=S.v4||{hunts:[],lastResult:null};
  S.v4.lastResult={logId:logIds[0],exercise:ex(t.baseId).name,summary:completed.length+' progression sets · '+completed.reduce((a,x)=>a+x.reps,0)+' reps',xpGain:gained,challengeNames:claimed.map(c=>c.label),milestones:newMilestones.map(x=>x.name)};
  if(!save()){S=JSON.parse(before);resetDerived();render();return;}
+ newBadges=awards().filter(x=>x.earned&&!beforeAwards.has(x.id)).map(x=>x.name);
  draftClear();
  view={kind:'result',id:sessionId,exercise:t.baseId};tab='progression';render();scrollTop();
  if(revoked)toast(revoked+' challenge completions recalculated.');
 };
 window.fdProgressionAwards=awards;
+const priorAchievements=achievements;
+achievements=function(){return priorAchievements()+'<section class="fd-p-award-collection"><h2>Progression persistence</h2><p class="hint">These awards recognise real sessions and returning after breaks, not perfect completion of every target.</p>'+awardRows()+'</section>';};
 // If navigation leaves the programme, retain an unfinished session locally but stop its timer.
 const oldNavigate=navigate;
 navigate=function(next){if(next!=='progression'){stopTick();if(draft)draftSave();}oldNavigate(next);};
