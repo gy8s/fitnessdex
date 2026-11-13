@@ -103,6 +103,13 @@
       <div class="card"><h2>Your workouts</h2>${workouts.map(w=>`<div class="fd-w-group"><div class="fd-w-group-head"><div><b>${esc(w.name)}</b><div class="fd-w-muted">${w.rows.length} exercise records · ${new Set(w.rows.map(l=>l.id)).size} different exercises</div></div><div class="fd-w-controls"><button onclick="fdAddExerciseToWorkout('${esc(w.id)}')">Add exercise</button><button onclick="fdRenameWorkout('${esc(w.id)}')">Rename</button><button onclick="fdUngroupWorkout('${esc(w.id)}')">Ungroup</button></div></div>${w.rows.map(l=>logItem(l,true)).join('')}</div>`).join('')||'<p class="hint">No grouped workouts yet. Log three different exercises within 75 minutes for an optional grouping suggestion, or make one yourself above.</p>'}</div>
       <div class="card"><h2>Standalone activity</h2><p class="hint">One-off sets, short mobility breaks, walks and runs can all stay here and still earn individual progress and rewards.</p>${singles.slice(0,100).map(l=>logItem(l)).join('')||'<p class="hint">No standalone activities yet.</p>'}</div></div>`;
   }
+
+  window.fdWorkoutSelector=function(l){
+    const groups=confirmedWorkouts().filter(w=>S.logs.some(x=>x.sessionId===w.id&&x.date===(l?.date||today())));
+    const old=!!(l?.sessionId&&!groups.some(w=>w.id===l.sessionId));
+    const selected=old?'legacy':groups.some(w=>w.id===l?.sessionId)?l.sessionId:groups.some(w=>w.id===activeSessionId)?activeSessionId:'standalone';
+    return `<div class="field"><label>How to save this activity</label><select id="session"><option value="standalone" ${selected==='standalone'?'selected':''}>Standalone exercise (default)</option><option value="new">Start a workout</option>${old?'<option value="legacy" selected>Keep previous session assignment (older record)</option>':''}${groups.map(w=>`<option value="${esc(w.id)}" ${w.id===selected?'selected':''}>Add to ${esc(w.name)}</option>`).join('')}</select><p class="hint">Single sets and spontaneous exercise breaks count on their own. After 3 different exercises close together, FitnessDex can suggest a workout. Nothing is grouped without your approval.</p></div>`;
+  };
   workoutGroups = function(rows){
     const groups=new Map();
     for(const l of rows){if(!namedWorkout(l.sessionId))continue;if(!groups.has(l.sessionId))groups.set(l.sessionId,[]);groups.get(l.sessionId).push(l);}
