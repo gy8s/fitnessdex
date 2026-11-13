@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.6.1",
   "released": "2026-11-13",
-  "notes": "Focused home and four-item navigation; step-by-step activity type, exercise group, variant and record flow. Cloud and admin screens live under More."
+  "notes": "12-week Arms and Core campaigns and 52-week Squat Masterwork, based on logged activity and no duplicate exercise credit."
 }
