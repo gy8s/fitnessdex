@@ -315,3 +315,8 @@ footer{display:none}body[data-fd-tab="history"] footer{display:block}
 .fd-care-achievement-row>div>span.earned{background:#254b40;color:#baf7e0;border-color:#5ba785}
 .fd-care-page button:focus-visible{outline:3px solid #b4f5d8;outline-offset:2px}
 @media(max-width:390px){.fd-care-routine{padding:10px;gap:8px}.fd-care-routine>button{padding:8px}.fd-care-water-hero{padding:20px}}
+
+.fd-care-active-suggest{background:#1a3941;border:1px solid #4a9691;border-radius:13px;padding:15px;display:grid;gap:8px}
+.fd-care-active-suggest strong{font-size:13px;color:#b9f3e0}
+.fd-care-active-suggest p{color:#bdd8de;font-size:12px;line-height:1.5;margin:0}
+.fd-care-active-suggest button{border:1px solid #5aaf9e;background:#267568;color:#eefdf4;border-radius:10px;padding:11px;font-size:13px;font-weight:750}
