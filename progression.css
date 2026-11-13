@@ -78,3 +78,10 @@
 .fd-mode-choices small{color:#b9cada;font-size:12px;display:block;margin-top:4px}
 .fd-mode-symbol{font-size:23px;color:#a6edd5;flex:0 0 30px}
 @media(max-width:430px){.fd-prog-hero{padding:16px}.fd-prog-focus{padding:19px 13px}.fd-prog-counter{gap:9px}.fd-prog-counter>button{flex-basis:55px;height:55px}.fd-prog-counter>div{width:116px}.fd-prog-inline{grid-template-columns:1fr}.fd-prog-card{padding:14px}}
+
+.fd-log-detail-link{border:0;background:transparent;color:#b1dacc;text-decoration:underline;text-underline-offset:3px;font-size:12px;padding:11px;display:block;width:100%;text-align:center}
+.fd-prog-achievements{margin-top:14px}
+.fd-prog-achievements .entry{padding:12px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid #34495f}
+.fd-prog-achievements .entry>div{display:grid;gap:5px}
+.fd-prog-achievements .entry strong{font-size:13px}
+.fd-prog-achievements .entry small{font-size:12px;color:#b2c5d5}
