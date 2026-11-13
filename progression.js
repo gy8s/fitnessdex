@@ -8,8 +8,8 @@ const DRAFT_KEY='fitnessdex-progression-draft-v1';
 const FOCI={volume:'Build repetitions',variants:'Develop variations',both:'Train both'};
 const BADGES=[
  {id:'first',name:'First Steps',detail:'Complete your first progression session',goal:1},
- {id:'five',name:'Showing Up',detail:'Complete 5 progression sessions',goal:5},
- {id:'ten',name:'Steady Work',detail:'Complete 10 progression sessions',goal:10},
+ {id:'five',name:'Showing Up',detail:'Train with progression on 5 separate days',goal:5},
+ {id:'ten',name:'Steady Work',detail:'Train with progression on 10 separate days',goal:10},
  {id:'month',name:'Building a Habit',detail:'Train across 4 different weeks',goal:4},
  {id:'return',name:'Back in Action',detail:'Return after a break of at least 14 days',goal:1},
  {id:'long',name:'The Long Game',detail:'Train across 12 different weeks',goal:12}
@@ -42,8 +42,9 @@ const weeksOfTraining=items=>new Set(items.map(s=>{const d=new Date(s.completedA
 function awards(){
  const seq=model().sessions.filter(settledSession).sort((a,b)=>Date.parse(a.completedAt)-Date.parse(b.completedAt));
  const weeks=weeksOfTraining(seq);
+ const days=new Set(seq.map(x=>stamp(new Date(x.completedAt)))).size;
  const gap=seq.some((s,i)=>i>0&&Date.parse(s.completedAt)-Date.parse(seq[i-1].completedAt)>=14*86400000);
- return BADGES.map(x=>({...x,earned:x.id==='return'?gap:x.id==='month'||x.id==='long'?weeks>=x.goal:seq.length>=x.goal,progress:x.id==='return'?(gap?1:0):x.id==='month'||x.id==='long'?weeks:seq.length}));
+ return BADGES.map(x=>({...x,earned:x.id==='return'?gap:x.id==='month'||x.id==='long'?weeks>=x.goal:days>=x.goal,progress:x.id==='return'?(gap?1:0):x.id==='month'||x.id==='long'?weeks:days}));
 }
 function metricsFor(track,id){
  const completed=sessions(track.id);
@@ -164,7 +165,7 @@ function plan(t){
 function start(){
  const t=byTrack(view.id);if(!t||draft)return;
  const planned=plan(t);
- draft={trackId:t.id,startedAt:new Date().toISOString(),planned,actual:[],selectedId:planned[0].id,selectedTarget:planned[0].target,restUntil:null};
+ draft={trackId:t.id,runId:'ps-'+uid(),startedAt:new Date().toISOString(),planned,actual:[],selectedId:planned[0].id,selectedTarget:planned[0].target,restUntil:null};
  draftSave();view.kind='session';render();scrollTop();
 }
 function step(){
@@ -310,9 +311,14 @@ window.fdProgSave=()=>{
  if(!draft||migrationError)return;
  const t=byTrack(draft.trackId),completed=draft.actual.filter(x=>!x.skipped);
  if(!t||!completed.length)return alert('Record at least one actual set.');
+ // Stable ID comes from the local draft. A retry after a crash must not duplicate logs.
+ if(!draft.runId){draft.runId='ps-'+uid();draftSave();}
+ if(model().sessions.some(s=>s.id===draft.runId)){
+  draftClear();view={kind:'hub',id:t.id,exercise:t.baseId};tab='progression';render();return;
+ }
  if(model().sessions.length>=10000||S.logs.length+new Set(completed.map(x=>x.id)).size>100000)return alert('Storage limit reached. Export your history first.');
  const before=JSON.stringify(S),oldXP=playerXP(),beforeMilestones=new Set(earnedMilestones().map(x=>x.id)),beforeAwards=new Set(awards().filter(x=>x.earned).map(x=>x.id));
- const grouped=new Map(),sessionId='ps-'+uid(),logIds=[],refs=[];
+ const grouped=new Map(),sessionId=draft.runId,logIds=[],refs=[];
  for(const a of completed){
   const d=stamp(new Date(a.performedAt)),key=a.id+'|'+d;
   if(!grouped.has(key))grouped.set(key,{id:a.id,date:d,sets:[],refs:[]});

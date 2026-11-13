@@ -52,7 +52,7 @@ The 5K Engine uses ordinary running logs, not an inferred interval/easy/tempo ta
 - Tracks have three independent focus modes: increase volume, develop variants, or combine both. Existing exercises remain separate real records, even if a user switches variation during a session.
 - Each variant's suggested reps increase conservatively after two successful sessions involving that exact movement; three persistent misses can reduce an elevated target. This is an initial testable heuristic, **not a verified clinical exercise prescription**.
 - A varied session is productive even when targets are missed. Missing a target does not automatically fail a workout. On a plateau, optional supporting exercises can be suggested without diagnosing the limiting muscle.
-- Persistence awards derive from logged, referenced real sets (First Steps, 5 and 10 sessions, four and twelve distinct weeks, returning after a break). They do not add duplicate exercise XP.
+- Persistence awards derive from logged, referenced real sets (First Steps, 5 and 10 distinct training days, four and twelve distinct weeks, returning after a break). They do not add duplicate exercise XP.
 - A separately validated **v8** state stores track plans and session-to-log references; existing logs remain the source of truth. An unsaved draft is kept locally for same-device recovery, separate from cloud data.
 - Keep testing real-device behaviour, rest timers when backgrounded, cloud-conflict handling and interrupted saves as the next **Priority 0** checks. The adaptive formula must be tuned with real training evidence before strong training recommendations.
 
@@ -129,3 +129,7 @@ Proposed rollout after Priority 0 is complete:
 ## Out of scope until explicitly prioritised
 
 No automatic activity inference from silence, no compulsory workouts, no escalating exercise for streak preservation, and no claims that FitnessDex has measured fatigue or activity outside the app without an authorised data source.
+
+### v0.7.1 safety refinement
+
+Each guided draft has a stable session ID before the first set. The save function checks whether that exact session is already in the saved history before creating any exercise records; this prevents a re-opened draft from duplicating a completed session. Persistence badges require distinct training days so several sessions on one day cannot earn long-term consistency awards by themselves.
