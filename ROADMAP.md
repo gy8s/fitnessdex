@@ -45,6 +45,13 @@ The 5K Engine uses ordinary running logs, not an inferred interval/easy/tempo ta
 
 **Separate research/design:** [PROGRESSION_DESIGN.md](./PROGRESSION_DESIGN.md) describes how an independent Just 6 Weeks-style repetition/hold progression engine could run alongside variant progressions and simpler fallback exercises. Not implemented in v0.6.2.
 
+## Progression feedback UI — v0.7.3
+
+- Visual redesign only: high-contrast one-set target, clearer completed-set indicators, more legible rest feedback, and a focused result showing actual repetitions against suggested targets.
+- One prominent next action and a compact persistence-award panel; newly unlocked awards are prominent but ordinary completed sessions still receive useful feedback.
+- Incomplete and substituted sets remain productive training, not false passes. Missing/revised exercise records are read from the existing logs, not from duplicated session data.
+- No changes to logging schema, progression formula, workout grouping, or Supabase sync. Validate old saves, offline cache updates and phone rendering before extending the features.
+
 ## Deep squat mobility progression — v0.7.2
 
 - Added **Supported deep squat hold** (e147) → **Unsupported deep squat hold** (e148) as two distinct, individually logged time-based skills in ExerciseDex → Flexibility & mobility → General mobility.
