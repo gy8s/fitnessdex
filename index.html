@@ -1060,7 +1060,8 @@ function validCareState(v){
  const water=v.water,supp=v.supplements;
  if(!Number.isInteger(water.baseGoal)||water.baseGoal<1000||water.baseGoal>5000||!Array.isArray(water.goals)||water.goals.length>20000||!Array.isArray(water.entries)||water.entries.length>20000||!Array.isArray(supp.items)||supp.items.length>30||!Array.isArray(supp.taken)||supp.taken.length>20000)return false;
  const nearNow=at=>typeof at==='string'&&Number.isFinite(ms(at))&&ms(at)<=Date.now()+60000;
- const knownDate=d=>validDate(d)&&d<='2100-12-31'&&d>='2020-01-01'&&d<=today();
+ const tomorrow=new Date();tomorrow.setDate(tomorrow.getDate()+1);
+ const knownDate=d=>validDate(d)&&d<='2100-12-31'&&d>='2020-01-01'&&d<=stamp(tomorrow);
  const goals=new Set(),ids=new Set(),items=new Set(),perDay=new Map();
  for(const g of water.goals){if(!g||!knownDate(g.date)||goals.has(g.date)||!Number.isInteger(g.ml)||g.ml<1000||g.ml>5000)return false;goals.add(g.date);}
  for(const e of water.entries){
