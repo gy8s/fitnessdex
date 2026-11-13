@@ -53,7 +53,7 @@ function metricsFor(track,id){
   const all=(session.setRefs||[]).filter(r=>r.id===id&&!!readSet(r));
   const skipped=(session.skips||[]).some(a=>a.id===id);
   if(!all.length&&!skipped)continue;
-  const hit=all.length>0&&!skipped&&all.every(r=>toN(readSet(r)?.reps)>=r.target);
+  const hit=all.length>0&&!skipped&&!session.partial&&all.every(r=>toN(readSet(r)?.reps)>=r.target);
   results.push({hit,best:Math.max(0,...all.map(r=>toN(readSet(r)?.reps))),date:session.completedAt});
   if(hit){streak++;misses=0;if(streak>=2){level++;streak=0;}}
   else{streak=0;misses++;if(misses>=3){level=Math.max(0,level-1);misses=0;}}
@@ -94,7 +94,7 @@ function draftLoad(){
  try{
   const raw=localStorage.getItem(DRAFT_KEY);if(!raw)return;
   const old=JSON.parse(raw);
-  if(old&&typeof old==='object'&&typeof old.trackId==='string'&&byTrack(old.trackId)&&Array.isArray(old.planned)&&old.planned.length>=1&&old.planned.length<=8&&Array.isArray(old.actual)&&old.actual.length<=old.planned.length&&old.planned.every(x=>exists(x.id)&&Number.isInteger(x.target)&&x.target>=1&&x.target<=1000)&&old.actual.every(x=>x.skipped||(exists(x.id)&&Number.isInteger(x.reps)&&x.reps>=1&&x.reps<=1000))){draft=old;return;}
+  if(old&&typeof old==='object'&&typeof old.trackId==='string'&&byTrack(old.trackId)&&Array.isArray(old.planned)&&old.planned.length>=1&&old.planned.length<=8&&Array.isArray(old.actual)&&old.actual.length<=old.planned.length&&old.planned.every(x=>exists(x.id)&&Number.isInteger(x.target)&&x.target>=1&&x.target<=1000)&&old.actual.every(x=>x.skipped||(exists(x.id)&&Number.isInteger(x.reps)&&x.reps>=1&&x.reps<=1000&&typeof x.performedAt==='string'&&Number.isFinite(Date.parse(x.performedAt))))){draft=old;return;}
  }catch(e){}
  try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
 }
@@ -319,7 +319,7 @@ window.fdProgSave=()=>{
   entries.push(entry);logIds.push(at);
   refs.push(...group.refs.map(r=>({...r,logId:at})));
  }
- const savedSession={id:sessionId,trackId:t.id,completedAt:new Date().toISOString(),setRefs:refs,skips:draft.actual.filter(x=>x.skipped).map(x=>({id:x.id,target:x.target})),logIds};
+ const savedSession={id:sessionId,trackId:t.id,completedAt:new Date().toISOString(),partial:draft.actual.length<draft.planned.length,setRefs:refs,skips:draft.actual.filter(x=>x.skipped).map(x=>({id:x.id,target:x.target})),logIds};
  S.logs.push(...entries);S.v8.sessions.push(savedSession);
  resetDerived();
  const revoked=reconcileCompleted(),claimed=claimReady(),newMilestones=earnedMilestones().filter(x=>!beforeMilestones.has(x.id));
