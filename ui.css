@@ -131,3 +131,10 @@ footer{display:none}body[data-fd-tab="history"] footer{display:block}
 .fd-p-result{text-align:center}.fd-p-result-icon{font-size:70px;color:#80dfb6}
 .fd-p-result .fd-p-fold,.fd-p-result .fd-p-support{text-align:left}
 @media(max-width:420px){.fd-set-row{gap:5px;padding:7px}.fd-set-mark{width:36px;height:36px}.fd-set-input input{font-size:16px}.fd-set-body{min-width:65px;font-size:10px}}
+
+
+.fd-p-granted{padding:16px;border:1px solid #5fab8f;border-radius:13px;background:#1b4238;text-align:left}
+.fd-p-granted strong{color:#baf5d6;font-size:15px}.fd-p-granted p{color:#d6f3e5;font-size:13px;margin:7px 0 0}
+.fd-p-award-collection{max-width:750px;margin:18px auto;padding:17px;border:1px solid #325167;background:#152637;border-radius:14px}
+.fd-p-award-collection h2{font-size:17px;margin:0 0 8px}
+.fd-p-award-collection .fd-p-award{border-top:1px solid #304960}
