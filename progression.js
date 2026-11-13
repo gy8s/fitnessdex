@@ -32,7 +32,7 @@ const byTrack=id=>model().tracks.find(x=>x.id===id);
 const variants=id=>{const e=ex(id);return e?DATA.filter(x=>x.cat===e.cat&&x.family===e.family&&x.mode===e.mode):[];};
 const trackSessions=id=>model().sessions.filter(s=>s.trackId===id).sort((a,b)=>Date.parse(a.completedAt)-Date.parse(b.completedAt));
 const refLog=id=>S.logs.find(l=>logId(l)===id);
-const settledSession=s=>Array.isArray(s.setRefs)&&s.setRefs.length>0&&s.setRefs.every(r=>refLog(r.logId)&&Array.isArray(refLog(r.logId).sets)&&!!refLog(r.logId).sets[r.setIndex]);
+const settledSession=s=>Array.isArray(s.setRefs)&&s.setRefs.some(r=>refLog(r.logId)?.sets?.[r.setIndex]);
 const sessions=id=>trackSessions(id).filter(settledSession);
 const readSet=r=>refLog(r.logId)?.sets?.[r.setIndex];
 const priorLogs=id=>S.logs.filter(l=>l.id===id&&Array.isArray(l.sets)&&validDate(l.date)&&Number.isFinite(logWhen(l))&&logWhen(l)<=Date.now()+60000);
@@ -50,7 +50,7 @@ function metricsFor(track,id){
  let level=0,streak=0,misses=0;
  const results=[];
  for(const session of completed){
-  const all=(session.setRefs||[]).filter(r=>r.id===id);
+  const all=(session.setRefs||[]).filter(r=>r.id===id&&!!readSet(r));
   const skipped=(session.skips||[]).some(a=>a.id===id);
   if(!all.length&&!skipped)continue;
   const hit=all.length>0&&!skipped&&all.every(r=>toN(readSet(r)?.reps)>=r.target);
