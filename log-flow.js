@@ -51,10 +51,11 @@ function find(){
 function variants(){const exercises=DATA.filter(e=>e.cat===category&&familyName(e)===family);
  return '<div class="fd-step-screen">'+back('Choose variation',3)+'<header class="fd-step-hero"><small>'+esc(category)+'</small><h1>'+esc(family)+'</h1><p>Which variation did you do?</p></header><div class="fd-option-list">'+exercises.map(e=>item(e,'Select to record')).join('')+'</div></div>';
 }
+function method(){const e=ex(chosen);return '<div class="fd-step-screen fd-method-screen">'+back('Training method',4)+'<header class="fd-step-hero"><small>'+esc(e.cat)+'</small><h1>'+esc(e.name)+'</h1><p>How do you want to train?</p></header><div class="fd-option-list"><button class="fd-option fd-method-choice" onclick="fdQuickLog()"><span><strong>Just log sets and reps</strong><small>Record what you actually complete, without targets</small></span><span class="fd-arrow">›</span></button><button class="fd-option fd-method-choice" onclick="fdStartProgression(\''+e.id+'\')"><span><strong>Follow a progression</strong><small>Suggested sets, variations, recovery and persistence awards</small></span><span class="fd-arrow">›</span></button></div></div>';}
 function record(){
  const e=ex(chosen)||DATA[0], l=editId?S.logs.find(x=>logId(x)===editId):null,m=e.mode;
  const setMode=m==='sets'||m==='bodysets';
- const defaultSets=l||{sets:[{weight:'',reps:''}]};
+ const defaultSets=l||null;
  const valueTitle=m==='time'?'Seconds':m==='range'?'Gap from floor (cm)':m==='duration'?'Minutes':'Distance (km)';
  const metrics=setMode?'<label class="fd-record-label">'+(m==='sets'?'Weight and repetitions':'Repetitions per set')+'</label><div id="setrows">'+formSetRows(e,defaultSets)+'</div><div class="fd-set-actions"><button class="small" type="button" onclick="addSet()">+ Add set</button>'+(logsFor(e.id).some(x=>x.sets?.length)?'<button class="small" type="button" onclick="prefillSets()">Use last session</button>':'')+'</div>':'<div class="field"><label for="value">'+valueTitle+'</label><input id="value" type="number" '+(m==='range'?'':'min="0"')+' step="any" value="'+esc(l?.value??'')+'" placeholder="'+esc(e.unit)+'"></div>';
  const extra=m==='distance'||m==='duration'?'<div class="field"><label for="extra">'+(m==='distance'?'Minutes':'Distance (km)')+' (optional)</label><input id="extra" type="number" min="0" step="any" value="'+esc(m==='distance'?l?.minutes??'':l?.distance??'')+'"></div>':'';
@@ -73,10 +74,11 @@ window.fdLogStage=()=>stage;
 window.fdPickActivityType=cat=>{if(!CATS.includes(cat))return;category=cat;family=null;query='';stage='find';render();top();};
 window.fdPickExerciseGroup=group=>{if(!DATA.some(e=>e.cat===category&&familyName(e)===group))return;family=group;stage='variants';render();top();};
 window.fdExerciseQuery=value=>{query=value;render();const input=document.getElementById('fd-exercise-search');if(input){input.focus();input.setSelectionRange(value.length,value.length);}};
-window.fdSelectExercise=id=>{if(!ex(id))return;returnStage=stage;stage='record';family=familyName(ex(id));category=ex(id).cat;editId=null;baseChoose(id);};
-window.fdLogBack=()=>{if(editId){editId=null;stage='variants';}else if(stage==='record')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='variants')stage='find';else if(stage==='find')stage='type';else return navigate('home');render();top();};
+window.fdSelectExercise=id=>{if(!ex(id))return;returnStage=stage;stage=['sets','bodysets'].includes(ex(id).mode)?'method':'record';family=familyName(ex(id));category=ex(id).cat;editId=null;baseChoose(id);};
+window.fdQuickLog=()=>{stage='record';render();top();};
+window.fdLogBack=()=>{if(editId){editId=null;stage='variants';}else if(stage==='record'&&['sets','bodysets'].includes(ex(chosen)?.mode))stage='method';else if(stage==='method')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='record')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='variants')stage='find';else if(stage==='find')stage='type';else return navigate('home');render();top();};
 navigate=function(next){if(next==='log'){stage='type';query='';family=null;editId=null;}baseNavigate(next);};
-choose=function(id){if(!ex(id))return;returnStage='variants';stage='record';category=ex(id).cat;family=familyName(ex(id));baseChoose(id);};
-logForm=function(){return editId?record():stage==='type'?categories():stage==='find'?find():stage==='variants'?variants():stage==='done'?done():record();};
+choose=function(id){if(!ex(id))return;returnStage='variants';stage=['sets','bodysets'].includes(ex(id).mode)?'method':'record';category=ex(id).cat;family=familyName(ex(id));baseChoose(id);};
+logForm=function(){return editId?record():stage==='type'?categories():stage==='find'?find():stage==='variants'?variants():stage==='method'?method():stage==='done'?done():record();};
 submitLog=function(){const before=S.logs.length,wasEdit=!!editId;baseSubmit();if(!wasEdit&&S.logs.length>before){stage='done';tab='log';render();top();}};
 })();
