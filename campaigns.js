@@ -4,6 +4,27 @@
 (()=>{
 'use strict';
 const DAY=86400000;
+
+/* Each phase has two suggested session assemblies. Exercise variations may be substituted;
+ * these are examples and do not restrict which logged exercises count. */
+const PHASE_SESSIONS={
+ arms:[
+  [['e140','e002','e100','e020'],['e139','e060','e141','e072']],
+  [['e140','e005','e138','e020'],['e139','e060','e141','e072']],
+  [['e140','e005','e138','e020'],['e139','e062','e141','e072']]
+ ],
+ core:[
+  [['e017','e018','e145'],['e019','e146','e066']],
+  [['e017','e018','e145'],['e019','e146','e067']],
+  [['e017','e018','e145'],['e019','e146','e067']]
+ ],
+ squat:[
+  [['e074','e075','e043','e109'],['e074','e075','e043','e104']],
+  [['e027','e075','e043','e109'],['e074','e075','e043','e104']],
+  [['e025','e075','e043','e109'],['e027','e075','e043','e104']],
+  [['e025','e075','e043','e109'],['e027','e075','e043','e104']]
+ ]
+};
 const DEFINITIONS=[
  {id:'arms',name:'Arm Forge',icon:'◆',weeks:12,kind:'12-week campaign',
   intro:'Build stronger arms through balanced pulling, pressing, shoulders and grip work.',
@@ -138,14 +159,19 @@ function details(def){
    '<button class="primary fd-campaign-main" onclick="fdCampaignLog(\''+next.pick+'\')">'+(unmet?'Log '+escape(next.title):'Log another exercise')+'</button>'+
    '<details class="fd-campaign-options"><summary>Choose a different exercise</summary>'+def.slots.map(s=>'<div class="fd-campaign-alternatives"><b>'+escape(s.title)+'</b><div>'+s.ids.filter(id=>!!ex(id)).map(id=>'<button type="button" class="small" onclick="fdCampaignLog(\''+id+'\')">'+escape(ex(id).name)+'</button>').join('')+'</div></div>').join('')+'</details></section>'
    :'<section class="fd-campaign-panel"><h2>Campaign period finished</h2><p>'+state.complete+' of '+def.weeks+' weeks met the training targets. Your logged work and best measurements remain in FitnessDex.</p></section>');
+  const planGuide=phase===0?'2 comfortable sets per exercise':phase===1?'2–3 controlled sets where appropriate':'2–3 quality sets; choose loads or holds that suit your current ability';
+  const sessionPlan='<details class="fd-campaign-sessions"><summary>Session A & B plans <small>optional examples</small></summary>'+
+   '<p>Use these as two sessions on separate days. Adapt the exercises and avoid load or movement progressions you are not ready for. General aim: '+escape(planGuide)+'.</p>'+
+   PHASE_SESSIONS[def.id][phase].map((items,i)=>'<div class="fd-campaign-session"><h3>Session '+(i===0?'A':'B')+'</h3>'+
+      items.map(id=>'<div class="fd-campaign-session-row"><span>'+escape(ex(id).name)+'</span><button class="small" onclick="fdCampaignLog(\''+id+'\')">Log</button></div>').join('')+'</div>').join('')+'</details>';
   const phases='<section class="fd-campaign-panel"><h2>Chapter milestones</h2><div class="fd-campaign-chapters">'+state.medals.map((m,i)=>'<div class="fd-campaign-chapter '+(m.earned?'earned':'')+'"><div class="fd-campaign-chapter-name"><strong>'+(m.earned?'◆ ':'' )+escape(m.name)+'</strong><small>'+(m.earned?'Medal earned':m.finished?'Chapter finished':'Upcoming / underway')+'</small></div><small>'+m.wins+'/'+m.needed+' qualifying weeks</small></div>').join('')+'</div></section>';
   const benchmarks=benchmark(def,state.rows);
   const comparison='<section class="fd-campaign-panel"><h2>Change from your starting point</h2>'+
    (benchmarks.length?benchmarks.map(x=>'<div class="fd-campaign-benchmark"><strong>'+escape(x.name)+'</strong><span>'+Math.round(x.initial*10)/10+' → '+Math.round(x.best*10)/10+' '+escape(x.unit)+(x.improvement>0?' · +'+Math.round(x.improvement*10)/10:'')+'</span></div>').join(''):'<p class="hint">Record the same exercise at least twice to compare its first recorded performance with its best result. No bodyweight or appearance target.</p>')+
    '<p class="hint">Estimated lifting strength is based on logged sets of 1–10 reps. Comparisons are per exercise, not between different variations.</p></section>';
   inner='<div class="fd-campaign-stats"><div><strong>'+state.complete+'/'+def.weeks+'</strong><span>Qualifying weeks</span></div><div><strong>'+Math.min(def.weeks,state.elapsed+1)+'</strong><span>Current / final week</span></div><div><strong>'+state.medals.filter(m=>m.earned).length+'/'+def.phases.length+'</strong><span>Chapter medals</span></div></div>'+
-    (state.graduated?'<div class="fd-campaign-graduate">◆ Masterwork completed — consistency earned across '+state.complete+' weeks.</div>':'')+
-    suggestions+phases+comparison;
+    (state.graduated?'<div class="fd-campaign-graduate">◆ '+(def.id==='squat'?'Masterwork':'Campaign')+' completed — consistency earned across '+state.complete+' weeks.</div>':'')+
+    suggestions+sessionPlan+phases+comparison;
  }
  return '<div class="fd-campaigns fd-campaign-detail"><button class="fd-campaign-back" onclick="fdCampaignBack()">‹ All campaigns</button>'+
   '<header class="fd-campaign-hero"><small>'+escape(def.kind)+'</small><h1>'+escape(def.name)+'</h1><p>'+escape(def.intro)+'</p></header>'+
@@ -164,5 +190,7 @@ window.fdCampaignStart=id=>{
  selected=id;render();toast(def.name+' started. Your existing activity logs count automatically.');
 };
 window.fdCampaignLog=id=>{if(!ex(id))return;choose(id);};
+const oldNavigate=navigate;
+navigate=function(next){if(next==='campaigns')selected=null;oldNavigate(next);};
 window.fdCampaignDefinitions=()=>DEFINITIONS.map(x=>({id:x.id,name:x.name,weeks:x.weeks,slots:x.slots.map(s=>s.id)}));
 })();
