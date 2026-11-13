@@ -9,7 +9,7 @@ function landing(){
 }
 function more(){
  if(moreView==='cloud')return '<div class="fd-step-screen"><button class="fd-minimal-back" onclick="fdMoreMenu()">‹ Back</button><header class="fd-step-hero"><h1>Cloud saving</h1><p>Check your account and backup settings below.</p></header></div>';
- const routes=[['Cutting back','Alcohol, smoking and takeaway',"navigate('habits')"],['Workouts','Group exercise records',"navigate('workouts')"],['Achievements','Your rewards and records',"navigate('achievements')"],['History & data','Edit, export or import records',"navigate('history')"],['Cloud saving','Account and backups','fdMoreCloud()']];
+ const routes=[['Campaigns','Long-term strength and skill programmes',"navigate('campaigns')"],['Cutting back','Alcohol, smoking and takeaway',"navigate('habits')"],['Workouts','Group exercise records',"navigate('workouts')"],['Achievements','Your rewards and records',"navigate('achievements')"],['History & data','Edit, export or import records',"navigate('history')"],['Cloud saving','Account and backups','fdMoreCloud()']];
  return '<div class="fd-step-screen"><header class="fd-step-hero"><small>FitnessDex</small><h1>More</h1></header><div class="fd-option-list">'+routes.map(([title,subtitle,action])=>'<button class="fd-option" onclick="'+action+'"><span><strong>'+title+'</strong><small>'+subtitle+'</small></span><span class="fd-arrow">›</span></button>').join('')+'</div></div>';
 }
 window.fdMoreCloud=()=>{moreView='cloud';render();window.scrollTo({top:0,behavior:'instant'});};
