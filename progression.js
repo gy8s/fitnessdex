@@ -200,7 +200,7 @@ window.fdProgressionFromExercise=id=>{
  tab='progressions';
  if(prior){chosenId=prior.id;view='detail';}
  else{
-  setup={exerciseId:id,focus:'both',variantId:variants(id).find(x=>x.id!==id)?.id||null,baseline:'',weight:'',rest:90};
+  setup={exerciseId:id,focus:variants(id).length>1?'both':'volume',variantId:null,baseline:'',weight:'',rest:90};
   view='setup';
  }
  render();window.scrollTo({top:0,behavior:'instant'});
