@@ -40,6 +40,7 @@
   function renderSuggestion(){
     let holder=document.getElementById('fd-workout-suggestion');
     if(!holder)return;
+    if(tab!=='log'||window.fdLogStage?.()!=='done'){holder.hidden=true;holder.innerHTML='';return;}
     const rows=recentSuggestion();
     if(!rows){holder.hidden=true;holder.innerHTML='';return;}
     const count=new Set(rows.map(l=>l.id)).size;
@@ -121,9 +122,9 @@
   const formerRender=render;
   render=function(){formerRender();renderSuggestion();};
   const nav=document.querySelector('main .nav');
-  if(nav){const btn=document.createElement('button');btn.type='button';btn.dataset.tab='workouts';btn.textContent='Workouts';btn.addEventListener('click',()=>navigate('workouts'));const historyButton=nav.querySelector('[data-tab="history"]');if(historyButton)nav.insertBefore(btn,historyButton);else nav.appendChild(btn);}
+   // Workouts are accessible under More; no extra top-level tab.
   const promptHolder=document.createElement('div');promptHolder.id='fd-workout-suggestion';promptHolder.hidden=true;
-  const app=document.getElementById('app');if(app)app.parentNode.insertBefore(promptHolder,app);
+  const app=document.getElementById('app');if(app)app.parentNode.insertBefore(promptHolder,app.nextSibling);
   const style=document.createElement('style');style.textContent=`
     #fd-workout-suggestion{margin:0 0 16px}#fd-workout-suggestion[hidden]{display:none}
     .fd-workout-callout{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px;border:1px solid #508b7f;background:linear-gradient(120deg,#143333,#1a2841);border-radius:16px;color:#f3f8ff}
