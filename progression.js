@@ -63,6 +63,11 @@ function trackAwards(t){
  return AWARDS.filter(a=>(a.sessions&&dates.size>=a.sessions)||(a.weeks&&weeks.size>=a.weeks));
 }
 window.fdProgressionXP=()=>tracks().reduce((sum,t)=>sum+trackAwards(t).reduce((a,b)=>a+b.xp,0),0);
+window.fdProgressionAchievementsHtml=()=>{
+ const items=tracks().flatMap(t=>trackAwards(t).map(a=>({name:a.name,exercise:ex(t.primaryId)?.name||'Exercise',xp:a.xp,id:t.id+':'+a.id})));
+ return items.length?'<section class="card fd-prog-achievements"><h2>Progression persistence awards</h2><p class="hint">Earned from real guided-session logs on distinct training days. Changes to records recalculate awards.</p>'+items.map(a=>'<div class="entry"><div><strong>'+h(a.exercise)+' · '+h(a.name)+'</strong><small>+'+a.xp+' XP</small></div><span class="pill">◆</span></div>').join('')+'</section>':'';
+};
+
 function recentSamples(id){
  return S.logs.filter(l=>l.id===id&&validDate(l.date)&&Number.isFinite(logWhen(l))&&logWhen(l)<=Date.now()+60000)
  .slice().sort((a,b)=>logWhen(b)-logWhen(a));
