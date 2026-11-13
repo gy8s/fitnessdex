@@ -52,3 +52,12 @@ footer{display:none}body[data-fd-tab="history"] footer{display:block}
 .fd-campaign-safety{padding:15px;border:1px solid #344b5e;border-radius:11px;font-size:12px}
 .fd-campaign-safety p{font-size:12px;color:#b4c9d6;line-height:1.55}
 @media(max-width:520px){.fd-campaign-hero{padding:16px}.fd-campaign-stats strong{font-size:17px}.fd-campaign-chapter{flex-wrap:wrap}}
+
+.fd-campaign-sessions{border:1px solid #344d63;border-radius:12px;padding:14px}
+.fd-campaign-sessions summary{font-size:14px;font-weight:700;color:#aaf0d6;cursor:pointer}
+.fd-campaign-sessions summary small{font-weight:400;color:#b4c6d7;font-size:11px}
+.fd-campaign-sessions>p{color:#b4c6d7;font-size:12px;line-height:1.6}
+.fd-campaign-session{padding-top:8px;margin-top:12px;border-top:1px solid #33475a}
+.fd-campaign-session h3{font-size:14px;margin:4px 0 12px}
+.fd-campaign-session-row{padding:9px 0;display:flex;justify-content:space-between;gap:10px;align-items:center;border-bottom:1px solid #304456;font-size:13px}
+.fd-campaign-session-row button{flex-shrink:0}
