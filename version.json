@@ -1,5 +1,5 @@
 {
-  "version": "0.6.2",
+  "version": "0.7.0",
   "released": "2026-11-13",
-  "notes": "Add Deadlift Mastery, Swimcraft, 5K Engine and Grip Mastery campaigns; design future two-axis reps and variant progression."
+  "notes": "Optional guided progressive overload: adaptive reps, variant changes each set, rest timer, pause/resume drafts, persistence badges and plateau suggestions. Ordinary logging remains available."
 }
