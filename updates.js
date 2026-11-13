@@ -58,6 +58,13 @@ async function checkVersion(force=false){
 window.addEventListener('pageshow',()=>checkVersion(true));
 window.addEventListener('focus',()=>checkVersion());
 window.addEventListener('online',()=>checkVersion(true));
+window.addEventListener('offline',()=>{
+ const overlay=document.getElementById('fd-update-overlay');
+ if(!overlay)return;
+ overlay.remove();
+ for(const selector of ['header','main','footer'])document.querySelector(selector)?.removeAttribute('inert');
+ shown=false; // Continue using the offline app; prompt again on reconnect.
+});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkVersion();});
 checkVersion(true);
 })();
