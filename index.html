@@ -1046,7 +1046,7 @@ function validProgressionState(v){
  }
  const sessionIds=new Set();
  for(const s of v.sessions){
-  if(!s||typeof s.id!=='string'||s.id.length>100||sessionIds.has(s.id)||!ids.has(s.trackId)||!Number.isFinite(ms(s.completedAt))||ms(s.completedAt)>Date.now()+60000||!Array.isArray(s.setRefs)||s.setRefs.length<1||s.setRefs.length>8||!Array.isArray(s.logIds)||s.logIds.length<1||s.logIds.length>8||new Set(s.logIds).size!==s.logIds.length||!s.logIds.every(x=>typeof x==='string'&&x.length<200)||!Array.isArray(s.skips)||s.skips.length>8)return false;
+  if(!s||typeof s.id!=='string'||s.id.length>100||sessionIds.has(s.id)||!ids.has(s.trackId)||(s.partial!=null&&typeof s.partial!=='boolean')||!Number.isFinite(ms(s.completedAt))||ms(s.completedAt)>Date.now()+60000||!Array.isArray(s.setRefs)||s.setRefs.length<1||s.setRefs.length>8||!Array.isArray(s.logIds)||s.logIds.length<1||s.logIds.length>8||new Set(s.logIds).size!==s.logIds.length||!s.logIds.every(x=>typeof x==='string'&&x.length<200)||!Array.isArray(s.skips)||s.skips.length>8)return false;
   if(s.setRefs.some(r=>!r||!ex(r.id)||!['sets','bodysets'].includes(ex(r.id).mode)||typeof r.logId!=='string'||!s.logIds.includes(r.logId)||!Number.isInteger(r.setIndex)||r.setIndex<0||r.setIndex>99||!Number.isInteger(r.target)||r.target<1||r.target>1000||!ex(r.plannedId)))return false;
   if(s.skips.some(x=>!x||!ex(x.id)||!Number.isInteger(x.target)||x.target<1||x.target>1000))return false;
   sessionIds.add(s.id);
