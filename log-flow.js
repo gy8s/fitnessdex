@@ -31,7 +31,7 @@ function back(label,number){return '<div class="fd-stepback"><button onclick="fd
 function frequent(cat){const r=familiar(cat);return r.length?'<section class="fd-step-section"><div class="fd-section-label"><h2>Recent & frequent</h2><small>Up to 5</small></div><div class="fd-option-list">'+r.map(e=>item(e)).join('')+'</div></section>':'';}
 function categories(){return '<div class="fd-step-screen"><header class="fd-step-hero"><small>Log activity</small><h1>What did you do?</h1></header><div class="fd-category-list">'+CATS.map(cat=>{
  const [symbol,name,note]=categoryNames[cat];
- return '<button class="fd-category-option" onclick="fdPickActivityType('+safeJS(cat)+')"><span class="fd-category-symbol">'+symbol+'</span><span><strong>'+esc(name)+'</strong><small>'+esc(note)+'</small></span><span class="fd-arrow">›</span></button>';
+ return '<button class="fd-category-option" data-cat="'+esc(cat)+'" onclick="fdPickActivityType(this.dataset.cat)"><span class="fd-category-symbol">'+symbol+'</span><span><strong>'+esc(name)+'</strong><small>'+esc(note)+'</small></span><span class="fd-arrow">›</span></button>';
  }).join('')+'</div>'+frequent()+'</div>';}
 function find(){
  const exercises=DATA.filter(e=>e.cat===category),families=[...new Set(exercises.map(familyName))].sort((a,b)=>a.localeCompare(b)),q=simplify(query);
@@ -43,7 +43,7 @@ function find(){
  }else{
   content=frequent(category)+'<section class="fd-step-section"><div class="fd-section-label"><h2>Exercise groups</h2><small>Choose a group</small></div><div class="fd-option-list fd-group-list">'+families.map(f=>{
    const count=exercises.filter(e=>familyName(e)===f).length;
-   return '<button class="fd-option" onclick="fdPickExerciseGroup('+safeJS(f)+')"><span><strong>'+esc(f)+'</strong><small>'+count+' '+(count===1?'exercise':'variations')+'</small></span><span class="fd-arrow">›</span></button>';
+   return '<button class="fd-option" data-group="'+esc(f)+'" onclick="fdPickExerciseGroup(this.dataset.group)"><span><strong>'+esc(f)+'</strong><small>'+count+' '+(count===1?'exercise':'variations')+'</small></span><span class="fd-arrow">›</span></button>';
   }).join('')+'</div></section>';
  }
  return '<div class="fd-step-screen">'+back('Find exercise',2)+'<header class="fd-step-hero"><small>'+esc(category)+'</small><h1>Find an exercise</h1></header><label class="fd-search-label" for="fd-exercise-search">Search exercises</label><input id="fd-exercise-search" class="fd-exercise-search" type="search" autocomplete="off" placeholder="Search exercise or group" value="'+esc(query)+'" oninput="fdExerciseQuery(this.value)"><div class="fd-find-results">'+content+'</div></div>';
