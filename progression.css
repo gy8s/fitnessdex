@@ -1,0 +1,80 @@
+/* FitnessDex v0.7 — thumb-friendly exercise logging inspired by fast set-first training UIs. */
+.fd-prog{width:min(100%,650px);margin:0 auto 92px;display:grid;gap:14px;color:var(--text,#f2f5f9)}
+.fd-prog-hero{background:linear-gradient(140deg,#162a3e 0%,#183b37 100%);border:1px solid #356153;border-radius:18px;padding:21px}
+.fd-prog-hero small{color:#9be7d2;letter-spacing:.09em;text-transform:uppercase;font-size:11px}
+.fd-prog-hero h1{margin:6px 0 8px;font-size:clamp(24px,6vw,32px);letter-spacing:-.025em}
+.fd-prog-hero p{color:#c8d7df;font-size:13px;line-height:1.55;margin:0}
+.fd-prog-back,.fd-prog-top>button{background:transparent;border:0;text-align:left;width:max-content;color:#abeed5;padding:8px 0;font-weight:750;font-size:13px}
+.fd-prog-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.fd-prog-top span{color:#c9d7df;font-size:13px}
+.fd-prog-options{display:grid;gap:9px}
+.fd-prog-track,.fd-prog-resume,.fd-prog-create{display:flex;align-items:center;justify-content:space-between;gap:14px;text-align:left;padding:17px;border-radius:14px;border:1px solid #345064;background:#172b3d;width:100%;font:inherit;color:inherit}
+.fd-prog-track>span:first-child,.fd-prog-resume{min-width:0}
+.fd-prog-track strong,.fd-prog-resume strong{display:block;font-size:15px}
+.fd-prog-track small,.fd-prog-resume small{display:block;color:#b8ccd9;font-size:12px;margin-top:5px}
+.fd-prog-create{background:#1b443a;border-color:#3c8269;justify-content:center;color:#c2f6e4;font-weight:750}
+.fd-prog-resume{display:grid;background:#193d39;border-color:#438d77}
+.fd-prog-resume span{color:#bcffdc;font-size:12px}
+.fd-prog-note{color:#aabccc;font-size:12px;line-height:1.5;margin:0}
+.fd-prog-card{border:1px solid #334d61;background:#141f30;border-radius:15px;padding:17px;display:grid;gap:12px}
+.fd-prog-card h2{font-size:17px;margin:0}
+.fd-prog-card p{color:#b2c4d2;font-size:12px;line-height:1.6;margin:0}
+.fd-prog-card>small{color:#a8bac6;font-size:11px}
+.fd-prog-card label,.fd-prog-field{display:grid;gap:7px;font-size:12px;color:#c6d7e1;font-weight:650}
+.fd-prog-card input,.fd-prog-card select,.fd-prog-field input,.fd-prog-switch select{width:100%;max-width:100%;background:#0d1928;color:#f0f7fa;border:1px solid #456177;border-radius:10px;padding:12px;font-size:16px}
+.fd-prog-inline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.fd-prog-mode-list{display:grid;gap:8px}
+.fd-prog-mode-list button{display:grid;gap:3px;text-align:left;border:1px solid #3a5267;border-radius:12px;padding:14px;background:#14273a;color:inherit}
+.fd-prog-mode-list button.on{background:#214a42;border-color:#79d5b7;box-shadow:inset 0 0 0 1px #79d5b7}
+.fd-prog-mode-list small{font-size:12px;color:#b8cad8;line-height:1.4}
+.fd-prog-wide{width:100%;min-height:52px;border-radius:13px;font-size:15px;font-weight:750}
+.fd-prog-next{font-size:25px;color:#9ce8cc;letter-spacing:-.025em}
+.fd-prog-plateau{border-color:#987e4b;background:#332b22}
+.fd-prog-plateau button{width:100%;background:#4b3b2b;border:1px solid #9d7950;border-radius:10px;padding:13px;color:#ffe2b4;font-size:13px;font-weight:700}
+.fd-prog-set-dots{display:flex;gap:7px;justify-content:center;align-items:center;flex-wrap:wrap;margin:2px 0}
+.fd-prog-set-dots span{width:34px;height:34px;border-radius:50%;background:#1d2d42;border:1px solid #405872;display:grid;place-items:center;color:#b9c9d8;font-size:12px;font-weight:800}
+.fd-prog-set-dots span.active{width:41px;height:41px;border:2px solid #abefd5;background:#20493d;color:#c8fff0;font-size:16px}
+.fd-prog-set-dots span.done{background:#256b52;border-color:#3b9272;color:#c1f5df}
+.fd-prog-focus{border:1px solid #37566a;background:radial-gradient(ellipse at top,#1d3c4a,#121d30 70%);border-radius:19px;padding:23px 18px;display:grid;justify-items:center;gap:12px;text-align:center}
+.fd-prog-focus>small{letter-spacing:.14em;font-weight:750;color:#9bdac7;font-size:11px}
+.fd-prog-focus h1{font-size:clamp(23px,6vw,34px);line-height:1.15;margin:0;letter-spacing:-.025em}
+.fd-prog-target{font-size:14px;color:#bed0dc}
+.fd-prog-target strong{font-size:17px;color:#b4f7dd}
+.fd-prog-counter{display:flex;justify-content:center;align-items:center;gap:14px;width:100%;margin:3px 0}
+.fd-prog-counter>button{flex:0 0 62px;height:62px;background:#25453e;border:1px solid #538e7b;border-radius:17px;color:#e7fff3;font-size:36px;line-height:1}
+.fd-prog-counter>div{width:132px;display:grid;gap:3px}
+.fd-prog-counter strong{font-size:clamp(60px,15vw,80px);line-height:1;letter-spacing:-.065em;font-variant-numeric:tabular-nums}
+.fd-prog-counter small{color:#adc3d2;font-size:12px}
+.fd-prog-focus .fd-prog-field{width:100%;max-width:265px;text-align:left}
+.fd-prog-focus .fd-prog-field input{text-align:center;font-size:22px;font-variant-numeric:tabular-nums;font-weight:750}
+.fd-prog-focus .fd-prog-record{margin-top:4px;max-width:420px;background:#2a9270;border:1px solid #56bc91;color:white}
+.fd-prog-skip,.fd-prog-undo,.fd-prog-discard{padding:9px;background:transparent;border:0;color:#aebfcc;font-size:12px;text-decoration:underline;text-underline-offset:3px}
+.fd-prog-switch{border:1px solid #344d60;border-radius:13px;padding:14px;background:#162538}
+.fd-prog-switch summary{font-size:14px;color:#b5f0d8;font-weight:750;cursor:pointer}
+.fd-prog-switch p{font-size:12px;color:#b3c4d2;line-height:1.55}
+.fd-prog-clock{font-size:clamp(65px,17vw,94px);font-variant-numeric:tabular-nums;line-height:1.05;letter-spacing:-.045em;color:#d0fff1;font-weight:800}
+.fd-prog-focus>p{color:#b7ccd6;font-size:13px;line-height:1.55;max-width:450px}
+.fd-prog-rest-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.fd-prog-rest-options button{border-radius:10px;background:#172b3b;border:1px solid #3b5366;padding:11px 4px;font-size:13px;color:#d8e9e9}
+.fd-prog-review{display:grid;gap:7px}
+.fd-prog-review>div{display:grid;grid-template-columns:32px minmax(0,1fr);gap:4px 9px;align-items:center;background:#18283a;border:1px solid #30475b;border-radius:12px;padding:11px}
+.fd-prog-review>div>span{grid-row:span 2;color:#a7c5cd;font-size:11px}
+.fd-prog-review strong{font-size:13px}.fd-prog-review small{color:#b2c4d4;font-size:12px}
+.fd-prog-summary{display:flex;align-items:center;gap:14px;background:#1d4237;border:1px solid #468c73;padding:15px;border-radius:11px}
+.fd-prog-summary strong{font-size:33px;color:#b9f5d9}
+.fd-prog-summary span{font-size:13px;color:#d4e7e0}
+.fd-prog-secondary{background:#1b2e40;border:1px solid #3b536a;color:#dcebe9}
+.fd-prog-disclosure{border-radius:12px;border:1px solid #354c61;padding:14px}
+.fd-prog-disclosure summary{color:#b7f2dd;cursor:pointer;font-weight:700;font-size:13px}
+.fd-prog-award{display:flex;gap:12px;align-items:center;border-bottom:1px solid #31465b;padding:11px 2px}
+.fd-prog-award>span{color:#80dcb5}.fd-prog-award div{display:grid;gap:4px}.fd-prog-award strong{font-size:13px}.fd-prog-award small{font-size:11px;color:#b8c8d6}
+.fd-prog-history{font-size:12px;color:#c0d0df;padding:10px 0;border-bottom:1px solid #31465b}
+.fd-prog-done{text-align:center;justify-items:center}
+.fd-prog-done-icon{height:92px;width:92px;border-radius:50%;background:#24624f;border:2px solid #70dcaf;color:#d8ffe8;display:grid;place-items:center;font-size:55px}
+.fd-prog-done h1{margin:0}.fd-prog-done p{max-width:360px;color:#bdceda;font-size:13px;line-height:1.55}
+.fd-mode-choices{display:grid;gap:10px}
+.fd-mode-choices button{display:flex;gap:14px;align-items:center;text-align:left;background:#1b2e43;border:1px solid #355169;color:#f0f6f9;border-radius:15px;padding:17px}
+.fd-mode-choices strong{font-size:16px;display:block}
+.fd-mode-choices small{color:#b9cada;font-size:12px;display:block;margin-top:4px}
+.fd-mode-symbol{font-size:23px;color:#a6edd5;flex:0 0 30px}
+@media(max-width:430px){.fd-prog-hero{padding:16px}.fd-prog-focus{padding:19px 13px}.fd-prog-counter{gap:9px}.fd-prog-counter>button{flex-basis:55px;height:55px}.fd-prog-counter>div{width:116px}.fd-prog-inline{grid-template-columns:1fr}.fd-prog-card{padding:14px}}
