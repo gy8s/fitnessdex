@@ -35,7 +35,7 @@ function last28(id){
 function longestStreak(id){
  const rows=model().days.filter(x=>x.category===id&&x.quantity===0).map(x=>x.date).sort();
  let best=0,run=0,previous=null;
- for(const date of rows){run=date===move(previous||date,-(-1))?run+1:1;best=Math.max(best,run);previous=date;}
+ for(const date of rows){run=previous!==null&&date===move(previous,1)?run+1:1;best=Math.max(best,run);previous=date;}
  return best;
 }
 function currentStreak(id){
