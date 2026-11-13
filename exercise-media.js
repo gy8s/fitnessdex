@@ -73,6 +73,6 @@ async function initialise(){
  }catch(e){error='Local image storage unavailable: '+(e.message||'unknown error');}
  if(typeof window.render==='function')window.render();
 }
-window.addEventListener('pagehide',()=>{for(const url of urls.values())URL.revokeObjectURL(url);});
+window.addEventListener('pagehide',event=>{if(!event.persisted)for(const url of urls.values())URL.revokeObjectURL(url);});
 initialise();
 })();
