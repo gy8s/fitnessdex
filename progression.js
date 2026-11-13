@@ -88,10 +88,14 @@ function outcomesFor(t,id){
 }
 function proposed(t,id){
  const e=ex(id),current=lastStats(id),isPrimary=id===t.primaryId;
- const fallback=isPrimary?t.baseline:0,age=current.lastAt?Date.now()-current.lastAt:Infinity;
- const baseline=current.best||fallback||(e.mode==='time'?20:e.mode==='sets'?5:3);
- let target=Math.max(1,Math.floor(baseline*(e.mode==='sets'?0.9:0.65)));
- if(!isPrimary&&!current.best&&!fallback)target=e.mode==='time'?10:e.mode==='sets'?5:2;
+ const age=current.lastAt?Date.now()-current.lastAt:Infinity;
+ const baseline=isPrimary?Math.max(t.baseline,current.best):(current.best||0);
+ let target=Math.max(1,Math.floor((baseline||5)*(e.mode==='sets'?0.9:0.65)));
+ if(!isPrimary&&!current.best)target=e.mode==='time'?10:e.mode==='sets'?5:2;
+ // Continue from the previous prescribed target, not 65% of the latest working set.
+ const previous=S.logs.filter(l=>l.id===id&&l.progression?.trackId===t.id&&Number.isInteger(l.progression.target))
+  .sort((a,b)=>logWhen(b)-logWhen(a))[0];
+ if(previous)target=previous.progression.target;
  const results=outcomesFor(t,id);
  if(results.length>=2){
   if(results.slice(-2).every(x=>x.met))target+=e.mode==='time'?5:1;
