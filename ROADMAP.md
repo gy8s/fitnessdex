@@ -30,6 +30,21 @@ Each programme is a time-boxed training track with two training days per week an
 
 Campaigns are deliberately separate from the daily/weekly challenge generator and don't modify workout assignments. Future versions may add user-customisable schedules, equipment options, campaign artwork, planned deloads and other long-term masterworks. Existing **Priority 0 stability work** still applies, including cloud-save and restoration tests.
 
+## Four additional campaigns (v0.6.2)
+
+Added four user-approved programmes under **More → Campaigns**. Campaign enrolment and credit remain in the existing v7 save model; no duplicate exercise logs, forced workouts or separate XP.
+
+| Campaign | Duration | Weekly emphasis |
+| --- | --- | --- |
+| **Deadlift Mastery** | 52 weeks / 4 chapters | At least 2 training days, with hinge practice, posterior-chain support, bracing and mobility |
+| **Swimcraft** | 26 weeks / 3 chapters | At least 2 swimming days, including at least one stroke-specific session |
+| **The 5K Engine** | 16 weeks / 4 chapters | At least 3 distinct running days plus one runner-mobility session |
+| **Grip Mastery** | 12 weeks / 3 chapters | At least 2 hanging-practice days, plus shoulder/scapular control and pulling |
+
+The 5K Engine uses ordinary running logs, not an inferred interval/easy/tempo tag. Swimcraft uses explicit lengths when logged; it does **not** assume a pool length or convert lengths to kilometres. Do not claim an exact 5K pace without a logged run of about 5 km and an optional time. Every campaign proposes simple A/B sessions (A/B/C for 5K), with future work needed for adaptive session prescriptions.
+
+**Separate research/design:** [PROGRESSION_DESIGN.md](./PROGRESSION_DESIGN.md) describes how an independent Just 6 Weeks-style repetition/hold progression engine could run alongside variant progressions and simpler fallback exercises. Not implemented in v0.6.2.
+
 ## Priority 2 — Smart movement prompts and Quick Missions (deferred)
 
 **Goal:** Encourage useful spontaneous activity throughout the day without making every movement a formal workout.
