@@ -164,7 +164,7 @@ function countedLogs(def,started){
 function weekStatus(def,started,index,rows){
  const logs=rows.filter(l=>weekOf(l.date,started)===index);
  const days=new Set(logs.map(x=>x.date)).size;
- const slots=def.slots.map(slot=>{const covered=new Set(logs.filter(l=>slot.ids.includes(l.id)).map(l=>l.date)).size;const target=slot.days||1;return {...slot,covered,target,done:covered>=target};});
+ const slots=def.slots.map(slot=>{const matches=l=>slot.ids.includes(l.id)||(def.id==='swim'&&slot.id==='stroke'&&l.id==='e051'&&['Front crawl','Breaststroke','Backstroke','Butterfly'].includes(l.stroke));const covered=new Set(logs.filter(matches).map(l=>l.date)).size;const target=slot.days||1;return {...slot,covered,target,done:covered>=target};});
  const completed=days>=def.days&&slots.every(x=>x.done);
  return {index,days,slots,completed};
 }
