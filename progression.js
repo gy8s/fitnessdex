@@ -126,6 +126,13 @@ function setup(){
   '<label for="fd-p-rest">Rest between sets</label><select id="fd-p-rest">'+[60,90,120,180].map(x=>'<option value="'+x+'" '+(x===90?'selected':'')+'>'+x+' seconds</option>').join('')+'</select>'+
   '<button class="fd-p-primary" onclick="fdProgCreate()">Create progression</button></div></section>';
 }
+function historyChart(t){
+ const records=metricsFor(t,t.baseId).results.slice(-8),maximum=Math.max(1,...records.map(x=>x.best));
+ if(!records.length)return '<p class="fd-p-help">Log a progression session to begin measuring comparable performance.</p>';
+ return '<div class="fd-p-chart" aria-label="Recent best set repetitions">'+records.map((r,i)=>
+  '<div class="fd-p-chart-item"><b>'+r.best+'</b><div class="fd-p-chart-bar" style="height:'+Math.max(8,Math.round(95*r.best/maximum))+'px"></div><small>#'+(i+1)+'</small></div>'
+ ).join('')+'</div><p class="fd-p-help">Best completed set per session. Comparisons stay within '+escP(ex(t.baseId).name)+'.</p>';
+}
 function hub(){
  const t=byTrack(view.id);if(!t)return list();
  const done=sessions(t.id),badges=awards().filter(x=>x.earned);
@@ -138,6 +145,7 @@ function hub(){
   '<p class="fd-p-help">Targets increase after two successful sessions of each variation. Three difficult sessions can ease the targets. Switching variations does not erase progress.</p>'+
   (supports.length?'<div class="fd-p-support"><strong>Possible plateau</strong><p>Several comparable attempts have not improved. Try one optional supporting exercise, or take an easier session.</p><button onclick="fdProgSupport(\''+supports[0].id+'\')">Try '+escP(supports[0].name)+'</button></div>':'')+
   '<details class="fd-p-fold"><summary>Persistence awards · '+badges.length+' earned</summary>'+awardRows()+'</details>'+
+  '<details class="fd-p-fold"><summary>Performance history</summary>'+historyChart(t)+'</details>'+
   '<details class="fd-p-fold"><summary>Training balance & rest</summary>'+  '<label for="fd-p-focus-update">Training focus</label><select id="fd-p-focus-update">'+Object.keys(FOCI).map(x=>'<option value="'+x+'" '+(x===t.focus?'selected':'')+'>'+FOCI[x]+'</option>').join('')+'</select>'+  '<label for="fd-p-variant-update">Practice variation</label><select id="fd-p-variant-update">'+variants(t.baseId).filter(x=>x.id!==t.baseId).map(x=>'<option value="'+x.id+'" '+(x.id===t.variantId?'selected':'')+'>'+escP(x.name)+'</option>').join('')+'</select>'+  '<label for="fd-p-count-update">Sets per session</label><select id="fd-p-count-update">'+[3,5].map(x=>'<option value="'+x+'" '+(x===t.setCount?'selected':'')+'>'+x+' sets</option>').join('')+'</select>'+  '<label for="fd-p-rest-update">Rest timer</label><select id="fd-p-rest-update">'+[60,90,120,180].map(x=>'<option value="'+x+'" '+(x===t.restSec?'selected':'')+'>'+x+' seconds</option>').join('')+'</select>'+  '<button onclick="fdProgUpdatePlan()">Save plan settings</button><button onclick="fdProgNewTrack()">Start a separate progression</button></details></section>';
 }
 function awardRows(){
