@@ -1,5 +1,5 @@
 /* FitnessDex PWA shell: fresh network responses first, local fallback when offline. Workout data remains outside this cache. */
-const CACHE='fitnessdex-shell-v7';
+const CACHE='fitnessdex-shell-v8';
 const FILES=['./','./index.html','./ui.css','./exercise-reference.js','./workouts.js','./habits.js','./log-flow.js','./ui-shell.js','./campaigns.js','./cloud.js','./updates.js','./version.json','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fitnessdex-shell-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
