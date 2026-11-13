@@ -1,0 +1,984 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>FitnessDex — Personal Prototype v0.5.2</title><style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;--bg:#0b101a;--panel:#151d2c;--panel2:#1c2738;--line:#2a3950;--text:#f2f5f9;--muted:#a6b4c8;--a:#7ae3bf;--b:#8fbbff}*{box-sizing:border-box}body{background:var(--bg);color:var(--text);margin:0}button,input,select{font:inherit}button{cursor:pointer;color:var(--text);border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:10px 13px}button:hover{border-color:var(--a)}button.primary{background:#1c715e;color:white;border-color:#2d937a}input,select{background:#10192a;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:10px;width:100%}header{padding:22px max(18px,calc((100vw - 1100px)/2));display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}header strong{font-size:23px;letter-spacing:-.6px}header small{display:block;color:var(--muted);margin-top:4px}main{max-width:1100px;margin:auto;padding:20px 18px 65px}.nav{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}.nav button.active{background:#244d50;border-color:var(--a)}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.half{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:17px;min-width:0}.card h2{margin:0 0 14px;font-size:17px}.metric{font-size:29px;font-weight:750;letter-spacing:-.7px}.muted{color:var(--muted);font-size:13px}.pill{font-size:11px;border:1px solid var(--line);background:var(--panel2);padding:4px 8px;border-radius:999px;color:var(--muted)}.stack{display:grid;gap:12px}.row{display:flex;justify-content:space-between;gap:10px;align-items:center}.progress{height:7px;background:#293549;border-radius:9px;overflow:hidden;margin-top:7px}.progress>div{height:100%;background:var(--a)}.challenge{background:var(--panel2);border-radius:12px;padding:12px;margin-bottom:9px}.challenge b{font-size:14px}.challenge p{margin:5px 0;color:var(--muted);font-size:12px}.tabs{display:flex;gap:8px;margin:9px 0 15px;flex-wrap:wrap}.small{padding:6px 10px;font-size:12px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.entry{border:1px solid var(--line);border-radius:11px;padding:11px;display:flex;align-items:center;justify-content:space-between;gap:10px}.entry .name{font-weight:650;font-size:14px}.entry .sub{color:var(--muted);font-size:12px;margin-top:4px}.entry button{flex-shrink:0}.notice{padding:11px;border:1px solid #406d63;background:#183c37;border-radius:10px;font-size:13px}.hint{font-size:12px;color:var(--muted);line-height:1.5}label{display:block;font-size:12px;margin:0 0 5px;color:var(--muted)}.field{margin-bottom:12px}.setrow{display:grid;grid-template-columns:32px 1fr 1fr 44px;align-items:end;gap:7px;margin-bottom:8px}.tag{color:var(--a);font-size:12px}.status{font-size:12px;color:var(--muted)}.section{font-size:19px;margin:24px 0 13px}#toast{position:fixed;bottom:20px;right:15px;left:15px;max-width:530px;margin:auto;background:#1c584b;padding:13px;border-radius:12px;display:none;z-index:5;box-shadow:0 5px 25px #0009}footer{font-size:12px;color:var(--muted);margin-top:35px;line-height:1.6}@media(max-width:780px){.grid,.half{grid-template-columns:1fr}.metric{font-size:24px}.three{grid-template-columns:repeat(2,1fr)}header{padding:16px 18px}}
+
+/* v0.4 targeted fixes; visual style retained */
+@media(min-width:1150px){.grid:has(>.card:nth-child(4)){grid-template-columns:repeat(2,minmax(0,1fr))}}
+.setrow{grid-template-columns:32px 1fr 1fr 44px}.entry .row{flex-shrink:0}.entry .sub{line-height:1.5}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.challenge .row{gap:9px}.challenge .small{font-size:11px;padding:5px 8px}
+@media(max-width:780px){.grid{grid-template-columns:1fr}.half{grid-template-columns:1fr}.card{padding:14px}.challenge{padding:11px}}
+
+.result-panel{border:1px solid #5ca98c;background:#132d2a;border-radius:16px;padding:19px;margin-bottom:18px}
+.result-panel h2{margin:0 0 8px}.result-panel li{margin:6px 0}.result-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.hunt-item{display:flex;gap:9px;align-items:center;justify-content:space-between;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:10px}
+.opportunity{border:1px solid #416b63;background:#18312f;border-radius:12px;padding:12px;margin:9px 0}
+@media(max-width:780px){.result-panel{padding:14px}}
+
+/* v0.4.1: distinguish challenge requirements from optional time estimates */
+.challenge-requirement{display:flex;gap:6px;flex-direction:column;margin:10px 0 8px;line-height:1.4}
+.challenge-detail-label{color:var(--muted);font-size:11px;letter-spacing:.02em;font-weight:600}
+.challenge-requirement strong{font-size:13px;color:var(--text);font-weight:650}
+.challenge-metadata{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;color:var(--muted);font-size:12px;line-height:1.45}
+.challenge-time{color:var(--b)}
+.challenge-estimate-note{color:var(--muted)}
+
+/* v0.5 — visual navigation and skill paths; existing tracking logic remains unchanged */
+:root{--ink:#f3f6fc;--surface:#141e30;--surface2:#1b2940;--subtle:#97a9c3;--mint:#7ce4c1;--stroke:#31435e}
+header{background:linear-gradient(115deg,#101a2c 0%,#121e31 65%,#183033 100%)}
+header .app-title{display:flex;align-items:center;gap:10px}
+header .app-symbol{display:grid;place-items:center;width:37px;height:37px;border-radius:12px;color:#062f25;background:linear-gradient(135deg,#9bf6d6,#5ab6db);font-size:22px;font-weight:900}
+.nav{padding:4px;background:#101827;border:1px solid var(--line);border-radius:14px;width:max-content;max-width:100%;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
+.nav button{white-space:nowrap;border:0;background:transparent;color:#a9bbd0;padding:10px 14px;font-size:13px;font-weight:650}
+.nav button.active{background:#253b46;color:#b6fff0;border:1px solid #4c8b7f;box-shadow:inset 0 0 0 1px #1c584f}
+main{max-width:1180px}
+.dex-hero{background:radial-gradient(circle at 85% -40%,#244c53 0%,transparent 45%),linear-gradient(120deg,#1c2840,#151e2e);border:1px solid var(--stroke);border-radius:20px;padding:22px 22px 20px;margin-bottom:15px}
+.dex-eyebrow{color:#85cab7;font-size:11px;text-transform:uppercase;letter-spacing:.13em;font-weight:800}
+.dex-hero h1{font-size:clamp(23px,4vw,34px);letter-spacing:-.8px;margin:6px 0 8px;line-height:1.16}
+.dex-hero p{color:#afc1d5;font-size:13px;line-height:1.55;max-width:760px;margin:0}
+.dex-searchbar{display:flex;align-items:center;gap:10px;margin-top:17px}
+.dex-searchbar input{max-width:600px;background:#0e1725;border:1px solid #304a62;border-radius:12px}
+.dex-searchbar button{white-space:nowrap}
+.dex-breadcrumbs{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:14px;color:#91a7c1;font-size:12px}
+.dex-breadcrumbs button{padding:6px 0;background:none;border:0;color:#acd5cf;font-size:12px}
+.dex-breadcrumbs .current{color:#e8f0fc;font-weight:700}
+.dex-sectionhead{font-weight:750;font-size:17px;letter-spacing:-.15px;margin:22px 0 12px}
+.dex-category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.dex-tile{position:relative;overflow:hidden;text-align:left;border:1px solid #34465e;background:linear-gradient(125deg,#19263a,#131d2d);border-radius:17px;padding:19px;min-width:0;display:flex;flex-direction:column;gap:11px;transition:transform .12s,border-color .12s}
+.dex-tile:hover,.dex-family-tile:hover{border-color:#70cbb6;transform:translateY(-1px)}
+.dex-tile .emblem{height:43px;width:43px;display:grid;place-items:center;border:1px solid #527083;border-radius:14px;background:#273b4b;font-size:22px}
+.dex-tile .tile-title{font-size:19px;line-height:1.2;font-weight:800;letter-spacing:-.35px}
+.dex-tile .tile-desc{font-size:12px;color:#acc1d5;line-height:1.5;max-width:310px}
+.dex-tile .tile-footer{display:flex;gap:9px;align-items:center;justify-content:space-between;color:#a2c5c4;font-size:12px;margin-top:auto}
+.dex-tile .tile-progress{height:5px;border-radius:20px;background:#324356;overflow:hidden}
+.dex-tile .tile-progress div{height:100%;border-radius:20px;background:linear-gradient(90deg,#5db9d6,#8be9c4)}
+.dex-family-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.dex-family-tile{text-align:left;background:#182438;border:1px solid var(--line);border-radius:14px;padding:15px;min-width:0;display:grid;gap:10px}
+.dex-family-tile strong{display:block;font-size:15px}
+.dex-family-tile small{font-size:12px;color:#a5b6ca;line-height:1.45}
+.dex-family-tile .family-foot{font-size:12px;color:#91d6c5}
+.dex-family-tile .tile-progress{height:5px;background:#2d3f54;border-radius:8px;overflow:hidden}
+.dex-family-tile .tile-progress div{height:100%;background:#78d4bd}
+.dex-family-intro{display:flex;gap:20px;justify-content:space-between;align-items:center;margin-bottom:14px}
+.dex-family-intro h2{font-size:24px;margin:0 0 6px;letter-spacing:-.55px}
+.dex-family-intro p{color:#acbbd0;font-size:13px;line-height:1.5;margin:0}
+.dex-family-intro .family-score{border:1px solid var(--line);padding:9px 15px;border-radius:13px;text-align:center;white-space:nowrap;background:#1a293c}
+.family-score strong{font-size:18px;display:block}
+.family-score small{display:block;color:#9cadc1;font-size:11px}
+.dex-path{border:1px solid #33445d;border-radius:17px;background:linear-gradient(120deg,#162339,#101b2b);padding:18px;margin:14px 0}
+.dex-path-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.dex-path-heading h3{margin:0;font-size:16px;letter-spacing:-.15px}
+.dex-path-heading small{color:#9db8c8;font-size:11px}
+.dex-flow{display:flex;align-items:stretch;overflow-x:auto;gap:8px;padding:12px 2px 11px;scrollbar-color:#49677b transparent;scrollbar-width:thin}
+.dex-phase{display:flex;flex-direction:column;gap:9px;flex:1 0 159px;max-width:250px}
+.dex-phase-title{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#92a9c3;font-weight:800;padding-left:5px}
+.dex-flow-connector{display:flex;align-items:center;justify-content:center;color:#78abac;font-size:21px;min-width:16px;align-self:center}
+.dex-node{display:grid;gap:5px;position:relative;text-align:left;min-height:91px;border:1px solid #3c5069;border-radius:12px;background:#1c2b40;padding:11px;line-height:1.3}
+.dex-node .node-top{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:10px;letter-spacing:.03em;text-transform:uppercase;color:#9ab0c6}
+.dex-node .node-icon{width:21px;height:21px;display:grid;place-items:center;background:#2c4154;border-radius:7px;font-size:12px;color:#bcd6e6}
+.dex-node .node-name{font-size:12px;font-weight:750;color:#e5eef8}
+.dex-node .node-foot{font-size:10px;color:#9cc4b8}
+.dex-node.met{border-color:#477967;background:linear-gradient(150deg,#1d3b3f,#1a2e39)}
+.dex-node.prepared{border-color:#5289a7;background:linear-gradient(140deg,#1c3347,#1b2b40)}
+.dex-node.selected{outline:2px solid #9be5d0;outline-offset:1px}
+.dex-node:focus-visible,.dex-tile:focus-visible,.dex-family-tile:focus-visible{outline:2px solid #a7f2da;outline-offset:2px}
+.dex-treenote{font-size:11px;color:#9aaec4;line-height:1.5;margin:7px 0 0}
+.dex-browse-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.dex-exercise-tile{text-align:left;border:1px solid #2e435b;border-radius:13px;background:#1a293d;padding:12px;display:flex;flex-direction:column;gap:6px;min-height:110px}
+.dex-exercise-tile b{font-size:13px;line-height:1.35}
+.dex-exercise-tile small{font-size:11px;color:#afc1d4;line-height:1.4}
+.dex-exercise-tile.selected{border-color:#8ee2c6}
+.dex-cardlabel{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#93bdb3;font-weight:800}
+.dex-detail{border:1px solid #438274;background:linear-gradient(140deg,#173532,#162338 65%);border-radius:17px;padding:19px;margin:17px 0;scroll-margin-top:14px}
+.dex-detail h3{font-size:22px;margin:4px 0 12px;letter-spacing:-.5px}
+.dex-quick-guide{background:#142e32;border:1px solid #355a57;color:#c9e7e1;border-radius:11px;padding:11px 13px;margin:11px 0 14px;font-size:12px;line-height:1.55;display:grid;gap:4px}.dex-quick-guide b{color:#e9fff9;font-size:12px}
+.log-picker{display:grid;grid-template-columns:1fr 1fr 1.15fr;gap:8px}.log-picker .field{margin-bottom:4px}@media(max-width:660px){.log-picker{grid-template-columns:1fr 1fr}.log-picker .field:last-child{grid-column:span 2}}
+.dex-guide{border:1px solid #364e57;border-radius:12px;background:#142a31;padding:14px;line-height:1.65;font-size:13px;color:#e0edec;margin:12px 0}
+.dex-readiness{border:1px solid #384f64;background:#192b40;padding:14px;border-radius:12px;margin:12px 0}
+.dex-readiness h4{font-size:13px;margin:0 0 6px}
+.dex-readiness p{font-size:12px;color:#adc2d3;margin:6px 0}
+.dex-readiness .ready-number{font-size:11px;color:#9be8d1}
+.dex-detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}
+.dex-detail-actions button{font-size:12px}
+.dex-zero{border:1px dashed #40556d;background:#132137;border-radius:14px;padding:20px;color:#a6b7cd;font-size:13px}
+.dex-safety{border-left:2px solid #c8a773;padding:8px 11px;background:#42382935;color:#ead9bc;font-size:12px;line-height:1.55;margin-top:10px}
+.app-save-label{display:block;font-size:10px;color:#92c8bd;margin-top:2px;font-weight:600}
+@media(max-width:820px){.dex-family-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dex-browse-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.dex-category-grid{grid-template-columns:1fr}.dex-tile{padding:16px;gap:8px}.dex-tile .emblem{width:38px;height:38px}.dex-family-grid{grid-template-columns:1fr 1fr;gap:8px}.dex-family-tile{padding:12px}.dex-browse-grid{grid-template-columns:1fr 1fr}.dex-exercise-tile{padding:10px}.dex-family-intro h2{font-size:20px}.dex-family-intro{align-items:flex-start;gap:10px}.dex-hero{padding:18px}.dex-phase{flex-basis:145px}.dex-detail{padding:14px}.dex-searchbar{flex-direction:column;align-items:stretch}.dex-searchbar input{max-width:none}.nav{width:100%;gap:1px}.nav button{font-size:12px;padding:9px 10px}header small{font-size:11px}header strong{font-size:20px}}
+.dex-movement-group{margin:0 0 18px;padding:12px 14px;border:1px solid var(--line);border-radius:13px;background:#121d2d}
+.dex-movement-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.dex-movement-heading strong{font-size:14px;color:#d9e8f0}
+.dex-movement-group .dex-browse-grid{margin:0}
+</style></head><body><header><div><div class="app-title"><span class="app-symbol" aria-hidden="true">✦</span><strong>FitnessDex</strong></div><small>Personal prototype · ExerciseDex · progressive challenges · local save · exploration paths</small></div><span class="pill">v0.5.2</span></header><main><nav class="nav"><button data-tab="home" class="active">Dashboard</button><button data-tab="log">Log activity</button><button data-tab="dex">ExerciseDex</button><button data-tab="achievements">Achievements</button><button data-tab="history">History & data</button></nav><div id="app"></div></main><div id="toast" role="status" aria-live="polite"></div><footer style="max-width:1100px;margin:20px auto 35px;padding:0 18px">Local-first personal prototype. No live imports from StrongLifts, Samsung Health or Strava. Challenge targets are based on simple recent-history heuristics, not medical training prescriptions. Skill-gating is advisory; don't attempt advanced mobility, extreme repetitions or unfamiliar loads for a reward. <b>Saved automatically on this browser.</b> Downloaded copies of the app may not share saves. A permanent hosted address and cloud sync are still needed to move smoothly between versions and devices; keep an export until then.</footer><script>const DATA=[{"id":"e001","name":"Wall push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e002","name":"Incline push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e003","name":"Knee push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e004","name":"Standard push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e005","name":"Close-grip push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e006","name":"Diamond push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e007","name":"Decline push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e008","name":"Archer push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e009","name":"Pseudo-planche push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e010","name":"Inverted row","cat":"Calisthenics","family":"Pulling","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"]},{"id":"e011","name":"Assisted pull-up","cat":"Calisthenics","family":"Pulling","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"]},{"id":"e012","name":"Negative pull-up","cat":"Calisthenics","family":"Pulling","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"]},{"id":"e013","name":"Strict pull-up","cat":"Calisthenics","family":"Pulling","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"]},{"id":"e014","name":"Chest-to-bar pull-up","cat":"Calisthenics","family":"Pulling","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"]},{"id":"e015","name":"Archer pull-up","cat":"Calisthenics","family":"Pulling","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"]},{"id":"e016","name":"Muscle-up","cat":"Calisthenics","family":"Pulling","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"]},{"id":"e017","name":"Plank","cat":"Calisthenics","family":"Planks & bracing","mode":"time","metric":"seconds","unit":"s","attrs":["Balance","Strength"]},{"id":"e018","name":"Side plank","cat":"Calisthenics","family":"Planks & bracing","mode":"time","metric":"seconds","unit":"s","attrs":["Balance","Strength"]},{"id":"e019","name":"Hollow hold","cat":"Calisthenics","family":"Hollow body & compression","mode":"time","metric":"seconds","unit":"s","attrs":["Balance","Strength"]},{"id":"e020","name":"Dead hang","cat":"Calisthenics","family":"Grip & hangs","mode":"time","metric":"seconds","unit":"s","attrs":["Balance","Strength"]},{"id":"e021","name":"Tuck L-sit","cat":"Calisthenics","family":"L-sit & compression","mode":"time","metric":"seconds","unit":"s","attrs":["Balance","Strength"]},{"id":"e022","name":"L-sit","cat":"Calisthenics","family":"L-sit & compression","mode":"time","metric":"seconds","unit":"s","attrs":["Balance","Strength"]},{"id":"e023","name":"Wall handstand","cat":"Calisthenics","family":"Handstands & pressing","mode":"time","metric":"seconds","unit":"s","attrs":["Balance","Strength"]},{"id":"e024","name":"Freestanding handstand","cat":"Calisthenics","family":"Handstands & pressing","mode":"time","metric":"seconds","unit":"s","attrs":["Balance","Strength"]},{"id":"e025","name":"Back squat","cat":"Weight training","family":"Squat","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e026","name":"Front squat","cat":"Weight training","family":"Squat","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e027","name":"Goblet squat","cat":"Weight training","family":"Squat","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Muscular endurance"],"variationOf":null},{"id":"e028","name":"Bulgarian split squat","cat":"Weight training","family":"Single-leg loaded squats","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e029","name":"Deadlift","cat":"Weight training","family":"Hinge","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Power"]},{"id":"e030","name":"Romanian deadlift","cat":"Weight training","family":"Hinge","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Power"]},{"id":"e031","name":"Bench press","cat":"Weight training","family":"Press","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e032","name":"Overhead press","cat":"Weight training","family":"Press","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e033","name":"Dumbbell chest press","cat":"Weight training","family":"Press","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Muscular endurance"],"variationOf":"e031"},{"id":"e034","name":"Barbell row","cat":"Weight training","family":"Pull","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e035","name":"Dumbbell row","cat":"Weight training","family":"Pull","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e036","name":"Standing forward fold","cat":"Flexibility & mobility","family":"Hamstrings & folding","mode":"time","metric":"seconds","unit":"s","attrs":["Flexibility","Mobility"]},{"id":"e037","name":"Pancake stretch","cat":"Flexibility & mobility","family":"Hamstrings & folding","mode":"time","metric":"seconds","unit":"s","attrs":["Flexibility","Mobility"]},{"id":"e038","name":"Front split progression","cat":"Flexibility & mobility","family":"Front splits","mode":"time","metric":"seconds","unit":"s","attrs":["Flexibility","Mobility"]},{"id":"e039","name":"Middle split progression","cat":"Flexibility & mobility","family":"Middle splits","mode":"time","metric":"seconds","unit":"s","attrs":["Flexibility","Mobility"]},{"id":"e040","name":"Hip flexor stretch","cat":"Flexibility & mobility","family":"Hip flexors","mode":"time","metric":"seconds","unit":"s","attrs":["Flexibility","Mobility"]},{"id":"e041","name":"Shoulder mobility","cat":"Flexibility & mobility","family":"Shoulders","mode":"time","metric":"seconds","unit":"s","attrs":["Mobility","Flexibility"]},{"id":"e042","name":"Thoracic rotation","cat":"Flexibility & mobility","family":"Spinal rotation","mode":"time","metric":"seconds","unit":"s","attrs":["Mobility","Flexibility"]},{"id":"e043","name":"Glute bridge","cat":"Weight training","family":"Hip thrusts & glutes","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Mobility"]},{"id":"e044","name":"Full bridge progression","cat":"Flexibility & mobility","family":"Bridges & backbends","mode":"time","metric":"seconds","unit":"s","attrs":["Mobility","Flexibility"]},{"id":"e045","name":"Walking","cat":"Cardio","family":"Walking","mode":"distance","metric":"km","unit":"km","attrs":["Cardiovascular endurance","Muscular endurance"]},{"id":"e046","name":"Running","cat":"Cardio","family":"Running","mode":"distance","metric":"km","unit":"km","attrs":["Cardiovascular endurance","Muscular endurance"]},{"id":"e047","name":"Trail running","cat":"Cardio","family":"Running","mode":"distance","metric":"km","unit":"km","attrs":["Cardiovascular endurance","Muscular endurance"]},{"id":"e048","name":"Outdoor cycling","cat":"Cardio","family":"Cycling","mode":"distance","metric":"km","unit":"km","attrs":["Cardiovascular endurance","Muscular endurance"]},{"id":"e049","name":"Indoor cycling","cat":"Cardio","family":"Cycling","mode":"distance","metric":"km","unit":"km","attrs":["Cardiovascular endurance","Muscular endurance"]},{"id":"e050","name":"Rowing machine","cat":"Cardio","family":"Rowing","mode":"duration","metric":"minutes","unit":"min","attrs":["Cardiovascular endurance","Coordination"]},{"id":"e051","name":"Swimming","cat":"Cardio","family":"Swimming","mode":"duration","metric":"minutes","unit":"min","attrs":["Cardiovascular endurance","Coordination"]},{"id":"e052","name":"Skipping rope","cat":"Cardio","family":"Skipping","mode":"duration","metric":"minutes","unit":"min","attrs":["Cardiovascular endurance","Coordination"]},{"id":"e053","name":"Assisted one-arm push-up","cat":"Calisthenics","family":"One-arm push-up path","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e054","name":"One-arm push-up","cat":"Calisthenics","family":"One-arm push-up path","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e055","name":"Tempo push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"Controlled descent; recorded as a distinct practice variation","side":false},{"id":"e056","name":"Paused push-up","cat":"Calisthenics","family":"Push-ups","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"Deliberate bottom pause","side":false},{"id":"e057","name":"Elevated inverted row","cat":"Calisthenics","family":"Horizontal pulling","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e058","name":"Chin-up","cat":"Calisthenics","family":"Pulling","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e059","name":"Weighted pull-up","cat":"Calisthenics","family":"Pulling","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e060","name":"Assisted dip","cat":"Calisthenics","family":"Dips","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e061","name":"Bench dip","cat":"Calisthenics","family":"Dips","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e062","name":"Parallel-bar dip","cat":"Calisthenics","family":"Dips","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e063","name":"Weighted dip","cat":"Calisthenics","family":"Dips","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e064","name":"Crunch","cat":"Calisthenics","family":"Core repetitions","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e065","name":"Sit-up","cat":"Calisthenics","family":"Core repetitions","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e066","name":"Lying leg raise","cat":"Calisthenics","family":"Leg raises","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e067","name":"Hanging knee raise","cat":"Calisthenics","family":"Leg raises","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e068","name":"Hanging straight-leg raise","cat":"Calisthenics","family":"Leg raises","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e069","name":"Hollow rock","cat":"Calisthenics","family":"Hollow body & compression","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e070","name":"Tuck V-sit","cat":"Calisthenics","family":"L-sit & compression","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e071","name":"V-sit","cat":"Calisthenics","family":"L-sit & compression","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e072","name":"Active hang","cat":"Calisthenics","family":"Grip & hangs","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e073","name":"Scapular pull-up","cat":"Calisthenics","family":"Grip & hangs","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e074","name":"Bodyweight squat","cat":"Calisthenics","family":"Bodyweight squats","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e075","name":"Split squat","cat":"Calisthenics","family":"Single-leg squats","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e076","name":"Assisted pistol squat","cat":"Calisthenics","family":"Single-leg squats","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e077","name":"Pistol squat","cat":"Calisthenics","family":"Single-leg squats","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":true},{"id":"e078","name":"Shrimp squat","cat":"Calisthenics","family":"Single-leg squats","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":true},{"id":"e079","name":"Wall handstand push-up (partial)","cat":"Calisthenics","family":"Handstands & pressing","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e080","name":"Wall handstand push-up","cat":"Calisthenics","family":"Handstands & pressing","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e081","name":"Freestanding handstand push-up","cat":"Calisthenics","family":"Handstands & pressing","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e082","name":"Frog stand","cat":"Calisthenics","family":"Handstands & pressing","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e083","name":"Wall handstand shoulder taps","cat":"Calisthenics","family":"Handstands & pressing","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e084","name":"Half split stretch","cat":"Flexibility & mobility","family":"Hamstrings & folding","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e085","name":"Seated pike stretch","cat":"Flexibility & mobility","family":"Hamstrings & folding","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e086","name":"Active pike compression","cat":"Flexibility & mobility","family":"Hamstrings & folding","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e087","name":"Deep lunge stretch","cat":"Flexibility & mobility","family":"Hip flexors","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e088","name":"Couch stretch","cat":"Flexibility & mobility","family":"Hip flexors","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e089","name":"ATG split squat","cat":"Flexibility & mobility","family":"Hip flexors","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e090","name":"Pigeon pose","cat":"Flexibility & mobility","family":"Hip rotation","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e091","name":"90/90 hip switches","cat":"Flexibility & mobility","family":"Hip rotation","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e092","name":"Lotus preparation","cat":"Flexibility & mobility","family":"Hip rotation","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"Work only within comfortable knee and hip range","side":true},{"id":"e093","name":"Full lotus","cat":"Flexibility & mobility","family":"Hip rotation","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"Advanced hip rotation; do not force knee joints","side":false},{"id":"e094","name":"Left front split","cat":"Flexibility & mobility","family":"Front splits","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":true},{"id":"e095","name":"Right front split","cat":"Flexibility & mobility","family":"Front splits","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":true},{"id":"e096","name":"Supported middle split","cat":"Flexibility & mobility","family":"Middle splits","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e097","name":"Oversplit progression","cat":"Flexibility & mobility","family":"Front splits","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"Optional extreme range; not a routine suggested challenge","side":false},{"id":"e098","name":"Standing shoulder flexion at wall","cat":"Flexibility & mobility","family":"Shoulders","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e099","name":"Shoulder bind","cat":"Flexibility & mobility","family":"Shoulders","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":true},{"id":"e100","name":"Wall slides","cat":"Flexibility & mobility","family":"Shoulders","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e101","name":"Thoracic extension drill","cat":"Flexibility & mobility","family":"Spinal rotation","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e102","name":"Supine spinal twist","cat":"Flexibility & mobility","family":"Spinal rotation","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e103","name":"Standing side bend","cat":"Flexibility & mobility","family":"Spinal rotation","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e104","name":"Deep squat hold","cat":"Flexibility & mobility","family":"General mobility","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e105","name":"Downward dog","cat":"Flexibility & mobility","family":"General mobility","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e106","name":"Hero pose","cat":"Flexibility & mobility","family":"Quadriceps & ankles","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":false},{"id":"e107","name":"Reclined hero pose","cat":"Flexibility & mobility","family":"Quadriceps & ankles","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e108","name":"Calf stretch","cat":"Flexibility & mobility","family":"Quadriceps & ankles","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e109","name":"Ankle dorsiflexion drill","cat":"Flexibility & mobility","family":"Quadriceps & ankles","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":false,"notes":"","side":true},{"id":"e110","name":"Bridge wall walk","cat":"Flexibility & mobility","family":"Bridges & backbends","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e111","name":"Advanced backbend","cat":"Flexibility & mobility","family":"Bridges & backbends","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":false},{"id":"e112","name":"Scorpion pose","cat":"Flexibility & mobility","family":"Advanced flexibility","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"Optional advanced backbend; supervised preparation recommended","side":false},{"id":"e113","name":"Needle pose","cat":"Flexibility & mobility","family":"Advanced flexibility","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":true},{"id":"e114","name":"Ankle-behind-head","cat":"Flexibility & mobility","family":"Advanced flexibility","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"Optional extreme hip range; may be inappropriate","side":true},{"id":"e115","name":"Full spinal twist","cat":"Flexibility & mobility","family":"Advanced flexibility","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"","side":true},{"id":"e116","name":"Contortion backbend","cat":"Flexibility & mobility","family":"Advanced flexibility","mode":"time","metric":"seconds","unit":"s","attrs":["Strength","Coordination"],"advanced":true,"notes":"Optional extreme position; do not generate as normal challenge","side":false},{"id":"e117","name":"Forward-fold gap-to-floor test","cat":"Flexibility & mobility","family":"Range measurements","mode":"range","metric":"range","unit":"cm","attrs":["Flexibility","Mobility"],"advanced":false,"notes":"Record signed gap in cm; negative means fingertips pass floor","side":false},{"id":"e118","name":"Front-split floor-gap test","cat":"Flexibility & mobility","family":"Range measurements","mode":"range","metric":"range","unit":"cm","attrs":["Flexibility","Mobility"],"advanced":false,"notes":"Height in cm above floor, smaller is deeper","side":true},{"id":"e119","name":"Dumbbell lunge","cat":"Weight training","family":"Single-leg loaded squats","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Balance"],"advanced":false,"notes":"","side":false},{"id":"e120","name":"Weighted calf raise","cat":"Weight training","family":"Accessory","mode":"sets","metric":"volume","unit":"kg×reps","attrs":["Strength","Muscular endurance"],"advanced":false,"notes":"","side":false},{"id":"e121","name":"Backstroke swim","cat":"Cardio","family":"Swimming strokes","mode":"duration","metric":"minutes","unit":"min","attrs":["Cardiovascular endurance","Coordination"]},{"id":"e122","name":"Front crawl swim","cat":"Cardio","family":"Swimming strokes","mode":"duration","metric":"minutes","unit":"min","attrs":["Cardiovascular endurance","Coordination"]},{"id":"e123","name":"Breaststroke swim","cat":"Cardio","family":"Swimming strokes","mode":"duration","metric":"minutes","unit":"min","attrs":["Cardiovascular endurance","Coordination"]},{"id":"e124","name":"Flutter kick with kickboard","cat":"Cardio","family":"Swimming technique","mode":"duration","metric":"minutes","unit":"min","attrs":["Cardiovascular endurance","Coordination"]},{"id":"e125","name":"Rowing technique drills","cat":"Cardio","family":"Rowing technique","mode":"duration","metric":"minutes","unit":"min","attrs":["Cardiovascular endurance","Coordination"]},{"id":"e126","name":"Cycling cadence drill","cat":"Cardio","family":"Cycling skills","mode":"duration","metric":"minutes","unit":"min","attrs":["Cardiovascular endurance","Coordination"]},{"id":"e127","name":"Safety-bar squat","cat":"Weight training","family":"Squat","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Mobility"],"variantOf":"e025"},{"id":"e128","name":"Hack squat","cat":"Weight training","family":"Squat","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e129","name":"Hip belt squat","cat":"Weight training","family":"Squat","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e130","name":"Box squat","cat":"Weight training","family":"Squat","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Coordination"],"variantOf":"e025"},{"id":"e131","name":"Deficit deadlift","cat":"Weight training","family":"Hinge","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Mobility"],"variantOf":"e029"},{"id":"e132","name":"Rack pull","cat":"Weight training","family":"Hinge","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Muscular endurance"],"variantOf":"e029"},{"id":"e133","name":"Good morning","cat":"Weight training","family":"Hinge","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Mobility"]},{"id":"e134","name":"Stiff-leg deadlift","cat":"Weight training","family":"Hinge","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Mobility"],"variantOf":"e030"},{"id":"e135","name":"Floor press","cat":"Weight training","family":"Press","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Muscular endurance"],"variantOf":"e031"},{"id":"e136","name":"Board press","cat":"Weight training","family":"Press","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Muscular endurance"],"variantOf":"e031"},{"id":"e137","name":"Landmine press","cat":"Weight training","family":"Press","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Coordination"],"variantOf":"e032"},{"id":"e138","name":"Single-arm dumbbell overhead press","cat":"Weight training","family":"Press","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Balance"],"variantOf":"e032"},{"id":"e139","name":"Preacher curl","cat":"Weight training","family":"Accessory","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e140","name":"Hammer curl","cat":"Weight training","family":"Accessory","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e141","name":"Rear-delt raise","cat":"Weight training","family":"Accessory","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Coordination"]},{"id":"e142","name":"Glute-ham raise","cat":"Weight training","family":"Accessory","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e143","name":"Seated calf raise","cat":"Weight training","family":"Accessory","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Muscular endurance"]},{"id":"e144","name":"Ab wheel rollout","cat":"Calisthenics","family":"Core repetitions","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Coordination"]},{"id":"e145","name":"Reverse crunch","cat":"Calisthenics","family":"Core repetitions","mode":"bodysets","metric":"reps","unit":"reps","attrs":["Strength","Muscular endurance"]},{"id":"e146","name":"Pallof press","cat":"Weight training","family":"Core resistance","mode":"sets","metric":"kg-reps","unit":"kg×reps","attrs":["Strength","Coordination"]}];const PATHS=[["Push-up foundations",["e001","e002","e003","e004"]],["Push-up grip & volume",["e004","e005","e006"]],["Push-up leverage",["e004","e007","e008","e053","e054"]],["Planche-oriented pushing",["e004","e009"]],["Row to pull-up",["e010","e011","e012","e013"]],["Advanced vertical pulling",["e013","e014","e015","e016"]],["Hollow-body & compression",["e017","e019","e021","e022","e071"]],["Single-leg squat skills",["e028","e075","e076","e077"]],["Handstand balance",["e023","e024"]],["Handstand pressing",["e023","e079","e080","e081"]],["Dip strength",["e060","e062","e063"]],["Bridge development",["e043","e044","e110","e111"]],["Front split preparation",["e087","e084","e038","e094"]],["Hip rotation preparation",["e091","e090","e092","e093"]]];
+</script><script>'use strict';
+// FitnessDex v0.3 — intentionally standalone and local-first.
+// All original v0.2 exercise IDs are retained; no migration rewrites exercise logs.
+const K = 'fitnessdex-v01';
+const PRE_MIGRATION = 'fitnessdex-v01-pre-v03-backup';
+const PRE_IMPORT = 'fitnessdex-v01-pre-import-backup';
+const PRE_V04 = 'fitnessdex-v01-pre-v04-backup';
+const CATS = ['Calisthenics','Weight training','Flexibility & mobility','Cardio'];
+const WINDOWS = ['daily','48h','weekly','monthly'];
+const DAILY_BONUSES = {1:10,2:15,3:20,5:40,10:80};
+// Achievement thresholds are permanent, never reset, and derived only from saved activity.
+const LIFETIME_VOLUME_STEPS=[100,1000,10000,50000,100000,200000,300000,400000,500000,600000,700000,800000,900000,1000000];
+const TIME_BADGE_STEPS=[1,3,5,10,25,50,100,250,500,1000];
+const TIME_TRACKS = [
+ ...['Cardio','Flexibility & mobility','Workout'].flatMap((scope)=>[
+  {id:(scope==='Cardio'?'cardio':scope==='Workout'?'workout':'mobility')+'-before-09',scope,window:'before',hour:9,label:`${scope==='Workout'?'Full workouts':scope==='Cardio'?'Cardio':'Mobility'} before 09:00`},
+  {id:(scope==='Cardio'?'cardio':scope==='Workout'?'workout':'mobility')+'-before-10',scope,window:'before',hour:10,label:`${scope==='Workout'?'Full workouts':scope==='Cardio'?'Cardio':'Mobility'} before 10:00`},
+  {id:(scope==='Cardio'?'cardio':scope==='Workout'?'workout':'mobility')+'-after-20',scope,window:'after',hour:20,label:`${scope==='Workout'?'Full workouts':scope==='Cardio'?'Cardio':'Mobility'} after 20:00`},
+  {id:(scope==='Cardio'?'cardio':scope==='Workout'?'workout':'mobility')+'-after-21',scope,window:'after',hour:21,label:`${scope==='Workout'?'Full workouts':scope==='Cardio'?'Cardio':'Mobility'} after 21:00`}
+ ]),
+ {id:'spread-two',scope:'Spread2',label:'Movement in two parts of the day'},
+ {id:'spread-three',scope:'Spread3',label:'Movement in three parts of the day'}
+];
+const TIME_TRACK_BY_ID=Object.fromEntries(TIME_TRACKS.map(x=>[x.id,x]));
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ex = id => DATA.find(e=>e.id===id);
+const n = x => Number.isFinite(Number(x)) ? Number(x) : 0;
+const round = (v,d=1) => Math.round(v*10**d)/10**d;
+const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+const unique = xs => [...new Set(xs)];
+const stamp = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const today = () => stamp(new Date());
+const localTime = d => `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+const dateFrom = s => new Date(`${s}T00:00:00`);
+const ms = x => new Date(x).getTime();
+const validDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s)) && !isNaN(dateFrom(s)) && stamp(dateFrom(s))===s;
+const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
+const blankState = () => ({logs:[], claimed:[], assign:{}, tally:{}, v3:{active:[],completed:[],nextSerial:0},v4:{hunts:[],lastResult:null}});
+let migrationError='';
+function loadState(){
+  let raw=null, parsed=null;
+  try {raw=localStorage.getItem(K); parsed=raw ? JSON.parse(raw) : blankState();}
+  catch(e){migrationError='An existing save could not be read. Nothing has been overwritten. Export your old data from v0.2 before using this version.';return blankState();}
+  if (!parsed || typeof parsed!=='object' || !Array.isArray(parsed.logs)) {
+    migrationError='An existing save has an unexpected format. It has not been overwritten.';
+    return blankState();
+  }
+  if(raw&&!localStorage.getItem(PRE_V04)){try{localStorage.setItem(PRE_V04,raw);}catch(e){migrationError='Could not protect the old save before v0.4. Export your data first.';}}
+  if (raw && !localStorage.getItem(PRE_MIGRATION)) {
+    try {localStorage.setItem(PRE_MIGRATION,raw);}catch(e){migrationError='Could not make automatic migration backup; export manually before adding records.';}
+  }
+  parsed.claimed=Array.isArray(parsed.claimed)?parsed.claimed:[];
+  parsed.assign=(parsed.assign&&typeof parsed.assign==='object')?parsed.assign:{};
+  parsed.tally=(parsed.tally&&typeof parsed.tally==='object')?parsed.tally:{};
+  if(!parsed.v3 || typeof parsed.v3!=='object')parsed.v3={active:[],completed:[],nextSerial:0};
+  if(!Array.isArray(parsed.v3.active))parsed.v3.active=[];
+  if(!Array.isArray(parsed.v3.completed))parsed.v3.completed=[];
+  if(!Number.isSafeInteger(parsed.v3.nextSerial))parsed.v3.nextSerial=0;
+  if(!parsed.v4||typeof parsed.v4!=='object')parsed.v4={hunts:[],lastResult:null};
+  if(!Array.isArray(parsed.v4.hunts))parsed.v4.hunts=[];
+  parsed.v4.hunts=unique(parsed.v4.hunts.filter(id=>typeof id==='string' && DATA.some(e=>e.id===id))).slice(0,5);
+  return parsed;
+}
+let S=loadState(), tab='home', cat='All', search='', chosen='e004', editId=null, activeSessionId=null, chosenTime=localTime(new Date()), messageQueue=[];
+const CACHE = {stats:{},logs:{},completed:null,earned:null};
+function resetDerived(){CACHE.stats={};CACHE.logs={};CACHE.completed=null;CACHE.earned=null;}
+const DIFFICULTY = {'e001':0.42,'e002':0.6,'e003':0.68,'e004':1,'e005':1.12,'e006':1.35,'e007':1.2,'e008':1.65,'e009':1.75,'e053':1.6,'e054':2.1,'e011':0.7,'e012':0.78,'e013':1.2,'e014':1.5,'e015':1.8,'e016':2.2,'e060':0.65,'e061':0.6,'e062':1.1,'e074':0.65,'e075':0.85,'e076':1.1,'e077':1.7};
+const DISCOVERY_BASELINE = {'e045':{kind:'distance',minimum:0.5,unit:'km'},'e046':{kind:'distance',minimum:0.5,unit:'km'},'e047':{kind:'distance',minimum:0.5,unit:'km'},'e048':{kind:'distance',minimum:2,unit:'km'},'e049':{kind:'distance',minimum:2,unit:'km'},'e050':{kind:'minutes',minimum:5,unit:'min'},'e051':{kind:'minutes',minimum:5,unit:'min'},'e052':{kind:'minutes',minimum:2,unit:'min'}};
+const CARDIO_VENUE_IDS=new Set(['e050','e051','e121','e122','e123','e124','e125','e126']);
+const STARTER_IDS=new Set(['e001','e002','e004','e017','e018','e019','e036','e042','e045','e052','e064','e074','e084','e087','e091','e100','e104','e105','e108']);
+const DISCOVERY_LABELS={e121:'Try backstroke',e122:'Try front crawl',e123:'Try breaststroke',e124:'Try kickboard flutter kicks',e125:'Try a rowing technique drill',e126:'Try a cycling cadence drill'};
+const CARDIO_PARENT={e121:'e051',e122:'e051',e123:'e051',e124:'e051',e125:'e050',e126:'e048'};
+const STROKE_BY_ID={e121:'Backstroke',e122:'Front crawl',e123:'Breaststroke'};
+function matchesExercise(l,id){return l.id===id || CARDIO_PARENT[l.id]===id || (STROKE_BY_ID[id]&&l.id==='e051'&&l.stroke===STROKE_BY_ID[id]);}
+function tryStandard(e){if(DISCOVERY_BASELINE[e.id])return DISCOVERY_BASELINE[e.id];if(e.mode==='bodysets')return {kind:'reps',minimum:3,unit:'reps'};if(e.mode==='sets')return {kind:'weighted_sets',minimum:1,unit:'set'};if(e.mode==='time')return {kind:'longest_hold',minimum:10,unit:'s continuous'};if(e.mode==='duration')return {kind:'minutes',minimum:5,unit:'min'};if(e.mode==='distance')return {kind:'distance',minimum:0.5,unit:'km'};return {kind:'first_try',minimum:1,unit:'attempt'};}
+function estimatedMinutes(e,goal){if(!e)return 10;if(e.mode==='sets')return 15;if(e.mode==='bodysets')return Math.max(2,Math.ceil(goal/15)*2);if(e.mode==='time')return Math.max(3,Math.ceil(goal/60)+2);if(e.mode==='range')return 10;if(e.mode==='duration')return Math.ceil(goal);if(e.mode==='distance')return Math.max(5,Math.ceil(goal*(e.name.includes('Walking')?12:e.name.includes('Cycling')?4:7)));return 10;}
+
+function save(){ if(migrationError) return false; try {localStorage.setItem(K,JSON.stringify(S));return true;} catch(e){alert('FitnessDex could not save. Storage may be full. Export a backup and free space.');return false;} }
+function logWhen(l){
+  if(l.performedAt && !isNaN(ms(l.performedAt)))return ms(l.performedAt);
+  if(l.date && validDate(l.date))return ms(l.date+'T00:00:00'); // legacy date-only record, conservative for newly issued challenges
+  return NaN;
+}
+function logId(l){return l.at||l.logId;}
+function logMetrics(l){
+  const sets=Array.isArray(l.sets)?l.sets:(l.mode==='reps'?[{reps:n(l.value)}]:[]);
+  return {sets:l.mode==='reps'?0:sets.filter(s=>n(s.reps)>0).length,
+    reps:sets.reduce((a,s)=>a+n(s.reps),0),
+    bestReps:l.mode==='reps'?0:Math.max(0,...sets.map(s=>n(s.reps))),
+    kgReps:sets.reduce((a,s)=>a+n(s.reps)*n(s.weight),0),
+    topLoad:Math.max(0,...sets.filter(s=>n(s.reps)>0).map(s=>n(s.weight))),
+    e1rm:Math.max(0,...sets.filter(s=>n(s.weight)>0&&n(s.reps)>=1&&n(s.reps)<=10).map(s=>n(s.weight)*(1+n(s.reps)/30))),
+    minutes:n(l.minutes)+(l.mode==='duration'?n(l.value):0),
+    distance:n(l.distance)+(l.mode==='distance'?n(l.value):0),
+    seconds:l.mode==='time'?n(l.value):0,
+    range:l.mode==='range'?n(l.value):null};
+}
+function completedLogs(){
+ if(CACHE.completed)return CACHE.completed;
+ const now=Date.now();return CACHE.completed=S.logs.filter(l=>l.id&&ex(l.id)&&validDate(l.date)&&Number.isFinite(logWhen(l))&&logWhen(l)<=now+60000);
+}
+function logsFor(id){return CACHE.logs[id]||(CACHE.logs[id]=completedLogs().filter(l=>matchesExercise(l,id)));}
+function isSeen(id){return logsFor(id).length>0;}
+function stats(id){
+ if(CACHE.stats[id])return CACHE.stats[id];
+ const rows=logsFor(id),m=rows.map(logMetrics),sessionMap={};
+ const base={sessions:countSessions(rows),records:rows.length,sets:m.reduce((a,x)=>a+x.sets,0),lifetimeReps:m.reduce((a,x)=>a+x.reps,0),lifetimeKgReps:m.reduce((a,x)=>a+x.kgReps,0),lifetimeDistance:m.reduce((a,x)=>a+x.distance,0),lifetimeMinutes:m.reduce((a,x)=>a+x.minutes,0),lifetimeSeconds:m.reduce((a,x)=>a+x.seconds,0),bestSet:Math.max(0,...m.map(x=>x.bestReps)),bestSessionReps:0,bestVolume:0,topLoad:Math.max(0,...m.map(x=>x.topLoad)),e1rm:Math.max(0,...m.map(x=>x.e1rm)),bestDistance:Math.max(0,...m.map(x=>x.distance)),bestMinutes:Math.max(0,...m.map(x=>x.minutes)),bestHold:Math.max(0,...m.map(x=>x.seconds)),bestPace:null,rangeBySide:{},rangeBaseline:{},repsAtLoad:{}};
+ for(let i=0;i<rows.length;i++){
+  const row=rows[i],t=m[i],key=row.sessionId||'legacy-'+(logId(row)||i);
+  const session=sessionMap[key]||(sessionMap[key]={reps:0,volume:0});
+  session.reps+=t.reps;session.volume+=t.kgReps;
+  if(row.mode==='sets')for(const set of row.sets||[])if(n(set.weight)>0&&n(set.reps)>0){const w=String(n(set.weight));base.repsAtLoad[w]=Math.max(base.repsAtLoad[w]||0,n(set.reps));}
+  if(row.mode==='range'){
+    const side=row.side||'both',v=n(row.value);base.rangeBySide[side]=Math.min(base.rangeBySide[side]??Infinity,v);
+    const prior=base.rangeBaseline[side];if(!prior||logWhen(row)<prior.when)base.rangeBaseline[side]={when:logWhen(row),value:v};
+  }
+ }
+ base.bestSessionReps=Math.max(0,...Object.values(sessionMap).map(x=>x.reps));
+ base.bestVolume=Math.max(0,...Object.values(sessionMap).map(x=>x.volume));
+ const paces=m.filter(x=>x.distance>0&&x.minutes>0).map(x=>x.minutes/x.distance);
+ if(paces.length)base.bestPace=Math.min(...paces);
+ return CACHE.stats[id]=base;
+}
+function periodInfo(type,now=new Date()){
+ const start=new Date(now);start.setHours(0,0,0,0);
+ if(type==='48h'){
+  const ordinal=Math.round((Date.UTC(start.getFullYear(),start.getMonth(),start.getDate())-Date.UTC(2026,0,1))/86400000);
+  start.setDate(start.getDate()-((ordinal%2+2)%2));
+ }
+ if(type==='weekly')start.setDate(start.getDate()-((start.getDay()+6)%7));
+ if(type==='monthly')start.setDate(1);
+ const end=new Date(start);
+ if(type==='daily')end.setDate(end.getDate()+1);
+ if(type==='48h')end.setDate(end.getDate()+2);
+ if(type==='weekly')end.setDate(end.getDate()+7);
+ if(type==='monthly')end.setMonth(end.getMonth()+1);
+ return {key:type+':'+stamp(start),start:start.toISOString(),end:end.toISOString(),title:{daily:'Daily','48h':'Two-day',weekly:'Weekly',monthly:'Monthly event'}[type]};
+}
+function logsInWindow(ch,until=Date.now()){
+  const start=Math.max(ms(ch.issuedAt),ms(ch.periodStart)),end=Math.min(ms(ch.periodEnd),until);
+  return completedLogs().filter(l=>{const t=logWhen(l);return t>=start&&t<end&&(!ch.ex||matchesExercise(l,ch.ex))&&(!ch.category||ch.category===ex(l.id)?.cat);});
+}
+function countSessions(rows){return new Set(rows.map(l=>l.sessionId||'legacy-'+l.date+'-'+(ex(l.id)?.cat||''))).size;}
+function recordedLocalTime(l){
+ // Date-only records have no verifiable time. Never infer 00:00 from a legacy date.
+ if(!l.performedAt)return null;
+ const d=new Date(l.performedAt);
+ return Number.isFinite(d.getTime())&&stamp(d)===l.date?d:null;
+}
+function inTimeWindow(date,track){
+ const minute=date.getHours()*60+date.getMinutes();
+ return track.window==='before'?minute<track.hour*60:minute>=track.hour*60;
+}
+function workoutGroups(rows){
+ const groups=new Map();
+ for(const l of rows){
+  const time=recordedLocalTime(l);if(!time)continue;
+  // Do not merge unrelated legacy entries into a fictitious multi-exercise workout.
+  const sid=l.sessionId||logId(l)||'unknown-'+l.id+'-'+time.getTime();
+  const key=l.date+'|'+sid;
+  if(!groups.has(key))groups.set(key,[]);
+  groups.get(key).push(l);
+ }
+ return [...groups.values()].filter(group=>{
+  const types=new Set(group.map(l=>l.id));
+  const metrics=group.map(logMetrics);
+  const workingSets=metrics.reduce((sum,x)=>sum+x.sets,0);
+  const cardioMins=group.filter(l=>ex(l.id)?.cat==='Cardio').reduce((sum,l)=>sum+logMetrics(l).minutes,0);
+  // A "full workout" is 2 movements, 3+ recorded working sets or 20+ cardio minutes.
+  return types.size>=2 || workingSets>=3 || cardioMins>=20;
+ });
+}
+function timeTrackTotals(rows=completedLogs()){
+ const result=Object.fromEntries(TIME_TRACKS.map(track=>[track.id,0]));
+ const timed=rows.filter(l=>recordedLocalTime(l));
+ const full=workoutGroups(timed);
+ for(const track of TIME_TRACKS){
+  if(track.scope==='Spread2'||track.scope==='Spread3'){
+   const slots=new Map();
+   for(const l of timed){const time=recordedLocalTime(l);const hour=time.getHours();
+    // Early / daytime / evening. A day with 2 or 3 different slots counts once.
+    const slot=hour<10?'morning':hour<17?'daytime':'evening';
+    if(!slots.has(l.date))slots.set(l.date,new Set());slots.get(l.date).add(slot);
+   }
+   result[track.id]=[...slots.values()].filter(set=>set.size>=(track.scope==='Spread2'?2:3)).length;
+   continue;
+  }
+  const qualifyingDays=new Set();
+  if(track.scope==='Workout'){
+   for(const group of full){
+    const times=group.map(recordedLocalTime);
+    // The whole recorded workout must fall on the appropriate side of the cutoff.
+    if(times.every(time=>inTimeWindow(time,track)))qualifyingDays.add(group[0].date);
+   }
+  }else{
+   for(const l of timed){
+    if(ex(l.id)?.cat===track.scope && inTimeWindow(recordedLocalTime(l),track))qualifyingDays.add(l.date);
+   }
+  }
+  result[track.id]=qualifyingDays.size;
+ }
+ return result;
+}
+
+function progressValue(ch,until=Date.now()){
+ const rows=logsInWindow(ch,until),met=rows.map(logMetrics);
+ switch(ch.kind){
+  case 'first_try':{
+   const eligible=rows.filter(l=>!completedLogs().some(z=>matchesExercise(z,ch.ex||l.id) && logWhen(z)<ms(ch.issuedAt)));
+   if(ch.minimum&&ch.measure)return eligible.some(l=>{const t=logMetrics(l);return ((ch.measure==='longest_hold'?t.seconds:t[ch.measure])||0)>=ch.minimum})?1:0;
+   return eligible.length?1:0; // old challenge compatibility
+  }
+  case 'discovery':return unique(rows.map(l=>l.id).filter(id=>!completedLogs().some(z=>z.id===id&&logWhen(z)<ms(ch.issuedAt)))).length;
+  case 'variety':return unique(rows.map(l=>l.id)).length;
+  case 'category_sessions':case 'weighted_sessions':return countSessions(rows);
+  case 'weighted_sets':return met.reduce((a,x)=>a+x.sets,0);
+  case 'weighted_reps_at_load':return rows.flatMap(l=>l.sets||[]).filter(s=>n(s.weight)>=ch.load).reduce((a,s)=>a+n(s.reps),0);
+  case 'reps':return met.reduce((a,x)=>a+x.reps,0);
+  case 'consecutive':return Math.max(0,...met.map(x=>x.bestReps));
+  case 'longest_hold':return Math.max(0,...met.map(x=>x.seconds));
+  case 'total_hold_seconds':case 'seconds':return met.reduce((a,x)=>a+x.seconds,0);
+  case 'distance':return met.reduce((a,x)=>a+x.distance,0);
+  case 'minutes':return met.reduce((a,x)=>a+x.minutes,0);
+  case 'time_slot':return timeTrackTotals(rows)[ch.trackId]||0;
+  default:return 0;
+ }
+}
+function challengeValid(ch){return progressValue(ch,ms(ch.completedAt)+1000)+1e-8>=ch.goal;}
+function reconcileCompleted(){
+ let affected=0;const keep=[];
+ for(const ch of S.v3.completed){if(challengeValid(ch))keep.push(ch);else {affected++; if(ms(ch.periodEnd)>Date.now()&&!S.v3.active.some(a=>a.cid===ch.cid)){
+      const same=S.v3.active.filter(a=>a.periodKey===ch.periodKey);
+      const limit={daily:3,'48h':2,weekly:3,monthly:2}[ch.type]||3;
+      if(same.length>=limit){const latest=same.sort((a,b)=>ms(b.issuedAt)-ms(a.issuedAt))[0];S.v3.active=S.v3.active.filter(a=>a.cid!==latest.cid);}
+      S.v3.active.push({...ch,completedAt:undefined});
+    }}}
+ S.v3.completed=keep;
+ return affected;
+}
+function usedExercises(){return new Set(S.v3.active.filter(x=>ms(x.periodEnd)>Date.now()).map(x=>x.ex).filter(Boolean));}
+function completedRecently(exId){return S.v3.completed.some(c=>c.ex===exId && Date.now()-ms(c.completedAt)<48*3600000);}
+function weightRecent(e){return logsFor(e.id).slice(-8).flatMap(l=>l.sets||[]).filter(s=>n(s.reps)>=3).sort((a,b)=>n(b.weight)-n(a.weight))[0];}
+function recentRows(id,days=35){const threshold=Date.now()-days*86400000;return logsFor(id).filter(l=>logWhen(l)>=threshold);}
+function priorWeeklyDistance(e){
+ // Latest three *completed* local calendar weeks; recent decline reduces targets.
+ const current=dateFrom(today());current.setDate(current.getDate()-((current.getDay()+6)%7));
+ const totals=[];
+ for(let i=1;i<=3;i++){
+  const start=new Date(current);start.setDate(start.getDate()-i*7);
+  const end=new Date(start);end.setDate(end.getDate()+7);
+  totals.push(logsFor(e.id).filter(l=>logWhen(l)>=start.getTime()&&logWhen(l)<end.getTime()).reduce((a,l)=>a+logMetrics(l).distance,0));
+ }
+ const currentWeek=logsFor(e.id).filter(l=>logWhen(l)>=current.getTime()).reduce((a,l)=>a+logMetrics(l).distance,0);
+ const latest=totals[0],weighted=totals[0]*.60+totals[1]*.25+totals[2]*.15;
+ const baseline=latest>0?Math.min(latest*1.10,weighted*1.25):Math.max(currentWeek,weighted*.5);
+ return Math.max(0,round(baseline,2));
+}
+function recentPersonalTarget(e,p){
+ const rows=recentRows(e.id,42),m=rows.map(logMetrics);
+ const typical=(key,def)=>{const vals=m.map(x=>x[key]).filter(x=>x>0).sort((a,b)=>a-b);return vals.length?vals[Math.floor((vals.length-1)/2)]:def;};
+ if(e.mode==='sets'){
+  if(p==='weekly'||p==='monthly')return {kind:'weighted_sessions',goal:p==='weekly'?2:5,unit:'workouts',label:`${e.name} · distinct workouts`};
+  const s=weightRecent(e);
+  if(s&&p==='48h')return {kind:'weighted_reps_at_load',goal:Math.max(3,Math.min(12,n(s.reps))),load:n(s.weight),unit:'reps',label:`${e.name} · ${n(s.weight)} kg or more`};
+  return {kind:'weighted_sets',goal:rows.length?Math.min(5,Math.max(2,Math.round(typical('sets',3)))):1,unit:'sets',label:e.name};
+ }
+ if(e.mode==='bodysets'){
+  const baseline=typical('reps',6);
+  if(p==='weekly'||p==='monthly')return {kind:'reps',goal:Math.max(10,Math.round(baseline*(p==='weekly'?2:5))),unit:'total reps',label:e.name};
+  return {kind:p==='48h'?'reps':'consecutive',goal:Math.max(1,Math.round((p==='48h'?1.4:0.85)*baseline)),unit:p==='48h'?'total reps':'consecutive reps',label:e.name};
+ }
+ if(e.mode==='time'){
+  const baseline=typical('seconds',20);
+  if(p==='daily'||p==='48h')return {kind:'longest_hold',goal:Math.max(10,Math.round((p==='daily'?.85:1)*Math.max(10,stats(e.id).bestHold||baseline))),unit:'s continuous',label:e.name+' · continuous hold'};
+  return {kind:'total_hold_seconds',goal:Math.max(20,Math.round(baseline*(p==='weekly'?3:7))),unit:'s total practice',label:e.name+' · practice time'};
+ }
+ if(e.mode==='distance'){
+  let base=typical('distance',e.name==='Running'?0.7:1.5);
+  if(p==='weekly'||p==='monthly'){
+   const recent=priorWeeklyDistance(e);base=recent>0?recent:e.name.includes('Running')?2:3;
+   if(p==='monthly')base*=3;
+  }else if(p==='48h')base*=1.4;else base*=.85;
+  return {kind:'distance',goal:Math.max(.5,round(base,1)),unit:'km',label:e.name};
+ }
+ if(e.mode==='duration'){
+  let base=typical('minutes',5);
+  if(p==='weekly')base*=2.5;else if(p==='monthly')base*=5;else if(p==='48h')base*=1.5;else base*=.85;
+  return {kind:'minutes',goal:Math.max(3,Math.round(base)),unit:'min',label:e.name};
+ }
+ return null;
+}
+const READY = {
+ e008:[['e004','bestSet',15]],e009:[['e004','bestSet',15]],e014:[['e013','bestSet',5]],e015:[['e013','bestSet',8]],e024:[['e023','bestHold',20]],
+ e016:[['e013','bestSet',5],['e062','bestSet',5]], e053:[['e004','bestSet',15]],e068:[['e067','bestSet',8]],e083:[['e023','bestHold',30]],
+ e054:[['e004','bestSet',20]], e059:[['e013','bestSet',5]],e063:[['e062','bestSet',5]],
+ e071:[['e022','bestHold',10]],e077:[['e076','bestSet',3]],e078:[['e075','bestSet',5]],
+ e079:[['e023','bestHold',20]],e080:[['e079','bestSet',1]],e081:[['e080','bestSet',1]],
+ e094:[['e038','bestHold',15]], e095:[['e038','bestHold',15]]
+};
+function eligible(e){
+ if(e.mode==='range')return false;
+ if(e.cat==='Flexibility & mobility'&&e.advanced)return false; // Advanced mobility never auto-suggested.
+ if(e.advanced && !READY[e.id])return false;
+ return !READY[e.id] || READY[e.id].every(([id,prop,minimum])=>stats(id)[prop]>=minimum);
+}
+function challengeCandidates(type){
+ const candidates=[];
+ for(const e of DATA){
+  if(!eligible(e)||e.mode==='range')continue;
+  const target=recentPersonalTarget(e,type),seen=isSeen(e.id),cooldown=completedRecently(e.id);
+  if(!target && seen)continue;
+  let context;
+  if(!seen){
+   // Generic activities have concrete distance/time starts rather than meaningless 'Try swimming'.
+   const standard=tryStandard(e);
+   context={ex:e.id,category:null,kind:'first_try',goal:1,unit:standard.unit,minimum:standard.minimum,measure:standard.kind,label:DISCOVERY_BASELINE[e.id]?`First ${e.name.toLowerCase()} session · ${standard.minimum} ${standard.unit}`:`${DISCOVERY_LABELS[e.id]||('Try '+e.name.toLowerCase())} · ${standard.minimum} ${standard.unit}`,difficulty:'Discovery',theme:'discovery',weight:2,estMinutes:estimatedMinutes(e,standard.minimum)};
+  }else{
+   context={ex:e.id,category:null,...target,load:target.load||null,difficulty:'Standard',theme:'progress',weight:3,estMinutes:estimatedMinutes(e,target.goal)};
+  }
+  context.weight+=(cooldown?-5:0)+(e.cat==='Cardio'?.2:0);
+  candidates.push(context);
+ }
+ for(const category of CATS){
+  if(type!=='daily')candidates.push({ex:null,category,kind:'variety',goal:type==='48h'?2:type==='weekly'?3:4,unit:'different exercises',label:`${category} · variety`,difficulty:'Discovery',theme:'variety',weight:2,estMinutes:15});
+  if(type==='weekly'||type==='monthly')candidates.push({ex:null,category,kind:'category_sessions',goal:type==='weekly'?2:3,unit:'workouts',label:`${category} · consistency`,difficulty:'Standard',theme:'consistency',weight:2,estMinutes:30});
+ }
+ // Calendar-time objectives: specific, measurable and repeated across different days.
+ const historicalTimeCounts=timeTrackTotals();
+ // Morning daily tasks are only offered while they are still possible today.
+ // Late-evening tasks are gentle by default; challenging after-21:00 targets are not pushed.
+ if(type==='daily'||type==='48h'||type==='weekly'){
+  const hourNow=new Date().getHours(),minuteNow=new Date().getMinutes();
+  for(const track of TIME_TRACKS){
+   if(track.scope==='Spread2'||track.scope==='Spread3')continue;
+   if(type==='daily'&&track.window==='before' && hourNow*60+minuteNow>=track.hour*60-30)continue;
+   if(type==='daily'&&track.window==='after' && hourNow>=23)continue;
+   if(type==='daily'&&track.scope==='Workout')continue; // a full workout is not a short task
+   if(type==='daily'&&track.hour===21)continue;
+   if(track.scope==='Workout'&&type==='48h')continue;
+   if(track.hour===21&&historicalTimeCounts[track.id]===0)continue; // introduce late goals only after observed habits
+   const isEarly=track.window==='before';
+   const existing=historicalTimeCounts[track.id];
+   const goal=type==='weekly'&&existing>=4?2:1;
+   candidates.push({ex:null,category:track.scope==='Workout'?null:track.scope,kind:'time_slot',trackId:track.id,window:track.window,hour:track.hour,goal,unit:goal===1?'qualifying day':'qualifying days',label:track.label,difficulty:'Consistency',theme:'timing',weight:track.scope==='Workout'?1.7:2.4,estMinutes:track.scope==='Workout'?30:track.scope==='Cardio'?10:5});
+  }
+ }
+ // Named monthly event targets with broadly achievable prerequisites, not arbitrary first attempts.
+ if(type==='monthly'&&!S.v3.completed.some(ch=>ch.periodKey===periodInfo('monthly').key && ch.difficulty==='Event'))candidates.push({ex:null,category:null,kind:'variety',goal:4,unit:'different exercises',label:'Monthly event · Movement Explorer',difficulty:'Event',theme:'variety',weight:4,estMinutes:40});
+ return candidates;
+}
+function selectCandidate(type,slot=0){
+ let pool=challengeCandidates(type);
+ const themeOrder=type==='daily'?['micro','progress','discovery']:type==='48h'?['variety','progress']:type==='weekly'?['distance','variety','consistency']:['variety','distance'];
+ let theme=themeOrder[slot%themeOrder.length];
+ const hourNow=new Date().getHours();
+ if(type==='daily'&&slot===1&&(hourNow<9||(hourNow>=18&&hourNow<=21)))theme='timing';
+ if(type==='48h'&&slot===1)theme='timing';
+ if(theme==='micro'){
+  // No swimming pool/rowing erg can masquerade as a 1-minute 'first try'.
+  const quick=pool.filter(c=>c.ex&&STARTER_IDS.has(c.ex)&&!CARDIO_VENUE_IDS.has(c.ex)&&c.estMinutes<=7 && ['Calisthenics','Flexibility & mobility','Cardio'].includes(ex(c.ex)?.cat));
+  if(quick.length)pool=quick;
+ }else if(theme==='discovery'){
+  const discovery=pool.filter(c=>c.theme==='discovery'&&(!c.ex||!CARDIO_VENUE_IDS.has(c.ex))&&(type!=='daily'||STARTER_IDS.has(c.ex)));if(discovery.length)pool=discovery;
+ }else if(theme==='timing'){
+  const relevant=pool.filter(c=>c.theme==='timing' && (type!=='daily' || (hourNow<10?c.window!=='after':c.window!=='before')));
+  if(relevant.length)pool=relevant;
+ }else if(theme==='variety'||theme==='consistency'){
+  const relevant=pool.filter(c=>c.theme===theme);if(relevant.length)pool=relevant;
+ }else if(theme==='distance'){
+  const relevant=pool.filter(c=>c.kind==='distance'||(type==='monthly'&&c.theme==='variety'));if(relevant.length)pool=relevant;else if(type==='weekly'){const accessible=pool.filter(c=>c.ex==='e045'||c.ex==='e046');if(accessible.length)pool=accessible;}
+ }else{
+  const relevant=pool.filter(c=>c.theme==='progress');if(relevant.length)pool=relevant;else if(type==='daily'){const starter=pool.filter(c=>STARTER_IDS.has(c.ex)&&!CARDIO_VENUE_IDS.has(c.ex));if(starter.length)pool=starter;}
+ }
+ const recent=S.v3.completed.slice(-35).map(c=>c.ex);
+ const duplicate=c=>S.v3.active.some(a=>a.ex===c.ex&&a.kind===c.kind&&a.category===c.category&&a.goal===c.goal&&n(a.minimum)===n(c.minimum)&&n(a.load)===n(c.load)&&a.trackId===c.trackId);
+ pool=pool.filter(c=>!duplicate(c));
+ if(!pool.length)return null;
+ // Prefer relevant/small attainable goals; keep variety and a deterministic novelty factor.
+ const seed=S.v3.nextSerial+stamp(new Date()).split('-').reduce((a,b)=>a+n(b),0)+slot*17;
+ const score=x=>x.weight+(STARTER_IDS.has(x.ex)?0.6:0)-(x.ex&&recent.includes(x.ex)?2:0)+(theme==='micro'?(8-Math.min(8,x.estMinutes||8))*.4:0)+Math.sin(seed+(Number((x.ex||'').replace(/\D/g,''))||0)*3.17)*.65;
+ pool.sort((a,b)=>score(b)-score(a));
+ return pool[0];
+}
+function rerollChallenge(cid){
+ const old=S.v3.active.find(c=>c.cid===cid);if(!old)return;
+ const replacement=selectCandidate(old.type,old.slot||0);
+ // Keep old active during selection so its exact identity cannot be immediately repeated.
+ if(!replacement)return toast('No different suitable challenge is currently available.');
+ S.v3.active=S.v3.active.filter(c=>c.cid!==cid);
+ const p=periodInfo(old.type),now=new Date().toISOString();
+ S.v3.active.push({...replacement,cid:'c'+(++S.v3.nextSerial)+'-'+uid(),type:old.type,periodKey:p.key,periodStart:p.start,periodEnd:p.end,issuedAt:now,slot:old.slot||0});
+ save();render();toast('Challenge replaced · no penalty.');
+}
+function assignChallenge(type,slot){
+ const selected=selectCandidate(type,slot);if(!selected)return false;
+ const p=periodInfo(type);const now=new Date().toISOString();
+ S.v3.active.push({...selected,cid:'c'+(++S.v3.nextSerial)+'-'+uid(),type,periodKey:p.key,periodStart:p.start,periodEnd:p.end,issuedAt:now,slot});
+ return true;
+}
+function ensureBoard(){
+ let changed=false;
+ const active=S.v3.active.filter(ch=>{
+   if(ms(ch.periodEnd)<=Date.now())return false;
+   if(ch.type==='daily'&&ch.kind==='time_slot'){const tr=TIME_TRACK_BY_ID[ch.trackId];if(tr?.window==='before'&&new Date().getHours()*60+new Date().getMinutes()>=tr.hour*60 && progressValue(ch)<ch.goal)return false;}
+   return true;
+ });if(active.length!==S.v3.active.length){S.v3.active=active;changed=true;}
+ const counts={daily:3,'48h':2,weekly:3,monthly:2};
+ for(const type of WINDOWS){const p=periodInfo(type);const rows=S.v3.active.filter(c=>c.periodKey===p.key);
+  for(let i=rows.length;i<counts[type];i++)if(assignChallenge(type,i))changed=true;
+ }
+ if(changed)save();
+}
+function rewardFor(ch){if(ch.kind==='first_try')return 28;const base={daily:25,'48h':45,weekly:85,monthly:120}[ch.type]||25;return Math.round(base*(ch.difficulty==='Event'?1.25:1));}
+function claimReady(){
+ const unlocked=[];
+ // Single-pass: replacement cannot claim against the same earlier session.
+ for(const ch of [...S.v3.active]){
+   if(progressValue(ch)+1e-8>=ch.goal){
+     S.v3.active=S.v3.active.filter(a=>a.cid!==ch.cid);
+     const complete={...ch,completedAt:new Date().toISOString(),rewardXP:rewardFor(ch)};
+     S.v3.completed.push(complete);unlocked.push(complete);
+   }
+ }
+ if(unlocked.length){ensureBoard();save();}
+ return unlocked;
+}
+function allMilestones(e){
+ const z=stats(e.id);let arr=[];
+ const push=(key,label,value,limits,unit)=>arr.push({key,label,value,limits,unit});
+ if(e.mode==='bodysets'){
+  push('bestSet','Consecutive repetitions',z.bestSet,[1,3,5,10,15,20,25,30,40,50,75,100,150,200],'reps');
+  push('bestSessionReps','Repetitions in one session',z.bestSessionReps,[10,25,50,75,100,150,200,300,500,1000],'reps');
+  push('lifetimeReps','Lifetime repetitions',z.lifetimeReps,[50,100,250,500,1000,2500,5000,10000,50000,100000,200000,300000,400000,500000,600000,700000,800000,900000,1000000],'reps');
+ }else if(e.mode==='sets'){
+  push('topLoad','Heaviest working set',z.topLoad,[10,20,30,40,50,60,80,100,120,140,160,180,200,250],'kg');
+  push('e1rm','Estimated strength (≤10 reps)',z.e1rm,[20,40,60,80,100,120,140,160,200,240],'kg');
+  push('bestVolume','Highest session volume',z.bestVolume,[250,500,1000,2000,3500,5000,7500,10000,15000,20000],'kg×reps');
+  push('lifetimeKgReps','Lifetime training volume',z.lifetimeKgReps,[1000,5000,10000,25000,50000,100000,250000,500000],'kg×reps');
+  push('lifetimeReps','Lifetime repetitions',z.lifetimeReps,LIFETIME_VOLUME_STEPS,'reps');
+  const logSets=logsFor(e.id).flatMap(l=>l.sets||[]);
+  for(const load of [20,30,40,50,60,70,80,90,100,120,140,160,180,200]){
+   const maxRep=Math.max(0,...logSets.filter(s=>n(s.weight)>=load).map(s=>n(s.reps)));
+   if(maxRep>0)push('rep-benchmark-at-'+load,`${load} kg or heavier`,maxRep,[5,10,20],'consecutive reps');
+  }
+  const groups={};for(const l of logsFor(e.id)){const sid=l.sessionId||logId(l);(groups[sid]??=[]).push(...(l.sets||[]));}
+  for(const load of [20,40,60,80,100,120,140,160,180,200]){
+   const completed=Object.values(groups).some(sets=>sets.filter(s=>n(s.weight)>=load&&n(s.reps)>=5).length>=5);
+   if(completed)push('five-by-five-'+load,`5×5 at ≥${load} kg`,1,[1],'session');
+  }
+ }else if(e.mode==='time'){
+  push('bestHold','Longest recorded hold',z.bestHold,[5,10,15,20,30,45,60,90,120,180,300,600],'seconds');
+  push('lifetimeSeconds','Lifetime hold / practice time',z.lifetimeSeconds,LIFETIME_VOLUME_STEPS,'seconds');
+ }
+ else if(e.mode==='distance'||e.mode==='duration'){
+  push('bestDistance','Longest distance',z.bestDistance,[.5,1,2,3,5,10,15,20,25,42.2,50,100],'km');
+  push('bestMinutes','Longest duration',z.bestMinutes,[5,10,15,20,30,45,60,90,120,180,240],'min');
+  push('lifetimeDistance','Lifetime distance',z.lifetimeDistance,[5,10,25,50,100,250,500,1000,2500,5000],'km');
+ }else if(e.mode==='range'){
+  // Improvement measured against personal first recorded baseline, separately by side.
+  for(const [side,b] of Object.entries(z.rangeBaseline)){
+    const improvement=Math.max(0,b.value-z.rangeBySide[side]);
+    push('range-improvement-'+side,`${side} · gap reduction from baseline`,improvement,[2,5,10,15,20],'cm');
+  }
+ }
+ return arr.filter(x=>x.value>0||x.key==='bestSet'||x.key==='bestHold');
+}
+function earnedMilestones(){
+ if(CACHE.earned)return CACHE.earned;
+ const items=[];
+ for(const e of DATA)for(const m of allMilestones(e)){
+  for(const t of m.limits)if(m.value+1e-8>=t){
+   const idx=m.limits.indexOf(t),rarity=t>=m.limits[Math.max(0,m.limits.length-2)]?'Legendary':t>=m.limits[Math.floor(m.limits.length*.7)]?'Gold':t>=m.limits[Math.floor(m.limits.length*.35)]?'Silver':'Bronze';
+   const base=10+5*Math.log2(2+idx);const multiplier=(m.key==='bestSet'||m.key==='bestSessionReps')?(DIFFICULTY[e.id]||1):1;
+   items.push({id:`${e.id}:${m.key}:${t}`,name:`${e.name} · ${m.label}`,threshold:t,unit:m.unit,category:e.cat,rarity,xp:Math.round(base*multiplier)});
+  }
+ }
+ const totals=timeTrackTotals();
+ for(const track of TIME_TRACKS){
+  for(const [i,threshold] of TIME_BADGE_STEPS.entries()){
+   if(totals[track.id]<threshold)continue;
+   const rarity=i>=TIME_BADGE_STEPS.length-2?'Legendary':i>=6?'Gold':i>=3?'Silver':'Bronze';
+   items.push({id:`timing:${track.id}:${threshold}`,name:track.label,threshold,unit:'days',category:'Consistency',rarity,xp:Math.round(8+6*Math.log2(2+i))});
+  }
+ }
+ return CACHE.earned=items;
+}
+function groupedActivityXP(){
+ const groups={};
+ for(const l of completedLogs()){
+   const key=l.date+'|'+l.id; const z=groups[key]||{m:0,category:ex(l.id).cat};const t=logMetrics(l),e=ex(l.id);
+   // Training volume is never discarded. XP gets diminishing returns as a game mechanic.
+   const points=e.mode==='sets'?t.kgReps/700:e.mode==='bodysets'?t.reps/12:e.mode==='time'?t.seconds/50:e.mode==='range'?0.2:e.mode==='distance'?t.distance/2:t.minutes/20;
+   z.m+=Math.max(0,points);groups[key]=z;
+ }
+ // Group by exercise + calendar day before awarding XP, preventing split-log farming.
+ return Object.values(groups).reduce((a,g)=>a+Math.round(Math.min(125,20*Math.sqrt(g.m))),0);
+}
+function dailyAwardTotals(){
+ const groups={};
+ for(const ch of S.v3.completed.filter(ch=>challengeValid(ch))){const d=stamp(new Date(ch.completedAt));groups[d]=(groups[d]||0)+1;}
+ return groups;
+}
+function dailyBonusXp(){let xp=0;for(const k of Object.values(dailyAwardTotals()))for(const [count,award] of Object.entries(DAILY_BONUSES))if(k>=Number(count))xp+=award;return xp;}
+function playerXP(){return groupedActivityXP() + earnedMilestones().reduce((a,m)=>a+m.xp,0) + streakBadges().reduce((a,m)=>a+m.xp,0) + S.v3.completed.filter(challengeValid).reduce((a,c)=>a+n(c.rewardXP),0)+dailyBonusXp() + (S.claimed?.length||0)*25;}
+function attrXP(){const result={};const buckets={};for(const l of completedLogs()){
+ const e=ex(l.id),key=l.date+'|'+l.id,t=logMetrics(l);
+ const raw=e.mode==='sets'?t.kgReps/700:e.mode==='bodysets'?t.reps/12:e.mode==='time'?t.seconds/50:e.mode==='range'?.2:e.mode==='distance'?t.distance/2:t.minutes/20;
+ buckets[key]=(buckets[key]||0)+Math.max(0,raw);
+ }
+ for(const [key,value] of Object.entries(buckets)){
+ const e=ex(key.split('|')[1]);const amount=Math.round(Math.min(125,20*Math.sqrt(value)));
+ (e?.attrs||[]).forEach((a,i)=>result[a]=(result[a]||0)+Math.round(amount*(i?0.45:1)));
+ }
+ return result;
+}
+function capabilityMarkers(){
+ const ids=['e004','e013','e025','e031','e046','e048','e050','e051','e022','e117','e118'];
+ const out=[];
+ for(const id of ids){const e=ex(id),z=stats(id);if(!z.sessions)continue;
+   const value=e.mode==='sets'?`${Math.round(z.e1rm)} kg estimated 1RM`:e.mode==='bodysets'?`${z.bestSet} consecutive reps`:e.mode==='time'?`${z.bestHold} s hold`:e.mode==='range'?Object.entries(z.rangeBySide).map(([side,v])=>`${side}: ${v} cm`).join(', '):`${round(z.bestDistance,2)} km / ${round(z.bestMinutes,1)} min`;
+   out.push({name:e.name,value});
+ }
+ return out;
+}
+function balancedRank(){const byAttribute=attrXP();const trained=Object.keys(byAttribute).filter(k=>byAttribute[k]>=40).length;return (trained>=6?'Well-rounded':trained>=4?'Versatile':trained>=2?'Developing':'Getting started')+' training rank';}
+function activityDates(){
+ const real=new Set(completedLogs().map(l=>l.date));const days=new Set(real);
+ for(const x of S.recoveryDays||[]){
+  if(!validDate(x)||x>today()||real.has(x))continue;
+  const d=dateFrom(x),before=new Date(d),after=new Date(d);before.setDate(before.getDate()-1);after.setDate(after.getDate()+1);
+  // A recovery day bridges real training, not an independent infinitely repeating streak.
+  if(real.has(stamp(before))||real.has(stamp(after)))days.add(x);
+ }
+ return days;
+}
+function streakMetrics(){
+ const active=activityDates(),d=dateFrom(today());let streak=0;
+ if(!active.has(stamp(d)))d.setDate(d.getDate()-1);
+ while(active.has(stamp(d))){streak++;d.setDate(d.getDate()-1);}
+ let activeWeeks=0;const monday=dateFrom(today());monday.setDate(monday.getDate()-((monday.getDay()+6)%7));
+ for(let i=0;i<12;i++){const a=new Date(monday);a.setDate(a.getDate()-7*i);const b=new Date(a);b.setDate(b.getDate()+7);if([...active].some(x=>dateFrom(x)>=a&&dateFrom(x)<b))activeWeeks++;}
+ const categories={};
+ for(const cat of CATS){let count=0;const day=new Date(monday);const catsByDay=new Set(completedLogs().filter(l=>ex(l.id).cat===cat).map(l=>l.date));
+ for(let i=0;i<100;i++){const a=new Date(day),b=new Date(a);b.setDate(b.getDate()+7);if([...catsByDay].some(x=>dateFrom(x)>=a&&dateFrom(x)<b))count++;else if(i===0){}else break;day.setDate(day.getDate()-7);}categories[cat]=count;}
+ return {daily:streak,activeWeeks,categories};
+}
+function maxConsecutiveDays(dayStrings){
+ const days=unique(dayStrings.filter(validDate)).sort();let best=0,run=0,prior=null;
+ for(const day of days){let ok=false;if(prior){const d=dateFrom(prior);d.setDate(d.getDate()+1);ok=stamp(d)===day;}
+ run=ok?run+1:1;best=Math.max(best,run);prior=day;
+ }return best;
+}
+function weekCode(day){const d=dateFrom(day);d.setDate(d.getDate()-((d.getDay()+6)%7));return stamp(d);}
+function streakBadges(){
+ const results=[],days=[...activityDates()];
+ const milestones=(name,prefix,val,limits,xpBase)=>limits.filter(l=>val>=l).forEach((l,i)=>results.push({id:prefix+':'+l,name:`${name} · ${l}`,xp:xpBase+i*15}));
+ // Never award a movement streak if there is no genuine physical activity.
+ if(completedLogs().length)milestones('Daily movement/recovery streak','day-streak',maxConsecutiveDays(days),[3,7,14,30,60,100],15);
+ function maxWeeks(dayList){const codes=unique(dayList.filter(validDate).map(weekCode)).sort();let prior=null,run=0,best=0;for(const x of codes){if(prior){const d=dateFrom(prior);d.setDate(d.getDate()+7);run=stamp(d)===x?run+1:1;}else run=1;best=Math.max(best,run);prior=x;}return best;}
+ if(completedLogs().length)milestones('Consecutive active weeks','week-streak',maxWeeks(days),[2,4,8,12,26,52],20);
+ for(const cat of CATS)milestones(`${cat} consistency`,cat+'-weeks',maxWeeks(completedLogs().filter(l=>ex(l.id).cat===cat).map(l=>l.date)),[2,4,8,12],15);
+ return results;
+}
+function achievementCounts(){const ids=new Set(earnedMilestones().map(m=>m.id));return {milestones:ids.size,discovered:DATA.filter(e=>isSeen(e.id)).length,legacyClaims:S.claimed?.length||0};}
+function snapshotForExport(){return {version:4,exportedAt:new Date().toISOString(),...S};}
+function toast(text){messageQueue.push(text);if(messageQueue.length===1)showNextToast();}
+function showNextToast(){if(!messageQueue.length)return;const el=$('toast');el.textContent=messageQueue[0];el.style.display='block';clearTimeout(window.toastTimeout);window.toastTimeout=setTimeout(()=>{messageQueue.shift();el.style.display='none';showNextToast();},5200);}
+function progress(v,goal){return `<div class="progress"><div style="width:${round(100*clamp(goal>0?v/goal:0,0,1),2)}%"></div></div>`;}
+function navigate(next){tab=next;editId=null;render();window.scrollTo({top:0,behavior:'instant'});}
+function choose(id){chosen=id;editId=null;tab='log';render();window.scrollTo({top:0,behavior:'instant'});}
+function challengeAction(cid){const c=S.v3.active.find(x=>x.cid===cid);if(c?.ex){window.selectedChallenge=cid;choose(c.ex);}else navigate('dex');}
+function seenStats(id){const z=stats(id),e=ex(id);if(!z.sessions)return 'Not yet attempted';if(e.mode==='sets')return `${z.topLoad} kg top load · ${Math.round(z.e1rm)} kg est. 1RM · ${Math.round(z.bestVolume)} kg×reps best volume · ${Object.entries(z.repsAtLoad).sort((a,b)=>Number(b[0])-Number(a[0])).slice(0,3).map(([kg,reps])=>`${reps} reps @ ${kg} kg`).join(' / ')}`;
+ if(e.mode==='bodysets')return `${z.bestSet} consecutive · ${z.bestSessionReps} in one session`;
+ if(e.mode==='range')return Object.entries(z.rangeBySide).map(([k,v])=>`${k}: ${v} cm`).join(' · ');
+ if(e.mode==='time')return `${z.bestHold} seconds longest hold`;
+ return `${round(z.bestDistance,2)} km · ${round(z.bestMinutes,1)} min${z.bestPace?` · ${round(z.bestPace,2)} min/km best pace`:''}`;
+}
+function maintenanceStatus(id){
+ const rows=logsFor(id);if(!rows.length)return null;
+ const last=rows.slice().sort((a,b)=>logWhen(b)-logWhen(a))[0];
+ if(Date.now()-logWhen(last)>90*86400000)return 'Dormant';
+ const z=stats(id),p=logMetrics(last),e=ex(id);const top=e.mode==='sets'?[p.e1rm,z.e1rm]:e.mode==='bodysets'?[p.bestReps,z.bestSet]:e.mode==='time'?[p.seconds,z.bestHold]:[p.distance||p.minutes,z.bestDistance||z.bestMinutes];
+ return top[1]>0&&top[0]/top[1]>=.9?'Current':'Rebuild';
+}
+function tinyCollection(){const families={};for(const e of DATA){const key=e.cat+' | '+e.family;(families[key]??=[]).push(e);}return Object.entries(families).filter(([,a])=>a.length>=2).map(([name,rows])=>({name,total:rows.length,done:rows.filter(e=>isSeen(e.id)).length})).sort((a,b)=>(a.total-a.done)-(b.total-b.done));}
+function boxChallenge(c){
+ const v=progressValue(c), category=c.category||ex(c.ex)?.cat||'Mixed';
+ // Requirements determine completion; estimated time is only guidance for the player.
+ let requirement=c.kind==='first_try'
+   ?`Log ${c.minimum||1} ${esc(c.unit)} to register`
+   :c.kind==='variety'
+     ?`Complete ${round(c.goal)} different ${c.category?esc(c.category.toLowerCase())+' ':''}exercises`
+     :c.kind==='time_slot'
+       ?`Record ${c.trackId?.startsWith('workout')?'a full workout':esc(category.toLowerCase())+' activity'} ${TIME_TRACK_BY_ID[c.trackId]?.window==='before'?'before':'at or after'} ${String(TIME_TRACK_BY_ID[c.trackId]?.hour||0).padStart(2,'0')}:00 on ${c.goal} ${c.goal===1?'day':'days'}`
+     :c.kind==='category_sessions'
+       ?`Complete ${round(c.goal)} ${esc(category.toLowerCase())} workouts`
+       :c.load
+         ?`Complete ${round(c.goal)} ${esc(c.unit)} at ≥${c.load} kg`
+         :`Complete ${round(c.goal,2)} ${esc(c.unit)}`;
+ return `<div class="challenge"><div class="row"><b>${esc(c.label)}</b><span class="pill">${esc(c.difficulty)}</span></div><div class="challenge-requirement"><span class="challenge-detail-label">Required</span><strong>${requirement}</strong></div><div class="challenge-metadata"><span class="challenge-time">Estimated time: ${c.estMinutes?'~'+c.estMinutes+' min':'not specified'} <span class="challenge-estimate-note">(guide only)</span></span><span>${esc(category)} · +${rewardFor(c)} XP</span></div><div class="row"><span class="muted">Progress: ${round(v,2)} / ${round(c.goal,2)}</span><button class="small" onclick="challengeAction('${c.cid}')">${c.ex?'Log this →':'Explore →'}</button></div><button class="small" style="margin-top:8px" onclick="rerollChallenge('${c.cid}')">Replace challenge</button>${progress(v,c.goal)}</div>`;
+}
+
+function toggleHunt(id){
+ if(!ex(id))return;
+ S.v4=S.v4||{hunts:[],lastResult:null};const h=S.v4.hunts||[];
+ if(h.includes(id))S.v4.hunts=h.filter(x=>x!==id);
+ else if(h.length<5)S.v4.hunts=[...h,id];else return toast('Five targets already pinned. Unpin one first.');
+ save();render();
+}
+function nextTarget(id){
+ const e=ex(id),options=allMilestones(e).filter(m=>m.limits.some(t=>t>m.value));
+ const o=options.map(m=>({text:`${m.label}: ${round(m.value,1)} / ${m.limits.find(t=>t>m.value)} ${m.unit}`,ratio:m.value/m.limits.find(t=>t>m.value)})).sort((a,b)=>b.ratio-a.ratio)[0];
+ return o?.text || (!isSeen(id)?'First attempt not yet logged':'All current milestone tiers unlocked');
+}
+function huntPanel(){
+ const hunts=(S.v4?.hunts||[]).filter(ex);
+ return `<div class="card"><div class="row"><h2>My hunting list</h2><span class="pill">${hunts.length}/5 pinned</span></div>${hunts.length?hunts.map(id=>`<div class="hunt-item"><div><b>${esc(ex(id).name)}</b><div class="muted">${esc(nextTarget(id))}</div></div><div class="row"><button class="small" onclick="choose('${id}')">Log</button><button class="small" onclick="toggleHunt('${id}')">×</button></div></div>`).join(''):'<p class="muted">Pin exercises from the ExerciseDex to keep their next milestones in sight.</p>'}<button class="small" onclick="navigate('dex')">Browse and pin exercises →</button></div>`;
+}
+function nearPanel(){
+ const ids=unique(completedLogs().map(l=>l.id));
+ const entries=[];for(const id of ids){const e=ex(id),s=allMilestones(e);for(const m of s){const next=m.limits.find(t=>t>m.value);if(next&&m.value>0){entries.push({id,exercise:e.name,text:`${m.label}: ${round(m.value,1)} / ${next} ${m.unit}`,pct:m.value/next});}}}
+ entries.sort((a,b)=>b.pct-a.pct);
+ return entries.slice(0,3).map(x=>`<div class="opportunity"><b>${esc(x.exercise)}</b><p class="muted">${esc(x.text)}</p>${progress(x.pct,1)}<button class="small" onclick="choose('${x.id}')">Work towards this →</button></div>`).join('')||'<p class="muted">Record a workout to reveal nearby milestones.</p>';
+}
+function resultPanel(){
+ const r=S.v4?.lastResult;if(!r||!S.logs.some(l=>logId(l)===r.logId))return '';
+ return `<div class="result-panel"><div class="row"><h2>Session results · ${esc(r.exercise)}</h2><button class="small" onclick="dismissResult()">Dismiss ×</button></div><p class="muted">${esc(r.summary)}</p><p><b>${r.xpGain>=0?'+':''}${r.xpGain} XP</b> · ${r.challengeNames.length} challenge${r.challengeNames.length===1?'':'s'} · ${r.milestones.length} milestone${r.milestones.length===1?'':'s'}</p>${r.challengeNames.length?`<b>Challenges completed</b><ul>${r.challengeNames.slice(0,6).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}${r.milestones.length?`<b>New achievements</b><ul>${r.milestones.slice(0,8).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}<div class="result-actions"><button onclick="navigate('achievements')">View achievements</button><button onclick="navigate('home')">See next challenges</button></div></div>`;
+}
+function dismissResult(){if(S.v4)S.v4.lastResult=null;save();render();}
+
+function home(){
+ const xp=playerXP(), seen=achievementCounts(), st=streakMetrics(), attributes=Object.entries(attrXP()).sort((a,b)=>b[1]-a[1]), dailies=dailyAwardTotals()[today()]||0;
+ const near=tinyCollection().filter(c=>c.done>0&&c.done<c.total).slice(0,4);
+ return `${resultPanel()}<div class="grid"><div class="card"><div class="muted">Player level · earned XP</div><div class="metric">Lv ${1+Math.floor(xp/500)}</div><div class="muted">${xp.toLocaleString()} XP · ${500-xp%500} to next level</div>${progress(xp%500,500)}</div><div class="card"><div class="muted">ExerciseDex</div><div class="metric">${seen.discovered} <span class="muted">/ ${DATA.length}</span></div><div class="muted">${seen.milestones} milestones earned · ${seen.legacyClaims} legacy rewards retained</div>${progress(seen.discovered,DATA.length)}</div><div class="card"><div class="muted">Consistency</div><div class="metric">${st.daily} <span class="muted">day streak</span></div><div class="muted">Active ${st.activeWeeks} of the last 12 weeks · ${balancedRank()} · recovery days count</div></div></div>
+ <div class="half" style="margin-top:14px"><div class="card"><h2>Next achievable milestones</h2>${nearPanel()}</div>${huntPanel()}</div><h2 class="section">Active challenges <span class="muted">· completing one reveals another</span></h2><div class="grid">${WINDOWS.map(p=>{const pi=periodInfo(p),rows=S.v3.active.filter(x=>x.periodKey===pi.key),done=S.v3.completed.filter(x=>x.periodKey===pi.key&&challengeValid(x)).length;return `<div class="card"><div class="row"><h2>${pi.title}</h2><span class="pill">${done} done</span></div>${rows.map(boxChallenge).join('')||'<p class="muted">No challenges available.</p>'}</div>`;}).join('')}</div>
+ <h2 class="section">Daily completion bonuses</h2><div class="card"><div class="row" style="flex-wrap:wrap">${Object.entries(DAILY_BONUSES).map(([count,value])=>`<span class="pill" style="${dailies>=Number(count)?'background:#1c715e;color:white':''}">${dailies>=Number(count)?'✓ ':''}${count} cleared · +${value} XP</span>`).join('')}</div><p class="hint">Bonuses are awarded for verified challenge completions. Every completed challenge is replaced, but extra training is never required to protect a streak.</p></div>
+ <div class="half" style="margin-top:14px"><div class="card"><h2>Fitness attributes <span class="muted">· training XP, not a clinical score</span></h2><div class="two">${(attributes.length?attributes:[['Strength',0],['Cardiovascular endurance',0],['Flexibility',0],['Mobility',0]]).map(([name,points])=>`<div><div class="row"><b>${esc(name)}</b><span class="muted">Lv ${1+Math.floor(points/400)} · ${points} XP</span></div>${progress(points%400,400)}</div>`).join('')}</div><p class="hint">Capability is shown separately through your measured exercise records.</p></div><div class="card"><h2>Close to completing</h2>${near.length?near.map(c=>`<div style="margin-bottom:12px"><div class="row"><span>${esc(c.name)}</span><span class="muted">${c.done}/${c.total}</span></div>${progress(c.done,c.total)}</div>`).join(''):'<p class="muted">Try some new exercises to start filling smaller collections.</p>'}<button class="small" onclick="navigate('dex')">Browse ExerciseDex →</button></div></div>
+ <h2 class="section">Measured capability <span class="muted">· personal bests, not medical estimates</span></h2><div class="card"><div class="two">${capabilityMarkers().slice(0,10).map(m=>`<div class="challenge"><b>${esc(m.name)}</b><p>${esc(m.value)}</p></div>`).join('')||'<p class="muted">As you log workouts, objective records will appear here.</p>'}</div></div><h2 class="section">Weekly rhythm</h2><div class="card"><div class="row" style="flex-wrap:wrap">${CATS.map(cat=>`<span class="pill">${esc(cat)} · ${st.categories[cat]} consecutive weeks</span>`).join('')}</div><p class="hint">Streaks are indicators, not permanent rewards. Once earned, ExerciseDex entries and achievements stay collected.</p></div>`;
+}
+const EXERCISE_GUIDES={"e001":"Stand facing a wall, hands at chest height. Bend your elbows to bring your chest towards the wall, then press away while keeping your body straight.","e002":"Place hands on a stable raised surface, body in a straight line. Lower your chest towards it and push back up; lower the surface as strength improves.","e003":"From knees and hands, keep hips and shoulders aligned as you lower your chest and press back up. Avoid bending at the waist.","e004":"From a high plank, lower your chest with controlled elbows, then push back to straight arms while keeping your trunk braced.","e005":"Perform a push-up with hands closer than shoulder-width. Keep elbows controlled and your body straight as you lower and press.","e006":"With hands close beneath your chest, form a narrow hand position and complete controlled push-ups. Adjust wrist position if uncomfortable.","e007":"Place feet on a secure raised surface and hands on the floor. Lower and press through a controlled decline push-up without sagging hips.","e008":"Start wide. Shift towards one arm as you lower, keeping the opposite arm straighter, then press back up. Train both sides.","e009":"In a push-up position, lean shoulders slightly forward of your hands and keep elbows controlled through a manageable push-up range.","e010":"Hang beneath a sturdy waist-height bar or rings with feet grounded. Pull your chest towards the bar while keeping your torso aligned.","e011":"Use a band or assistance machine to perform a controlled pull-up through your available range, then lower slowly.","e012":"Start with chin over the bar using a safe step or platform. Lower slowly under control rather than dropping.","e013":"Hang from a bar and pull until your chin passes it without kicking, then lower under control to a full comfortable hang.","e014":"Pull from a controlled hang until your upper chest approaches the bar. Avoid swinging to force the final range.","e015":"Shift pulling effort towards one side while the other arm provides support. Use assistance and an appropriate range.","e016":"A pull transitions into pushing above the bar. Requires strong pulling, stable shoulders and controlled transition practice; use coaching for technique.","e017":"Support yourself on forearms and toes, keeping ribs, pelvis and shoulders aligned. Hold without letting your hips sag.","e018":"Support your body sideways on one forearm and the side of your foot, keeping hips lifted and torso straight.","e019":"Lie on your back, press lower back gently towards the floor, and lift shoulders and legs into a controlled hollow position.","e020":"Hang from a secure bar with a comfortable grip and shoulders controlled. Keep feet clear and stop before grip failure.","e021":"Support yourself on parallettes or sturdy bars with hips lifted and knees tucked towards your chest.","e022":"Support your body on bars or parallettes with legs extended in front, keeping shoulders depressed and trunk braced.","e023":"Kick up or walk feet up to a supported handstand against a wall. Keep arms straight and shoulders active.","e024":"Balance upside down on your hands without wall support. Practice safe exits and clear space before attempting.","e025":"Set a bar across the upper back, brace, squat to a controlled depth, then stand by driving through the feet.","e026":"Support a bar across the front shoulders, elbows high. Squat with your torso upright and stand under control.","e027":"Hold a dumbbell or kettlebell at your chest, squat while keeping the weight close, then stand.","e028":"Place rear foot on a secure bench, lower the front leg into a split squat, then press back up. Train both legs.","e029":"Brace with the bar near your shins, push through the floor to stand, then return it while keeping it close.","e030":"With soft knees, hinge at the hips and lower the bar along your thighs, then return to standing by extending the hips.","e031":"Lie securely on a bench, lower the bar towards your chest with controlled shoulders, and press to full arm extension. Use safeties or a spotter.","e032":"Brace standing with the bar at shoulder level, press overhead without excessive back arching, then lower under control.","e033":"Lie on a bench holding a dumbbell in each hand, lower them beside the chest, then press upwards with controlled shoulders.","e034":"Hinge at the hips with a braced back and pull the bar towards your lower ribs, then lower it without swinging.","e035":"Support your torso with a bench or stable stance and pull a dumbbell towards your hip, then lower under control.","e036":"Stand tall, hinge forwards from the hips and reach towards the floor without forcing the back or knees.","e037":"Sit with legs wide and hinge forwards from your hips while keeping the spine comfortably long.","e038":"From a supported lunge, gradually straighten the front knee and extend the rear leg towards a front-split position, staying within comfortable range.","e039":"Use a wide stance or seated straddle and gently explore hip abduction with support, without forcing the groin.","e040":"Take a half-kneeling lunge and gently shift the pelvis forwards while keeping the torso upright to stretch the rear hip flexor.","e041":"Practise controlled arm elevation and shoulder circles within your available range, without arching to compensate.","e042":"On all fours or side-lying, rotate the upper back so the chest opens, keeping most motion above the waist.","e043":"Lie on your back with knees bent and feet planted. Squeeze the glutes and raise the hips into a firm bridge hold; maintain a neutral trunk, then lower slowly. Record the hold time in seconds.","e044":"From a supported backbend setup, press through hands and feet to lift into a bridge only within comfortable shoulder and spinal range.","e045":"Walk at a sustainable pace and record distance and optionally duration. Short walks count as well as long ones.","e046":"Run at a manageable pace and record distance and optionally duration. Walk-run intervals are a valid starting point.","e047":"Run on natural or uneven trails with attention to footing and elevation; record distance and time.","e048":"Cycle outdoors on a safe route; record distance, time and any route notes.","e049":"Cycle on a stationary bike or trainer, recording distance and time when the equipment provides them.","e050":"Row on an ergometer with a smooth legs–body–arms drive and arms–body–legs recovery. Record duration and optional distance.","e051":"Swim continuously or in intervals in the pool. Record duration, distance, lengths and stroke if available.","e052":"Jump over a rope with small controlled hops and relaxed wrists. You can build up the total time in short sets.","e053":"Practise a one-arm push-up with the working hand elevated or the opposite hand lightly assisting, keeping hips stable.","e054":"Perform a push-up using one working arm while maintaining trunk control and avoiding excessive twist. Highly advanced.","e055":"Complete standard push-ups with a deliberately controlled lowering and lifting tempo while maintaining form.","e056":"Pause briefly at the bottom of a controlled push-up without resting on the floor, then press back up.","e057":"Perform inverted rows with feet elevated to increase the horizontal pulling demand, keeping the body aligned.","e058":"Hang with palms facing you; pull your chin above the bar and lower slowly while keeping your shoulders controlled.","e059":"Add an appropriate external load to a strict pull-up only after building repeatable unweighted technique.","e060":"Use a band or assistance machine to support a controlled dip, keeping the shoulders in a comfortable range.","e061":"With hands behind on a stable bench and feet grounded, bend elbows to lower a short distance, then press up; avoid shoulder discomfort.","e062":"Support your body between parallel bars, bend the elbows through a comfortable depth, then press to straight arms.","e063":"Perform strict parallel-bar dips with additional weight only after consistent bodyweight control.","e064":"Lie on your back with knees bent, gently curl shoulders towards the pelvis, then lower without pulling on your neck.","e065":"Lie on your back with knees bent and raise your torso into a controlled sit-up, then lower without jerking.","e066":"Lie on your back and raise straight or bent legs without allowing the low back to arch excessively.","e067":"Hang with active shoulders and bring your knees towards your torso, then lower slowly without swinging.","e068":"From a stable hang, raise straighter legs towards the front in a controlled range without swinging.","e069":"Maintain a hollow-body trunk position while rocking gently without losing abdominal tension.","e070":"Support yourself on bars and raise bent legs towards a higher, compressed V position, keeping shoulders stable.","e071":"From a strong supported L-sit, raise straight legs higher towards a V, using active compression rather than swinging.","e072":"Hang from a bar and actively draw shoulders down and back slightly, maintaining controlled scapular engagement.","e073":"With straight arms hanging from a bar, move the shoulder blades through a small controlled pull-and-release motion.","e074":"Stand with feet comfortable apart, sit down between the hips, then stand with knees tracking over feet.","e075":"Take a split stance and lower vertically through both knees, then rise; work each leg separately.","e076":"Use a rail or strap to assist a controlled one-leg squat, gradually reducing assistance as balance and strength improve.","e077":"Balance on one leg, lower into a controlled squat with the other leg extended forwards, then stand. Use a suitable range.","e078":"Bend one knee behind you as you squat down on the opposite leg, reaching towards the floor with control.","e079":"With feet supported at a wall, bend elbows into a partial handstand push-up and press back to straight arms.","e080":"Perform a controlled handstand push-up against a wall through an appropriate range with a safe setup and exit.","e081":"Perform a handstand push-up without wall support. Requires substantial balance and pressing control.","e082":"Place hands on the floor, bend elbows slightly and balance knees on upper arms while keeping a controlled forward lean.","e083":"In a safe wall-supported handstand, shift weight and briefly lift one hand to touch the opposite shoulder.","e084":"From a half-kneeling position, shift hips back and straighten the front knee to stretch the hamstrings.","e085":"Sit with both legs extended ahead and fold forwards from the hips without forcing the spine.","e086":"Sit with legs extended and use your hip flexors and core to lift the legs slightly from the floor without leaning back.","e087":"Step into a long lunge, lower the rear knee with padding if needed and gently move hips forwards.","e088":"Place one shin against a wall or bench behind you, kneel and gently open the front of that hip and thigh.","e089":"Take a long split stance, let the front knee travel forwards in a controlled range and push back up through the front leg.","e090":"From hands and knees, position the front shin ahead and extend the other leg behind to explore hip rotation without knee pressure.","e091":"Sit with both knees bent to roughly right angles, then switch them side to side with controlled hip rotation.","e092":"Practise gentle seated hip external rotation with support, never levering the knee into a lotus position.","e093":"An advanced seated crossed-leg position requiring substantial hip rotation. Never force knee or ankle joints.","e094":"Explore a left-leg-forward front split with supports beneath hands or hips, without pushing into pain.","e095":"Explore a right-leg-forward front split with supports beneath hands or hips, without pushing into pain.","e096":"Use blocks or hands for support during a controlled wide straddle or middle-split position, staying within your range.","e097":"An optional advanced split variation with one leg slightly raised. Do not attempt without established range and informed coaching.","e098":"Stand facing a wall, raise arms overhead and explore shoulder flexion while keeping ribs and low back controlled.","e099":"Reach one arm over the shoulder and the other behind the back, bringing hands towards each other without wrenching the joint.","e100":"Stand with back and arms against a wall and slide arms upwards and downwards without excessively arching.","e101":"Use a foam roller or supported position beneath the upper back and gently extend through the thoracic spine.","e102":"Lie on your back, turn bent knees gently to one side while keeping shoulders comfortable; switch sides.","e103":"Stand tall and lean sideways through the trunk, avoiding forward rotation or excessive lumbar arching.","e104":"Sink into a supported deep squat and hold while keeping feet planted, using a rail if needed.","e105":"From hands and feet, raise hips into an inverted V and gently reach heels towards the floor.","e106":"Kneel with knees and ankles in a comfortable line and sit between or onto your heels, using support as needed.","e107":"An advanced quadriceps/ankle stretch from hero pose, gradually reclining only if knees and back tolerate it.","e108":"With one foot behind, keep its heel down and lean towards a wall to stretch the calf.","e109":"From a standing or half-kneeling position, move the knee forwards over toes while keeping the heel grounded.","e110":"Carefully walk your hands down a wall into a partial bridge and return, with a stable setup and adequate shoulder mobility.","e111":"An advanced controlled backbend beyond a basic bridge; develop gradually with supervision rather than forcing range.","e112":"An advanced pose combining a deep backbend and leg position. Seek qualified instruction and avoid forced spinal compression.","e113":"An advanced balance/flexibility position lifting one leg high behind while controlling the standing leg and trunk.","e114":"An extreme hip-flexibility pose bringing the leg behind the head. Not a routine goal; never force hip or knee joints.","e115":"A deep spinal-rotation position reached gradually from supported twists without levering the spine.","e116":"Extremely advanced backbending requiring extensive preparation and professional supervision; not a routine training target.","e117":"In a standing forward fold, measure the vertical gap between fingertips and floor in centimetres, using the same setup each time.","e118":"From a supported front-split attempt, measure the hip-to-floor gap in centimetres using a consistent setup and the correct side.","e119":"Hold dumbbells by your sides and step into a lunge, bending both knees before pushing back to the start.","e120":"Hold a weight securely, rise onto the balls of your feet through a controlled range, and lower slowly.","e121":"Swim on your back using alternating arm strokes and a flutter kick, staying streamlined and clear of other swimmers.","e122":"Swim face-down using alternating arm strokes and flutter kick, turning to the side to breathe.","e123":"Swim with simultaneous arm sweep and frog-like kick, gliding between strokes without forcing the knees.","e124":"Hold a kickboard ahead and practise a relaxed flutter kick for a measured duration or distance.","e125":"Practise a selected rowing technique drill such as arms-only, body swing or legs-only in controlled short intervals.","e126":"On a stationary bike or safe route, practise maintaining a chosen smooth pedalling cadence for a short interval.","e127":"Position the safety squat bar securely across the shoulders, hold the forward handles, brace and squat through a controlled comfortable depth. Stand steadily without collapsing forwards.","e128":"Use a hack-squat machine with shoulders and back supported. Lower under control with feet planted, then press to standing without locking the knees forcefully.","e129":"Attach the load through a secure hip belt or belt-squat machine. Squat with an upright torso and controlled knee tracking, then stand through the feet.","e130":"Set a sturdy box to a suitable height. Brace, sit back until the box is gently contacted, keep tension, then stand without rocking backwards.","e131":"Stand on a low stable platform to increase the pulling range. Brace, keep the bar close and lift through legs and hips without rounding to reach the bar.","e132":"Place the bar safely on rack pins at an appropriate height. Brace and extend hips and knees to stand, keeping the bar close and controlling the lowering.","e133":"Hold a light bar securely on the upper back, soften knees and hinge at the hips with a braced torso. Return upright by extending the hips.","e134":"Hold the bar in front of the thighs, maintain a slight knee bend and hinge at the hips as the bar tracks close to the legs. Stand by driving the hips forwards.","e135":"Lie on the floor with knees comfortably bent and press a barbell or dumbbells from a controlled upper-arm contact with the floor. Use a safe setup and spotter for a barbell.","e136":"Bench press to a secured board or pad that limits the lowering range, then press up under control. Use a reliable spotter or safeties.","e137":"Anchor one end of a barbell securely. Press the free end diagonally up and forwards from shoulder height, maintaining a braced trunk.","e138":"Hold one dumbbell at shoulder height. Brace your trunk and press vertically overhead without leaning to the opposite side, then lower under control; train both arms.","e139":"Rest the upper arms securely on a preacher pad. Curl the weight by bending the elbows, then lower slowly without dropping into an overstretched position.","e140":"Hold dumbbells with palms facing inward. Curl without swinging the upper arms, then lower under control through a comfortable range.","e141":"With light dumbbells or cables, hinge slightly forward and raise arms out to the sides to work the rear shoulders. Keep shoulders relaxed and avoid swinging.","e142":"With knees secured on a glute-ham developer, lower the torso forwards slowly with hips extended and use the hamstrings and glutes to return. Use assistance as required.","e143":"Sit at a calf-raise machine with pads over thighs. Raise heels through the balls of the feet, pause briefly and lower slowly through a comfortable range.","e144":"From knees with an ab wheel under the shoulders, brace and roll forwards only as far as you can prevent your lower back from sagging. Pull the wheel back under control.","e145":"Lie on your back with hips and knees bent. Curl the pelvis gently towards the ribs to lift the hips, then lower without swinging the legs.","e146":"Stand sideways to a cable or band anchor at chest height. Press the handle straight forwards and resist twisting, then bring it back; repeat both sides."};
+const VISUAL_PATHS=[{"cat":"Calisthenics","family":"Push-ups","name":"Build your push-up","stages":[["e001"],["e002","e003"],["e004"],["e005","e007"],["e006","e008"]]},{"cat":"Calisthenics","family":"Push-ups","name":"One-arm and leverage","stages":[["e004"],["e008","e009"],["e053"],["e054"]]},{"cat":"Calisthenics","family":"Pulling","name":"First pull-up","stages":[["e010","e057"],["e011","e012"],["e013","e058"],["e014","e059"],["e015","e016"]]},{"cat":"Calisthenics","family":"Dips","name":"Build your dip","stages":[["e060","e061"],["e062"],["e063"]]},{"cat":"Calisthenics","family":"Leg raises","name":"Leg-raise control","stages":[["e066"],["e067"],["e068"]]},{"cat":"Calisthenics","family":"L-sit & compression","name":"Compression and holds","stages":[["e019"],["e021"],["e022"],["e070"],["e071"]]},{"cat":"Calisthenics","family":"Handstands & pressing","name":"Balance path","stages":[["e082"],["e023"],["e024"]]},{"cat":"Calisthenics","family":"Handstands & pressing","name":"Pressing path","stages":[["e023"],["e079","e083"],["e080"],["e081"]]},{"cat":"Calisthenics","family":"Single-leg squats","name":"Single-leg strength","stages":[["e074"],["e075"],["e076"],["e077","e078"]]},{"cat":"Calisthenics","family":"Grip & hangs","name":"Hanging control","stages":[["e020"],["e072"],["e073"]]},{"cat":"Flexibility & mobility","family":"Front splits","name":"Front split preparation","stages":[["e087","e084"],["e038"],["e094","e095"]]},{"cat":"Flexibility & mobility","family":"Middle splits","name":"Middle split preparation","stages":[["e091"],["e096"],["e039"]]},{"cat":"Flexibility & mobility","family":"Bridges & backbends","name":"Bridges and backbends","stages":[["e043"],["e044"],["e110"],["e111"]]},{"cat":"Flexibility & mobility","family":"Hip rotation","name":"Hip rotation and lotus","stages":[["e091"],["e090","e092"],["e093"]]},{"cat":"Flexibility & mobility","family":"Hamstrings & folding","name":"Hamstring and compression","stages":[["e084","e085"],["e036"],["e037","e086"]]},{"cat":"Flexibility & mobility","family":"Shoulders","name":"Shoulder mobility","stages":[["e100"],["e098"],["e099"]]},{"cat":"Flexibility & mobility","family":"Quadriceps & ankles","name":"Quadriceps mobility","stages":[["e106"],["e107"]]}];
+const READINESS_TESTS={"e002":{"from":"e001","metric":"bestSet","goal":10,"label":"10 controlled wall push-ups"},"e003":{"from":"e001","metric":"bestSet","goal":10,"label":"10 controlled wall push-ups"},"e004":{"any":[["e002","bestSet",8,"8 incline push-ups"],["e003","bestSet",8,"8 knee push-ups"]]},"e005":{"from":"e004","metric":"bestSet","goal":8,"label":"8 standard push-ups"},"e006":{"from":"e005","metric":"bestSet","goal":8,"label":"8 close-grip push-ups"},"e007":{"from":"e004","metric":"bestSet","goal":10,"label":"10 standard push-ups"},"e008":{"from":"e004","metric":"bestSet","goal":12,"label":"12 standard push-ups"},"e009":{"from":"e004","metric":"bestSet","goal":12,"label":"12 standard push-ups with good shoulder control"},"e053":{"from":"e008","metric":"bestSet","goal":3,"label":"3 controlled archer push-ups"},"e054":{"from":"e053","metric":"bestSet","goal":5,"label":"5 assisted one-arm push-ups"},"e011":{"from":"e010","metric":"bestSet","goal":8,"label":"8 controlled inverted rows"},"e012":{"from":"e011","metric":"bestSet","goal":3,"label":"3 assisted pull-ups"},"e013":{"any":[["e011","bestSet",5,"5 assisted pull-ups"],["e012","bestSet",3,"3 slow negatives"]]},"e014":{"from":"e013","metric":"bestSet","goal":6,"label":"6 strict pull-ups"},"e015":{"from":"e013","metric":"bestSet","goal":8,"label":"8 strict pull-ups"},"e016":{"from":"e014","metric":"bestSet","goal":5,"label":"5 controlled chest-to-bar pull-ups"},"e058":{"from":"e011","metric":"bestSet","goal":5,"label":"5 assisted pull-ups"},"e059":{"from":"e013","metric":"bestSet","goal":8,"label":"8 strict bodyweight pull-ups"},"e062":{"from":"e060","metric":"bestSet","goal":8,"label":"8 assisted dips"},"e063":{"from":"e062","metric":"bestSet","goal":8,"label":"8 controlled parallel-bar dips"},"e067":{"from":"e066","metric":"bestSet","goal":10,"label":"10 lying leg raises"},"e068":{"from":"e067","metric":"bestSet","goal":8,"label":"8 hanging knee raises"},"e021":{"from":"e019","metric":"bestHold","goal":20,"label":"20-second hollow hold"},"e022":{"from":"e021","metric":"bestHold","goal":10,"label":"10-second tuck L-sit"},"e070":{"from":"e022","metric":"bestHold","goal":8,"label":"8-second L-sit"},"e071":{"from":"e070","metric":"bestHold","goal":5,"label":"5-second tuck V-sit"},"e023":{"from":"e082","metric":"bestHold","goal":10,"label":"10-second frog stand (balance preparation)"},"e024":{"from":"e023","metric":"bestHold","goal":20,"label":"20-second controlled wall handstand"},"e079":{"from":"e023","metric":"bestHold","goal":20,"label":"20-second controlled wall handstand"},"e080":{"from":"e079","metric":"bestSet","goal":3,"label":"3 controlled partial wall handstand push-ups"},"e081":{"all":[["e080","bestSet",3,"3 controlled wall handstand push-ups"],["e024","bestHold",10,"10-second freestanding handstand"]]},"e083":{"from":"e023","metric":"bestHold","goal":20,"label":"20-second controlled wall handstand"},"e075":{"from":"e074","metric":"bestSet","goal":15,"label":"15 controlled bodyweight squats"},"e076":{"from":"e075","metric":"bestSet","goal":8,"label":"8 split squats per leg (check both sides)"},"e077":{"from":"e076","metric":"bestSet","goal":5,"label":"5 controlled assisted pistols per leg (check both sides)"},"e078":{"from":"e075","metric":"bestSet","goal":8,"label":"8 split squats per leg (check both sides)"},"e072":{"from":"e020","metric":"bestHold","goal":20,"label":"20-second dead hang"},"e073":{"from":"e072","metric":"bestHold","goal":15,"label":"15-second active hang"},"e038":{"from":"e084","metric":"bestHold","goal":20,"label":"20-second supported half split, comfortable range"},"e094":{"from":"e038","metric":"bestHold","goal":20,"label":"20-second supported front-split preparation (not proof of full-split readiness)"},"e095":{"from":"e038","metric":"bestHold","goal":20,"label":"20-second supported front-split preparation (not proof of full-split readiness)"},"e039":{"from":"e096","metric":"bestHold","goal":20,"label":"20-second supported wide straddle, comfortable range"},"e044":{"from":"e043","metric":"bestHold","goal":20,"label":"20-second stable glute bridge (basic preparation only)"},"e110":{"from":"e044","metric":"bestHold","goal":10,"label":"10-second controlled bridge (additional shoulder mobility required)"},"e111":{"from":"e110","metric":"bestSet","goal":1,"label":"A controlled assisted wall-walk, with adequate preparation"},"e093":{"from":"e092","metric":"bestHold","goal":20,"label":"20-second supported lotus preparation without knee discomfort"},"e099":{"from":"e098","metric":"bestHold","goal":20,"label":"20-second wall shoulder-flexion practice"},"e107":{"from":"e106","metric":"bestHold","goal":20,"label":"20-second comfortable hero pose without knee discomfort"}};
+
+const CATEGORY_CONFIG={
+ 'Calisthenics':{icon:'◈',subtitle:'Bodyweight skills, holds and difficult variations',short:'Bodyweight strength and skills'},
+ 'Weight training':{icon:'▥',subtitle:'Squats, hinges, presses, pulls and loading records',short:'Resistance and strength'},
+ 'Flexibility & mobility':{icon:'◎',subtitle:'Controlled range, preparation and optional advanced skills',short:'Range of motion and control'},
+ 'Cardio':{icon:'↗',subtitle:'Walking, running, cycling, swimming and conditioning',short:'Distance, time and pace'}
+};
+const FAMILY_OVERRIDES={'e053':'Push-ups','e054':'Push-ups','e057':'Pulling','e074':'Single-leg squats'};
+const familyOf=e=>FAMILY_OVERRIDES[e.id]||e.family;
+const familyExercises=(category,family)=>DATA.filter(e=>e.cat===category&&familyOf(e)===family);
+let dexFamily=null,dexSelected=null;
+function openDexRoot(){cat='All';dexFamily=null;dexSelected=null;search='';tab='dex';render();window.scrollTo({top:0,behavior:'instant'});}
+function openDexCategory(category){if(!CATS.includes(category))return;cat=category;dexFamily=null;dexSelected=null;search='';tab='dex';render();window.scrollTo({top:0,behavior:'instant'});}
+function openDexFamily(category,family){cat=category;dexFamily=family;dexSelected=null;search='';tab='dex';render();window.scrollTo({top:0,behavior:'instant'});}
+function openDexEntry(id){const e=ex(id);if(!e)return;cat=e.cat;dexFamily=familyOf(e);dexSelected=id;search='';tab='dex';render();document.getElementById('movement-details')?.scrollIntoView({behavior:'smooth',block:'start'});}
+function openPathNode(id){if(!ex(id))return;dexSelected=id;tab='dex';render();document.getElementById('movement-details')?.scrollIntoView({behavior:'smooth',block:'start'});}
+function pickLogCategory(category){const entry=DATA.find(e=>e.cat===category);if(entry){chosen=entry.id;editId=null;render();}}
+function pickLogFamily(family){const entry=DATA.find(e=>e.cat===ex(chosen).cat&&familyOf(e)===family);if(entry){chosen=entry.id;editId=null;render();}}
+function dexSearchChanged(value){search=value;cat='All';dexFamily=null;dexSelected=null;render();const field=document.getElementById('dex-search');if(field){field.focus();field.setSelectionRange(value.length,value.length);}}
+function routeNames(category,family){return VISUAL_PATHS.filter(p=>p.cat===category&&p.family===family);}
+function safeJS(x){return JSON.stringify(String(x));}
+function metricValue(id,key){const st=stats(id);return Number(st?.[key]||0);}
+function readiness(id){const config=READINESS_TESTS[id];if(!config)return {type:'none',ratio:0,label:'Explore this movement when appropriate; no numerical prerequisite is set.'};
+ const items=config.any||config.all||(config.from?[[config.from,config.metric,config.goal,config.label]]:[]);
+ const checked=items.map(([source,metric,target,label])=>({source,metric,target,label,value:metricValue(source,metric),ok:metricValue(source,metric)>=target}));
+ const achieved=config.any?checked.some(a=>a.ok):checked.every(a=>a.ok);
+ const ratio=config.any?Math.max(0,...checked.map(x=>Math.min(1,x.value/x.target))):Math.min(1,...checked.map(x=>x.value/x.target));
+ return {type:achieved?'prepared':'building',ratio,label:checked.map(x=>`${x.label} (${round(x.value,1)}/${x.target})`).join(config.any?' OR ': ' AND '),checked,any:!!config.any};
+}
+function nodeCard(id){const e=ex(id),r=readiness(id),attempted=isSeen(id),state=attempted?'met':r.type==='prepared'?'prepared':'';
+ const footer=attempted?'✓ Entry logged':r.type==='prepared'?'✓ Prep recorded':r.type==='building'?`Prep: ${r.checked[0].target} ${r.checked[0].metric==='bestHold'?'s hold':'reps'} · ${Math.round(r.ratio*100)}%`:'First attempt available';
+ return `<button class="dex-node ${state} ${dexSelected===id?'selected':''}" onclick="openPathNode('${id}')" aria-label="View ${esc(e.name)} skill details"><span class="node-top"><span>${attempted?'Discovered':e.advanced?'Advanced':'Skill'}</span><span class="node-icon">${attempted?'✓':r.type==='prepared'?'↗':'○'}</span></span><span class="node-name">${esc(e.name)}</span><span class="node-foot">${footer}</span></button>`;
+}
+function routeChart(route){const labels=['Start','Build','Develop','Advance','Master'];return `<div class="dex-path"><div class="dex-path-heading"><h3>${esc(route.name)}</h3><small>Swipe to follow the route →</small></div><div class="dex-flow" aria-label="${esc(route.name)} visual skill pathway">${route.stages.map((ids,i)=>`${i?'<span class="dex-flow-connector" aria-hidden="true">›</span>':''}<div class="dex-phase"><div class="dex-phase-title">${labels[i]||'Develop'}</div>${ids.map(nodeCard).join('')}</div>`).join('')}</div><p class="dex-treenote">Arrows show a suggested training direction, not universal prerequisites. Select a movement to see a specific preparation target. You can log any exercise regardless of its suggested status.</p></div>`;}
+function readinessPanel(id){const r=readiness(id);if(r.type==='none')return `<div class="dex-readiness"><h4>Preparation</h4><p>${esc(r.label)}</p></div>`;
+ return `<div class="dex-readiness"><h4>${r.type==='prepared'?'✓ Suggested preparation recorded':'Suggested preparation to start practising this variation'}</h4><p>${esc(r.label)}</p><div class="progress"><div style="width:${Math.round(r.ratio*100)}%"></div></div><p class="ready-number">${Math.round(r.ratio*100)}% of the numerical preparation target recorded</p><p>These are practical planning benchmarks, not guarantees of safety or technique. For balance and flexibility, controlled movement matters more than reaching a time alone.</p></div>`;
+}
+function exerciseInfo(id){const e=ex(id),r=readiness(id),st=seenStats(id),note=e.notes||'';
+ const matched=VISUAL_PATHS.filter(route=>route.stages.some(stage=>stage.includes(id))).slice(0,3).map(x=>x.name);
+ const variantParent=e.variantOf?ex(e.variantOf):null;
+ const relatedVariants=DATA.filter(v=>v.variantOf===e.id);
+ return `<section id="movement-details" class="dex-detail" aria-label="Exercise details for ${esc(e.name)}"><span class="dex-cardlabel">Movement guide · ${esc(e.cat)} / ${esc(familyOf(e))}</span><h3>${esc(e.name)} ${isSeen(id)?'✓':''}</h3><div class="dex-guide"><b>What to do</b><div style="margin-top:6px">${esc(EXERCISE_GUIDES[id])}</div></div>${note?`<p class="dex-safety">${esc(note)}</p>`:''}${e.advanced?'<p class="dex-safety">Advanced movement. The suggested preparation is not a safety clearance; use suitable training and supervision where appropriate.</p>':''}${variantParent?`<p class="hint">Variation of <button class="small" onclick="openDexEntry('${variantParent.id}')">${esc(variantParent.name)} →</button> · Independently logged and rewarded</p>`:''}${relatedVariants.length?`<p class="hint">Linked variations: ${relatedVariants.map(v=>`<button class="small" onclick="openDexEntry('${v.id}')">${esc(v.name)}</button>`).join(' ')}</p>`:''}${readinessPanel(id)}<div class="two"><div class="card"><span class="dex-cardlabel">Recorded performance</span><p class="muted">${esc(st)}</p></div><div class="card"><span class="dex-cardlabel">Next achievement</span><p class="muted">${esc(nextTarget(id))}</p></div></div>${matched.length?`<p class="hint" style="margin-top:10px">Appears in: ${matched.map(esc).join(' · ')}</p>`:''}<p class="hint">Trains: ${e.attrs.map(esc).join(' · ')}</p><div class="dex-detail-actions"><button class="primary" onclick="choose('${id}')">Log ${esc(e.name)} →</button><button onclick="toggleHunt('${id}')">${S.v4?.hunts?.includes(id)?'✓ On hunting list':'Pin to hunting list'}</button></div></section>`;
+}
+function dexCategoryTiles(){return `<h2 class="dex-sectionhead">Choose your training area</h2><div class="dex-category-grid">${CATS.map(category=>{const rows=DATA.filter(e=>e.cat===category),seen=rows.filter(e=>isSeen(e.id)).length,conf=CATEGORY_CONFIG[category];return `<button class="dex-tile" onclick='openDexCategory(${safeJS(category)})'><span class="emblem" aria-hidden="true">${conf.icon}</span><span class="tile-title">${esc(category)}</span><span class="tile-desc">${esc(conf.subtitle)}</span><span class="tile-footer"><span>${seen} / ${rows.length} discovered</span><span>Explore ↗</span></span><span class="tile-progress"><div style="width:${100*seen/rows.length}%"></div></span></button>`;}).join('')}</div>`;}
+function dexFamilyTiles(category){const families=unique(DATA.filter(e=>e.cat===category).map(familyOf)).sort((a,b)=>a.localeCompare(b));return `<h2 class="dex-sectionhead">Movement families</h2><div class="dex-family-grid">${families.map(fam=>{const rows=familyExercises(category,fam),seen=rows.filter(e=>isSeen(e.id)).length,hasRoute=routeNames(category,fam).length;return `<button class="dex-family-tile" onclick='openDexFamily(${safeJS(category)},${safeJS(fam)})'><strong>${esc(fam)}</strong><small>${hasRoute?'Skill routes and preparation targets':'Explore exercises and variations'}</small><span class="family-foot">${seen}/${rows.length} tried · Open →</span><span class="tile-progress"><div style="width:${100*seen/rows.length}%"></div></span></button>`;}).join('')}</div>`;}
+function exerciseTiles(exercises,category){
+ const tile=e=>`<button class="dex-exercise-tile ${dexSelected===e.id?'selected':''}" onclick="openDexEntry('${e.id}')"><span class="dex-cardlabel">${isSeen(e.id)?'✓ Discovered':e.advanced?'Advanced':e.variantOf?'Variation':'Not yet tried'}</span><b>${esc(e.name)}</b><small>${esc(EXERCISE_GUIDES[e.id].split('. ')[0])}</small></button>`;
+ if(category!=='Weight training')return `<div class="dex-browse-grid">${exercises.map(tile).join('')}</div>`;
+ const roots=exercises.filter(e=>!e.variantOf||!exercises.some(p=>p.id===e.variantOf));
+ return roots.map(root=>{
+  const variants=exercises.filter(e=>e.variantOf===root.id);
+  return `<div class="dex-movement-group"><div class="dex-movement-heading"><strong>${esc(root.name)}</strong>${variants.length?`<span class="pill">${variants.length} linked variation${variants.length===1?'':'s'}</span>`:''}</div><div class="dex-browse-grid">${[root,...variants].map(tile).join('')}</div></div>`;
+ }).join('');
+}
+function dexFamilyDetail(category,family){const exercises=familyExercises(category,family),seen=exercises.filter(x=>isSeen(x.id)).length,paths=routeNames(category,family);return `<div class="dex-family-intro"><div><h2>${esc(family)}</h2><p>${paths.length?'Explore the skill pathways and select an exercise to view its preparation and instructions.':'These are related exercises or variations, not necessarily a linear difficulty progression.'}</p></div><div class="family-score"><strong>${seen}/${exercises.length}</strong><small>discovered</small></div></div>${paths.length?`<h3 class="dex-sectionhead">Skill pathways</h3>${paths.map(routeChart).join('')}`:''}<h3 class="dex-sectionhead">${paths.length?'All exercises in this family':'Exercises and variations'}</h3>${exerciseTiles(exercises,category)}${dexSelected?exerciseInfo(dexSelected):`<div class="dex-zero" style="margin-top:15px">Select any movement to see what it involves, how its preparation is tracked and what achievement comes next.</div>`}`;}
+function dexSearchResults(){const text=search.toLowerCase().trim();const rows=DATA.filter(e=>e.name.toLowerCase().includes(text)||e.family.toLowerCase().includes(text)||e.cat.toLowerCase().includes(text));return `<h2 class="dex-sectionhead">Search results · ${rows.length} movements</h2>${rows.length?`<div class="dex-browse-grid">${rows.slice(0,70).map(e=>`<button class="dex-exercise-tile" onclick="openDexEntry('${e.id}')"><span class="dex-cardlabel">${esc(e.cat)} · ${esc(familyOf(e))}</span><b>${esc(e.name)}</b><small>${esc(EXERCISE_GUIDES[e.id].split('. ')[0])}</small></button>`).join('')}</div>${rows.length>70?'<p class="hint">Showing the first 70 matches; narrow your search.</p>':''}`:'<p class="dex-zero">No movements found. Try a different exercise or family name.</p>'}`;}
+function dex(){const found=achievementCounts();let body='';let breadcrumb='';
+ if(search.trim())body=dexSearchResults();
+ else if(cat==='All')body=dexCategoryTiles();
+ else if(!dexFamily)body=dexFamilyTiles(cat);
+ else body=dexFamilyDetail(cat,dexFamily);
+ if(cat!=='All'&&!search.trim()){breadcrumb=`<div class="dex-breadcrumbs"><button onclick="openDexRoot()">ExerciseDex</button><span>›</span>${dexFamily?`<button onclick='openDexCategory(${safeJS(cat)})'>${esc(cat)}</button><span>›</span><span class="current">${esc(dexFamily)}</span>`:`<span class="current">${esc(cat)}</span>`}</div>`;}
+ return `<div class="dex-hero"><span class="dex-eyebrow">Collect · Explore · Progress</span><h1>ExerciseDex <span style="font-size:15px;color:#a9c7c8">${found.discovered}/${DATA.length} discovered</span></h1><p>Explore four fitness areas, open movement families and follow visual skill pathways. Select any exercise to see what it involves and what preparation you can demonstrate.</p><div class="dex-searchbar"><input id="dex-search" value="${esc(search)}" oninput="dexSearchChanged(this.value)" placeholder="Search exercises or movement families…" aria-label="Search ExerciseDex">${search?'<button class="small" onclick="openDexRoot()">Clear search</button>':''}</div></div>${breadcrumb}${body}`;
+}
+function formSetRows(e,existing){let sets=existing?.sets||[];if(!sets.length)sets=Array.from({length:e.mode==='sets'?5:3},()=>({weight:'',reps:''}));return sets.map((s,i)=>`<div class="setrow"><span class="muted">${i+1}</span>${e.mode==='sets'?`<input class="weight" aria-label="Set ${i+1} weight in kilograms" type="number" min="0" step="0.5" value="${s.weight??''}" placeholder="kg">`:'<span class="muted">Bodyweight</span>'}<input class="reps" aria-label="Set ${i+1} repetitions" type="number" min="0" step="1" value="${s.reps??''}" placeholder="reps"><button class="small" title="Remove set" onclick="this.closest('.setrow').remove();renumberSets()">×</button></div>`).join('');}
+function timeText(log){if(log?.performedAt){const d=new Date(log.performedAt);return localTime(d);}return localTime(new Date());}
+function logForm(){
+ const e=ex(chosen)||DATA[0],l=editId?S.logs.find(x=>logId(x)===editId):null,last=logsFor(e.id).slice(-1)[0],prefill=l||null,mode=e.mode;
+ const dates=S.logs.filter(x=>x.sessionId && x.date===(l?.date||today())).map(x=>x.sessionId),sid=unique(dates),defaultSid=l?.sessionId||activeSessionId||'';
+ const label=mode==='time'?'Hold / practice seconds':mode==='range'?'Measured gap from floor (cm; smaller is deeper)':mode==='duration'?'Duration (minutes)':'Distance (km)';
+ return `<div class="half"><div class="card"><h2>${l?'Edit workout record':'Log an activity'}</h2>${window.selectedChallenge&&S.v3.active.some(c=>c.cid===window.selectedChallenge&&c.ex===e.id)?`<div class="notice">Selected challenge: ${esc(S.v3.active.find(c=>c.cid===window.selectedChallenge).label)} · ${esc(S.v3.active.find(c=>c.cid===window.selectedChallenge).goal)} ${esc(S.v3.active.find(c=>c.cid===window.selectedChallenge).unit)}</div>`:''}<div class="log-picker"><div class="field"><label>Training area</label><select id="logCategory" onchange="pickLogCategory(this.value)">${CATS.map(c=>`<option value="${esc(c)}" ${c===e.cat?'selected':''}>${esc(c)}</option>`).join('')}</select></div><div class="field"><label>Movement family</label><select id="logFamily" onchange="pickLogFamily(this.value)">${unique(DATA.filter(x=>x.cat===e.cat).map(familyOf)).sort().map(f=>`<option value="${esc(f)}" ${f===familyOf(e)?'selected':''}>${esc(f)}</option>`).join('')}</select></div><div class="field"><label>Exercise</label><select id="exercise">${familyExercises(e.cat,familyOf(e)).map(x=>`<option value="${x.id}" ${x.id===chosen?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div></div><div class="dex-quick-guide"><b>How to do it</b><span>${esc(EXERCISE_GUIDES[e.id])}</span></div><div class="two"><div class="field"><label>Date</label><input id="date" type="date" value="${l?.date||today()}"></div><div class="field"><label>Approximate completion time</label><input id="clock" type="time" value="${timeText(l)}"></div></div>
+ ${mode==='sets'||mode==='bodysets'?`<label>${mode==='sets'?'Working sets · weight and repetitions':'Repetitions per set (consecutive and total)'}</label><div id="setrows">${formSetRows(e,prefill)}</div><div class="row" style="justify-content:flex-start;margin-bottom:16px"><button class="small" onclick="addSet()">+ Add set</button><button class="small" onclick="prefillSets()">Copy previous session</button></div>`:`<div class="field"><label>${label}</label><input id="value" type="number" ${mode==='range'?'':'min="0"'} step="any" value="${prefill?.value??''}" placeholder="${esc(e.unit)}"></div>`}
+ ${(mode==='distance'||mode==='duration')?`<div class="field"><label>${mode==='distance'?'Duration (minutes) · optional':'Distance (km) · optional'}</label><input id="extra" type="number" min="0" step="any" value="${mode==='distance'?prefill?.minutes??'':prefill?.distance??''}" placeholder="Optional second measurement"></div>`:''}
+ ${e.cat==='Flexibility & mobility'?`<div class="field"><label>Movement type · optional</label><select id="mobilityType">${['','Passive stretch','Active mobility','Controlled end range'].map(v=>`<option ${v===(prefill?.mobilityType||'')?'selected':''}>${v}</option>`).join('')}</select></div>`:''}
+ ${e.side?`<div class="field"><label>Side</label><select id="side">${['both','left','right'].map(v=>`<option value="${v}" ${v===(prefill?.side||'both')?'selected':''}>${v}</option>`).join('')}</select></div>`:''}
+ ${mode==='duration'&&(e.id==='e051'||['e121','e122','e123','e124'].includes(e.id))?`<div class="two"><div class="field"><label>Stroke · optional</label><select id="stroke">${['','Front crawl','Breaststroke','Backstroke','Butterfly','Mixed'].map(v=>`<option ${v===(prefill?.stroke||'')?'selected':''}>${v}</option>`).join('')}</select></div><div class="field"><label>Lengths · optional</label><input id="lengths" type="number" min="0" step="1" value="${prefill?.lengths??''}" placeholder="e.g. 24"></div></div>`:''}
+ <div class="field"><label>Workout session</label><select id="session">${[`<option value="new">Start new workout</option>`,...sid.map(s=>`<option value="${esc(s)}" ${s===defaultSid?'selected':''}>Join existing workout ${esc(s.slice(-7))}</option>`)].join('')}</select><p class="hint">Group exercises from the same gym visit into one workout, without losing individual set records.</p></div>
+ <div class="field"><label>Notes · optional</label><input id="notes" maxlength="500" value="${esc(l?.notes||'')}" placeholder="Technique, route, how it felt…"></div><button class="primary" onclick="submitLog()">${l?'Save corrections':'Save activity and check rewards'}</button>${l?` <button onclick="cancelEdit()">Cancel</button>`:''}<p class="hint">Detailed logs are supported. Progress and challenge credit use when you did the activity, not when it was entered; a previously completed workout cannot fulfil a newly revealed challenge.</p></div>
+ <div class="card"><h2>${esc(e.name)}</h2><span class="pill">${esc(e.family)}</span><p class="muted">${e.attrs.map(esc).join(' · ')}</p><div class="metric">${stats(e.id).sessions} <span class="muted">records</span></div><div class="dex-guide"><b>What to do</b><div style="margin-top:6px">${esc(EXERCISE_GUIDES[e.id])}</div></div>${e.notes?`<p class="dex-safety">${esc(e.notes)}</p>`:''}<button class="small" onclick="openDexEntry('${e.id}')">View skill pathway and preparation →</button><h2 class="section">Performance and volume</h2>${allMilestones(e).map(m=>`<div class="challenge"><b>${esc(m.label)} · ${round(m.value,2)} ${esc(m.unit)}</b><p>${m.limits.filter(k=>m.value>=k).length}/${m.limits.length} benchmarks · next ${m.limits.find(k=>m.value<k)??'all earned'}</p>${progress(m.limits.filter(k=>m.value>=k).length,m.limits.length)}</div>`).join('')||'<p class="hint">No benchmarks recorded yet. Log an activity to begin tracking progress.</p>'}
+ ${stats(e.id).bestPace?`<p class="muted">Best recorded pace: ${round(stats(e.id).bestPace,2)} min/km (when both distance and time were logged).</p>`:''}
+ </div></div>`;
+}
+function renumberSets(){document.querySelectorAll('#setrows .setrow').forEach((r,i)=>r.firstElementChild.textContent=i+1);}
+function addSet(){const e=ex(chosen),a=$('setrows');if(!a||a.children.length>=100)return;const i=a.children.length+1;const div=document.createElement('div');div.className='setrow';div.innerHTML=`<span class="muted">${i}</span>${e.mode==='sets'?`<input class="weight" aria-label="Set ${i} weight" type="number" min="0" step="0.5" placeholder="kg">`:'<span class="muted">Bodyweight</span>'}<input class="reps" aria-label="Set ${i} reps" type="number" min="0" step="1" placeholder="reps"><button class="small" onclick="this.closest('.setrow').remove();renumberSets()">×</button>`;a.appendChild(div);}
+function prefillSets(){const prev=logsFor(chosen).slice(-1)[0];if(!prev?.sets){toast('No previous sets for this exercise.');return;}const area=$('setrows');area.innerHTML=formSetRows(ex(chosen),prev);}
+function cancelEdit(){editId=null;render();}
+function submitLog(){if(migrationError){alert(migrationError);return;}
+ const e=ex(chosen),date=$('date').value,clock=$('clock').value,notes=$('notes').value,existing=editId?S.logs.find(x=>logId(x)===editId):null;
+ if(!e||!validDate(date)||!/^\d{2}:\d{2}$/.test(clock))return alert('Enter a valid date and time.');
+ const current=new Date(), originalTime=existing?.performedAt?localTime(new Date(existing.performedAt)):null;
+ const performedAt=(existing&&date===existing.date&&clock===originalTime)?existing.performedAt:(date===today()&&clock===localTime(current))?current.toISOString():new Date(`${date}T${clock}:00`).toISOString();
+ if(ms(performedAt)>Date.now()+60000)return alert('Future workouts cannot be recorded as completed.');
+ let entry=existing?{...existing}:{at:new Date().toISOString()+'-'+uid()};
+ Object.assign(entry,{id:e.id,mode:e.mode,date,performedAt,notes:notes.trim().slice(0,500)});
+ if(e.side)entry.side=$('side').value; if(e.cat==='Flexibility & mobility')entry.mobilityType=$('mobilityType')?.value||'';
+ if(e.mode==='sets'||e.mode==='bodysets'){
+  const values=[...document.querySelectorAll('#setrows .setrow')].map(row=>({weight:n(row.querySelector('.weight')?.value),reps:n(row.querySelector('.reps')?.value)}));
+  if(values.some(s=>s.weight<0||s.weight>1000||s.reps<0||s.reps>1000||!Number.isInteger(s.reps)))return alert('Check all set values.');
+  entry.sets=values.filter(s=>s.reps>0).map(s=>e.mode==='sets'?s:{reps:s.reps});
+  if(!entry.sets.length)return alert('Enter at least one completed set.');
+  if(e.mode==='sets'&&entry.sets.some(x=>x.weight<=0))return alert('Enter a positive weight for every completed working set.');
+ }else{
+  const value=$('value').value;
+  if(value===''||!Number.isFinite(Number(value))||(e.mode!=='range'&&Number(value)<=0)||Math.abs(Number(value))>1e6)return alert('Enter a valid result.');
+  entry.value=Number(value);
+ }
+ if(e.mode==='distance'||e.mode==='duration'){
+   const extra=$('extra').value;if(extra!==''&&(!Number.isFinite(Number(extra))||Number(extra)<0||Number(extra)>1e6))return alert('Invalid optional distance or duration.');
+   if(e.mode==='distance')entry.minutes=extra===''?null:Number(extra);else entry.distance=extra===''?null:Number(extra);
+ }
+ if(e.mode==='duration'&&(e.id==='e051'||['e121','e122','e123','e124'].includes(e.id))){entry.stroke=STROKE_BY_ID[e.id]||($('stroke')?.value||'');entry.lengths=$('lengths').value===''?null:n($('lengths').value);}
+ const session=$('session').value;entry.sessionId=session==='new'?(existing?.sessionId||'w-'+uid()):session;
+ activeSessionId=entry.sessionId;
+ const previousMilestones=new Set(earnedMilestones().map(a=>a.id));const xpBefore=playerXP();
+ if(existing){const i=S.logs.findIndex(l=>logId(l)===editId);if(i<0)return alert('Original record not found.');S.logs[i]=entry;editId=null;}
+ else S.logs.push(entry);
+ resetDerived();const revoked=reconcileCompleted();const claimed=claimReady();const newMilestones=earnedMilestones().filter(a=>!previousMilestones.has(a.id));
+ S.v4=S.v4||{hunts:[],lastResult:null};S.v4.lastResult={logId:logId(entry),exercise:e.name,summary:logDescription(entry),xpGain:playerXP()-xpBefore,challengeNames:claimed.map(c=>c.label),milestones:newMilestones.map(m=>m.name+' · '+m.threshold+' '+m.unit)};
+ save();tab='home';render();
+ if(claimed.length)toast(`🏆 ${claimed.length} challenge${claimed.length===1?'':'s'} completed! ${claimed.map(c=>c.label).join(' · ')} · replacement${claimed.length===1?'':'s'} ready`);
+ if(newMilestones.length)toast(`✨ ${newMilestones.length} new permanent milestone${newMilestones.length===1?'':'s'} unlocked! ${newMilestones.slice(0,2).map(m=>m.name+' '+m.threshold).join(' · ')}`);
+ if(revoked)toast(`Record corrected. ${revoked} challenge reward${revoked===1?'':'s'} recalculated.`);
+ if(!claimed.length&&!newMilestones.length)toast(`✓ ${e.name} logged · records and progress updated`);
+}
+function logDescription(l){const e=ex(l.id);if(!e)return 'Unknown exercise';const x=logMetrics(l);
+ if(e.mode==='sets')return (l.sets||[]).map(s=>`${n(s.weight)} kg×${n(s.reps)}`).join(' · ');
+ if(l.mode==='reps')return `${n(l.value)} total reps (legacy, consecutive set unknown)`;
+ if(e.mode==='bodysets')return (l.sets||[]).map(s=>`${n(s.reps)} reps`).join(' · ');
+ if(e.mode==='range')return `${l.value} cm${l.side?' · '+l.side:''}`;
+ if(e.mode==='time')return `${l.value} s`;
+ return `${round(x.distance,2)} km${x.minutes?` · ${round(x.minutes,1)} min`:''}`;
+}
+function history(){
+ const count=countSessions(completedLogs());const logs=S.logs.slice().sort((a,b)=>logWhen(b)-logWhen(a)).slice(0,200);
+ return `<div class="card"><div class="row"><h2>History & data</h2><span class="pill">${S.logs.length} exercise records · ${count} workouts</span></div><p class="hint">Existing v0.2 data is kept under the same local storage key. A copy of the pre-migration data is stored locally when available. Export regularly—browser storage is device-specific and may vary by file location.</p><div class="row" style="justify-content:flex-start;flex-wrap:wrap"><button onclick="exportData()">Export complete backup</button><button onclick="exportPreMigration()">Download pre-migration backup</button><button onclick="exportPreV04()">Download pre-v0.4 backup</button><button onclick="restoreBeforeImport()">Restore pre-import save</button><button onclick="$('importFile').click()">Import validated backup</button><button onclick="addRecovery()">Record recovery day</button>${(S.recoveryDays||[]).includes(today())?`<button onclick="removeRecovery()">Remove today’s recovery mark</button>`:''}</div><input id="importFile" type="file" accept="application/json,.json" hidden><p class="hint">Editing or deleting a log recalculates milestone XP and challenge credit. Historical legacy v0.2 claims remain archived and are not silently deleted.</p>
+ <div class="stack" style="margin-top:17px">${logs.map(l=>`<div class="entry"><div><div class="name">${esc(ex(l.id)?.name||l.id)} <span class="pill">${esc(l.date)}</span></div><div class="sub">${esc(logDescription(l))}${ms(l.performedAt)>Date.now()?' · FUTURE':''}</div></div><div class="row"><button class="small" onclick="editLog('${esc(logId(l))}')">Edit</button><button class="small" onclick="deleteLog('${esc(logId(l))}')">Delete</button></div></div>`).join('')||'<p class="muted">No exercise records yet.</p>'}</div></div>`;
+}
+function editLog(id){const l=S.logs.find(x=>logId(x)===id);if(!l)return;if(l.mode==='reps')alert('This older record contains total repetitions only, not set-by-set counts. To edit it, enter the real sets rather than treating the total as a consecutive set.');chosen=l.id;editId=id;tab='log';render();}
+function deleteLog(id){if(!confirm('Delete this record? Progress, milestones and associated challenge rewards will be recalculated.'))return;
+ const i=S.logs.findIndex(l=>logId(l)===id);if(i<0)return;S.logs.splice(i,1);if(S.v4?.lastResult?.logId===id)S.v4.lastResult=null;resetDerived();const revoked=reconcileCompleted();ensureBoard();save();render();toast(`Record deleted. ${revoked} challenge completion${revoked===1?'':'s'} reversed.`);
+}
+function addRecovery(){if(!confirm('Record today as a recovery day? This maintains an appropriate general activity streak, but awards no exercise XP or physical achievement.'))return;
+ S.recoveryDays=Array.isArray(S.recoveryDays)?S.recoveryDays:[];
+ if(!S.recoveryDays.includes(today()))S.recoveryDays.push(today());resetDerived();save();render();toast('Recovery day recorded · streak preserved');}
+function removeRecovery(){S.recoveryDays=(S.recoveryDays||[]).filter(d=>d!==today());save();render();toast('Recovery mark removed.');}
+function exportBlob(content,name){const blob=new Blob([content],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function exportData(){exportBlob(JSON.stringify(snapshotForExport(),null,2),'FitnessDex_v04_backup_'+today()+'.json');}
+function exportPreMigration(){const raw=localStorage.getItem(PRE_MIGRATION);if(!raw){toast('No pre-v0.3 backup exists in this browser.');return;}exportBlob(raw,'FitnessDex_pre_v03_original.json');}
+function exportPreV04(){const raw=localStorage.getItem(PRE_V04);if(!raw)return toast('No older v0.4 migration snapshot here.');exportBlob(raw,'FitnessDex_pre_v04_original.json');}
+function restoreBeforeImport(){
+ const raw=localStorage.getItem(PRE_IMPORT);if(!raw)return toast('No previous import snapshot is stored here.');
+ let old;try{old=JSON.parse(raw)}catch(e){return alert('Restore snapshot is not readable. Current data remains unchanged.');}
+ if(!validBackup(old))return alert('Restore snapshot failed validation. Current data remains unchanged.');
+ if(!confirm('Restore the save from before your last import? Export your current data first if needed.'))return;
+ try{localStorage.setItem(K,raw);}catch(e){return alert('Could not restore; no data changed.');}
+ S=loadState();resetDerived();render();toast('Previous import snapshot restored.');
+}
+function isSafeEntry(l){
+ if(!l||typeof l!=='object'||!ex(l.id)||!validDate(l.date))return false;
+ const e=ex(l.id);if(l.mode!==e.mode && !(l.mode==='reps'&&e.mode==='bodysets'))return false;
+ if(l.performedAt && (!Number.isFinite(ms(l.performedAt))||Math.abs(ms(l.performedAt)-ms(l.date+'T12:00:00'))>48*3600000))return false;
+ if(l.notes && (typeof l.notes!=='string'||l.notes.length>1000))return false;
+ if(['sets','bodysets'].includes(l.mode))return Array.isArray(l.sets)&&l.sets.length>0&&l.sets.length<=100&&l.sets.every(s=>(l.mode!=='sets'||typeof s.weight==='number'&&Number.isFinite(s.weight)&&s.weight>0&&s.weight<=1000)&&typeof s.reps==='number'&&Number.isInteger(s.reps)&&s.reps>0&&s.reps<=1000);
+ if(typeof l.value!=='number'||!Number.isFinite(l.value))return false;
+ const bounds={reps:[1,100000],time:[1,86400],range:[-100,200],distance:[0.001,1000],duration:[.1,1440]};const [lo,hi]=bounds[l.mode]||[0,1e6];
+ if(l.value<lo||l.value>hi)return false;
+ if(l.minutes!=null&&(!Number.isFinite(l.minutes)||l.minutes<0||l.minutes>1440))return false;
+ if(l.distance!=null&&(!Number.isFinite(l.distance)||l.distance<0||l.distance>1000))return false;
+ if(l.lengths!=null&&(!Number.isInteger(Number(l.lengths))||Number(l.lengths)<0||Number(l.lengths)>2000))return false;
+ return true;
+}
+function validBackup(obj){
+ if(!obj||typeof obj!=='object'||!Array.isArray(obj.logs)||obj.logs.length>100000||!obj.logs.every(isSafeEntry))return false;
+ const ids=obj.logs.map(l=>logId(l)).filter(Boolean);if(ids.length!==new Set(ids).size)return false;
+ if(obj.recoveryDays && (!Array.isArray(obj.recoveryDays)||obj.recoveryDays.some(d=>!validDate(d)||d>today())))return false;
+ if(obj.v3){
+  if(!Array.isArray(obj.v3.active)||!Array.isArray(obj.v3.completed)||obj.v3.active.length>10000||obj.v3.completed.length>100000)return false;
+  const kinds=new Set(['first_try','discovery','variety','category_sessions','weighted_sets','weighted_sessions','weighted_reps_at_load','reps','consecutive','seconds','longest_hold','total_hold_seconds','distance','minutes','time_slot']);
+  if(![...obj.v3.active,...obj.v3.completed].every(c=>c&&typeof c.cid==='string'&&WINDOWS.includes(c.type)&&kinds.has(c.kind)&&(c.kind!=='time_slot'||!!TIME_TRACK_BY_ID[c.trackId])&&Number.isFinite(c.goal)&&c.goal>0&&c.goal<1e8&&(!c.ex||!!ex(c.ex))&&(!c.category||CATS.includes(c.category))&&Number.isFinite(ms(c.issuedAt))&&Number.isFinite(ms(c.periodStart))&&Number.isFinite(ms(c.periodEnd))&&ms(c.periodStart)<ms(c.periodEnd)&&ms(c.issuedAt)<=ms(c.periodEnd)&&(!c.completedAt||Number.isFinite(ms(c.completedAt)))&&(!c.rewardXP||(Number.isFinite(c.rewardXP)&&c.rewardXP>=0&&c.rewardXP<=500))))return false;
+ }
+ return true;
+}
+async function importData(file){if(!file)return;if(file.size>10000000){alert('Backup exceeds 10 MB; not imported.');return;}
+ let data;try{data=JSON.parse(await file.text());}catch(e){alert('Not valid JSON. No data was changed.');return;}
+ if(!validBackup(data)){alert('This file is not a recognised valid FitnessDex backup. No data was changed.');return;}
+ const msg=`Replace ${S.logs.length} current records with ${data.logs.length} imported records? A local copy of the current data will be retained first.`;
+ if(!confirm(msg))return;
+ try{localStorage.setItem(PRE_IMPORT,JSON.stringify(S));}catch(e){alert('Could not protect current data. Import cancelled.');return;}
+ const next={...blankState(),...data,claimed:Array.isArray(data.claimed)?data.claimed:[],assign:data.assign||{},tally:data.tally||{},v3:data.v3||{active:[],completed:[],nextSerial:0},v4:data.v4||{hunts:[],lastResult:null}};
+ next.v3.completed=next.v3.completed.map(c=>({...c,rewardXP:rewardFor(c)}));
+ next.v4.hunts=unique((Array.isArray(next.v4.hunts)?next.v4.hunts:[]).filter(id=>!!ex(id))).slice(0,5);
+ S=next;resetDerived();reconcileCompleted();ensureBoard();save();render();toast('Validated backup imported · saved data restored.');
+}
+function lifetimeBadgeProgress(){
+ const items=[];
+ for(const e of DATA){
+  if(!isSeen(e.id))continue;
+  const m=allMilestones(e).find(x=>x.key==='lifetimeReps'||x.key==='lifetimeSeconds');
+  if(!m)continue;
+  const next=m.limits.find(t=>t>m.value);
+  items.push({e,m,next,progress:next?Math.min(1,m.value/next):1});
+ }
+ items.sort((a,b)=>b.progress-a.progress||a.e.name.localeCompare(b.e.name));
+ return `<div class="card" style="margin-top:14px"><div class="row"><h2>Lifetime volume badges</h2><span class="pill">Repetitions & timed holds</span></div><p class="hint">Each exercise has its own permanent milestones up to 1,000,000 repetitions or recorded seconds. Lifetime totals include all valid logs; single-set records remain separate.</p>${items.length?items.slice(0,15).map(({e,m,next})=>`<div class="challenge"><div class="row"><b>${esc(e.name)}</b><button class="small" onclick="openDexEntry('${e.id}')">View →</button></div><p>${Math.round(m.value).toLocaleString('en-GB')} ${esc(m.unit)} lifetime · ${next?'next badge at '+next.toLocaleString('en-GB')+' '+esc(m.unit):'all lifetime badges earned'}</p>${progress(m.value,next||m.value)}</div>`).join(''):'<p class="hint">Log repetitions or timed holds to begin collecting lifetime badges.</p>'}</div>`;
+}
+function timeOfDayBadgePanel(){
+ const totals=timeTrackTotals();
+ const items=TIME_TRACKS.map(track=>({track,done:totals[track.id],next:TIME_BADGE_STEPS.find(n=>n>totals[track.id])}));
+ return `<div class="card" style="margin-top:14px"><div class="row"><h2>Time-of-day consistency</h2><span class="pill">Morning · daytime · evening</span></div>
+ <p class="hint">Complete an activity before 09:00 / 10:00, or at or after 20:00 / 21:00. Each track counts distinct days, not repeated Save actions. A full workout means at least two different exercises, three recorded working sets, or 20+ minutes of cardio. A day with movement in two or three different periods earns a separate badge track. All times use your device's local time and the actual recorded completion time.</p>
+ <div class="two">${items.map(({track,done,next})=>`<div class="challenge"><div class="row"><b>${esc(track.label)}</b><span class="pill">${done} ${done===1?'day':'days'}</span></div><p class="muted">${next?'Next badge: '+next+' qualifying days':'All tiers collected'}</p>${progress(done,next||done||1)}</div>`).join('')}</div></div>`;
+}
+function achievements(){
+ const all=earnedMilestones();const streakRewards=streakBadges();const rank={Bronze:0,Silver:1,Gold:2,Legendary:3};
+ const latest=all.slice().sort((a,b)=>rank[b.rarity]-rank[a.rarity]);
+ const sets=tinyCollection().slice(0,16); const eventMedals=S.v3.completed.filter(ch=>ch.type==='monthly'&&ch.difficulty==='Event'&&challengeValid(ch));
+ return `<div class="grid"><div class="card"><div class="muted">Permanent milestone achievements</div><div class="metric">${all.length}</div><div class="muted">Earned from actual performance · recalculated if data corrected</div></div><div class="card"><div class="muted">Valid challenge rewards</div><div class="metric">${S.v3.completed.filter(challengeValid).length}</div><div class="muted">Legacy ${S.claimed.length} retained separately</div></div><div class="card"><div class="muted">Daily completion bonuses</div><div class="metric">+${dailyBonusXp()} XP</div><div class="muted">1, 2, 3, 5 and 10 challenge milestones</div></div></div>${lifetimeBadgeProgress()}${timeOfDayBadgePanel()}<div class="half" style="margin-top:14px"><div class="card"><h2>Achievement collection</h2><div class="stack">${latest.slice(0,100).map(m=>`<div class="entry"><div><div class="name">${esc(m.name)}</div><div class="sub">${Number(m.threshold).toLocaleString('en-GB')} ${esc(m.unit)} · +${m.xp} XP</div></div><span class="pill">${m.rarity}</span></div>`).join('')||'<p class="muted">Your first recorded activity will begin unlocking this collection.</p>'}</div></div><div class="card"><h2>Consistency achievements</h2>${streakRewards.map(m=>`<div class="challenge"><b>✓ ${esc(m.name)}</b><p>+${m.xp} permanent XP</p></div>`).join('')||'<p class="hint">Consistency milestones unlock as you establish an activity rhythm.</p>'}<h2>Event medals</h2>${eventMedals.length?eventMedals.map(c=>`<div class="challenge"><b>🏅 ${esc(c.periodKey)} · ${esc(c.label)}</b><p>Monthly event collectible · +${c.rewardXP} XP</p></div>`).join(''):'<p class="hint">Monthly challenge completions will appear here as permanent event medals.</p>'}<h2>Nested collections</h2>${sets.map(c=>`<div class="challenge"><div class="row"><b>${esc(c.name)}</b><span class="muted">${c.done}/${c.total}</span></div>${progress(c.done,c.total)}</div>`).join('')}<p class="hint">A discovered exercise is a collectible, and its milestones form a separate collection. New skills can unlock harder objectives without requiring a maximal repetition target as a prerequisite.</p></div></div>`;
+}
+function render(){
+ resetDerived();
+ if(migrationError){$('app').innerHTML=`<div class="notice"><b>Save protection:</b> ${esc(migrationError)}</div>`;return;}
+ ensureBoard();
+ $('app').innerHTML=tab==='home'?home():tab==='dex'?dex():tab==='log'?logForm():tab==='achievements'?achievements():history();
+ document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+ if(tab==='log')$('exercise').addEventListener('change',evt=>{chosen=evt.target.value;editId=null;render();});
+ if(tab==='history')$('importFile').addEventListener('change',evt=>importData(evt.target.files[0]));
+}
+document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>b.dataset.tab==='dex'?openDexRoot():navigate(b.dataset.tab)));
+render();
+</script></body></html>
