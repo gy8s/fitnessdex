@@ -1,5 +1,5 @@
 {
-  "version": "0.5.9",
+  "version": "0.6.0",
   "released": "2026-11-13",
-  "notes": "Separate cutting-back tracker: alcohol, cigarettes and unhealthy takeaway; streak/reduction rewards; hidden exercise media picker"
+  "notes": "Focused home and four-item navigation; step-by-step activity type, exercise group, variant and record flow. Cloud and admin screens live under More."
 }
