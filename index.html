@@ -1064,18 +1064,18 @@ function validCareState(v){
  const goals=new Set(),ids=new Set(),items=new Set(),perDay=new Map();
  for(const g of water.goals){if(!g||!knownDate(g.date)||goals.has(g.date)||!Number.isInteger(g.ml)||g.ml<1000||g.ml>5000)return false;goals.add(g.date);}
  for(const e of water.entries){
-  if(!e||typeof e.id!=='string'||e.id.length>100||ids.has(e.id)||!knownDate(e.date)||!nearNow(e.at)||!Number.isInteger(e.ml)||e.ml<50||e.ml>1500)return false;
+  if(!e||typeof e.id!=='string'||!/^water-[a-z0-9-]+$/.test(e.id)||e.id.length>100||ids.has(e.id)||!knownDate(e.date)||!nearNow(e.at)||!Number.isInteger(e.ml)||e.ml<50||e.ml>1500)return false;
   if(Math.abs(ms(e.date+'T12:00:00Z')-ms(e.at))>48*3600000)return false;
   perDay.set(e.date,(perDay.get(e.date)||0)+1);if(perDay.get(e.date)>30)return false;
   ids.add(e.id);
  }
  for(const item of supp.items){
-  if(!item||typeof item.id!=='string'||item.id.length>100||ids.has(item.id)||typeof item.name!=='string'||!item.name.trim()||item.name.length>70||typeof item.note!=='string'||item.note.length>100||typeof item.time!=='string'||(item.time!==''&&!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(item.time))||!Array.isArray(item.days)||item.days.length<1||item.days.length>7||new Set(item.days).size!==item.days.length||item.days.some(n=>!Number.isInteger(n)||n<0||n>6)||!nearNow(item.createdAt)||item.archivedAt!==null&&(!nearNow(item.archivedAt)||ms(item.archivedAt)<ms(item.createdAt)))return false;
+  if(!item||typeof item.id!=='string'||!/^supp-[a-z0-9-]+$/.test(item.id)||item.id.length>100||ids.has(item.id)||typeof item.name!=='string'||!item.name.trim()||item.name.length>70||typeof item.note!=='string'||item.note.length>100||typeof item.time!=='string'||(item.time!==''&&!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(item.time))||!Array.isArray(item.days)||item.days.length<1||item.days.length>7||new Set(item.days).size!==item.days.length||item.days.some(n=>!Number.isInteger(n)||n<0||n>6)||!nearNow(item.createdAt)||item.archivedAt!==null&&(!nearNow(item.archivedAt)||ms(item.archivedAt)<ms(item.createdAt)))return false;
   ids.add(item.id);items.add(item.id);
  }
  const takenPairs=new Set();
  for(const x of supp.taken){
-  if(!x||typeof x.id!=='string'||x.id.length>100||ids.has(x.id)||typeof x.supplementId!=='string'||!items.has(x.supplementId)||!knownDate(x.date)||!nearNow(x.at)||![true,false,null].includes(x.onTime))return false;
+  if(!x||typeof x.id!=='string'||!/^taken-[a-z0-9-]+$/.test(x.id)||x.id.length>100||ids.has(x.id)||typeof x.supplementId!=='string'||!items.has(x.supplementId)||!knownDate(x.date)||!nearNow(x.at)||![true,false,null].includes(x.onTime))return false;
   if(Math.abs(ms(x.date+'T12:00:00Z')-ms(x.at))>48*3600000)return false;
   const key=x.supplementId+'|'+x.date;if(takenPairs.has(key))return false;takenPairs.add(key);ids.add(x.id);
  }
