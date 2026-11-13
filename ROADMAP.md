@@ -4,6 +4,15 @@ Updated: 13 November 2026
 
 This file records priorities and planned features. A roadmap item is **not** an implementation commitment or a completed feature. Keep the app's one-action-at-a-time design and preserve existing exercise IDs, activity history, rewards and cloud saves.
 
+## Daily care — v0.8.0
+
+- Water only, no nutrition. Default target 2 L/day, adjustable daily and default targets up to 5 L for different needs. One-tap 250/500/750 ml entries, custom amount/time, undo.
+- Hydration rewards: 10 XP for goal, 5 XP for three spaced drinks across 3 hours, 5 XP for meeting a higher 2.5 L+ target. No award for exceeding a target. Streak badges at 3, 7, 14, 30, 60 and 90 days.
+- Supplements: register with optional notes, time, and weekdays. One tap to mark taken, undo, edit or archive; capped per-day rewards of 5 XP for the full scheduled routine and +2 XP when user-defined timed doses are logged within 90 minutes. No rewards for additional doses or more registered supplements.
+- Records live in v9 outside workouts, with backup validation and existing cloud save fingerprint. No Supabase table migration or nutrition tracking.
+- Medical safety: app does not recommend supplement timing, dosing, or water quantities; configurable goal is not individual medical advice. No push notifications yet.
+- Remaining tests: real-device date rollover, cloud conflicts after phone changes, and optional activity-aware water goal suggestions.
+
 ## Priority 0 — Foundation (current focus)
 
 - [ ] Exercise/set/repetition records remain individually loggable, including one-off spontaneous sets. Workouts are optional groups of existing activities; the app may **suggest** grouping when three or more exercises are logged close together, but never silently groups records.
