@@ -23,6 +23,28 @@ const PHASE_SESSIONS={
   [['e027','e075','e043','e109'],['e074','e075','e043','e104']],
   [['e025','e075','e043','e109'],['e027','e075','e043','e104']],
   [['e025','e075','e043','e109'],['e027','e075','e043','e104']]
+ ],
+ deadlift:[
+  [['e030','e043','e017','e087'],['e030','e043','e018','e109']],
+  [['e030','e142','e017','e087'],['e029','e043','e018','e109']],
+  [['e029','e030','e017','e087'],['e030','e142','e018','e109']],
+  [['e029','e030','e017','e087'],['e030','e043','e018','e109']]
+ ],
+ swim:[
+  [['e123'],['e051']],
+  [['e123','e124'],['e122']],
+  [['e122'],['e051','e123']]
+ ],
+ run5k:[
+  [['e046','e109'],['e046'],['e046','e104']],
+  [['e046','e109'],['e046'],['e046','e040']],
+  [['e046','e109'],['e046'],['e046','e104']],
+  [['e046','e109'],['e046'],['e046','e040']]
+ ],
+ grip:[
+  [['e020','e073','e010'],['e072','e010']],
+  [['e020','e073','e057'],['e072','e058']],
+  [['e020','e073','e010'],['e072','e013']]
  ]
 };
 const DEFINITIONS=[
@@ -69,6 +91,59 @@ const DEFINITIONS=[
    {id:'single',title:'Single-leg control',hint:'Split squat or controlled lunge',ids:['e075','e076','e077','e078','e028','e119','e089'],pick:'e075'},
    {id:'hinge',title:'Hips & posterior chain',hint:'Glute bridge or suitable hinge',ids:['e043','e029','e030','e142','e133'],pick:'e043'},
    {id:'mobility',title:'Ankle & squat mobility',hint:'Deep squat hold, ankle or hip mobility',ids:['e104','e109','e087','e088','e108'],pick:'e104'}
+  ]
+ },
+ {id:'deadlift',name:'Deadlift Mastery',icon:'▣',weeks:52,kind:'52-week masterwork',
+  intro:'Develop a confident hinge, trunk stability and measurable posterior-chain strength. Increase load only when ready.',
+  phases:[
+   ['Foundation · weeks 1–13','Hinge technique, bracing and comfortable mobility.'],
+   ['Build · weeks 14–26','Consistent hinge practice and posterior-chain support.'],
+   ['Strength · weeks 27–39','Add controlled loaded deadlifts when appropriate.'],
+   ['Mastery · weeks 40–52','Consolidate technique and long-term strength.']
+  ],days:2,
+  slots:[
+   {id:'hinge',title:'Hinge practice',ids:['e029','e030','e131','e132','e133','e134'],pick:'e030'},
+   {id:'posterior',title:'Posterior-chain support',ids:['e043','e142'],pick:'e043'},
+   {id:'brace',title:'Trunk stability',ids:['e017','e018','e019','e146'],pick:'e017'},
+   {id:'mobility',title:'Hip & ankle mobility',ids:['e087','e088','e104','e109'],pick:'e087'}
+  ]
+ },
+ {id:'swim',name:'Swimcraft',icon:'≈',weeks:26,kind:'26-week campaign',
+  intro:'Improve swimming consistency, stroke control and endurance relative to your starting point.',
+  phases:[
+   ['Water confidence · weeks 1–9','Make swimming repeatable and establish a baseline.'],
+   ['Stroke development · weeks 10–17','Practice technique and try another stroke when comfortable.'],
+   ['Endurance · weeks 18–26','Extend sustainable swimming; the mile is optional.']
+  ],days:2,
+  slots:[
+   {id:'pool',title:'Pool sessions',ids:['e051','e121','e122','e123'],days:2,pick:'e051'},
+   {id:'stroke',title:'Stroke practice',ids:['e121','e122','e123','e124'],pick:'e123'}
+  ]
+ },
+ {id:'run5k',name:'The 5K Engine',icon:'↗',weeks:16,kind:'16-week campaign',
+  intro:'Establish three running days, develop endurance and track progress towards a comfortable 5K.',
+  phases:[
+   ['Build the habit · weeks 1–4','Begin at your current level. Run–walk intervals are fine.'],
+   ['Grow endurance · weeks 5–8','Develop repeatable running rather than racing each session.'],
+   ['Develop the engine · weeks 9–12','Increase sustainable distance with suitable easy days.'],
+   ['Consolidate 5K · weeks 13–16','Measure your own 5K performance when ready.']
+  ],days:3,
+  slots:[
+   {id:'running',title:'Running days',ids:['e046','e047'],days:3,pick:'e046'},
+   {id:'mobility',title:'Runner mobility',ids:['e109','e108','e104','e040','e042','e087'],pick:'e109'}
+  ]
+ },
+ {id:'grip',name:'Grip Mastery',icon:'⌁',weeks:12,kind:'12-week campaign',
+  intro:'Build hanging endurance, shoulder control and more confident grip-supported pulling.',
+  phases:[
+   ['Hang foundation','Find comfortable hangs and shoulder positions.'],
+   ['Build capacity','Develop repeatable active hangs and suitable pulling.'],
+   ['Consolidate strength','Compare your own hold times and controlled reps.']
+  ],days:2,
+  slots:[
+   {id:'hang',title:'Hanging practice',ids:['e020','e072'],days:2,pick:'e020'},
+   {id:'shoulders',title:'Scapular control',ids:['e072','e073','e100'],pick:'e072'},
+   {id:'pull',title:'Grip-supported pulling',ids:['e010','e057','e011','e013','e058','e034','e035'],pick:'e010'}
   ]
  }
 ];
