@@ -186,26 +186,45 @@ function progressOf(def,started){
  return {elapsed,activeIndex,rows,weeks,complete,closed,goalsMet,medalGoal,medals,graduated:elapsed>=def.weeks&&complete>=medalGoal};
 }
 function benchmark(def,rows){
- const ids=allIDs(def),map=new Map();
+ // Compare like with like: the same exercise ID and the same measured quantity.
+ // Longer sessions and higher recorded distances show capacity, not a clinical fitness score.
+ const ids=allIDs(def),series=new Map();
+ function record(id,kind,value,time){
+  if(!Number.isFinite(value)||value<=0)return;
+  const key=id+':'+kind;
+  if(!series.has(key))series.set(key,{id,kind,values:[]});
+  series.get(key).values.push({value,time});
+ }
  for(const l of rows){
   if(!ids.has(l.id))continue;
   const e=ex(l.id);if(!e)continue;
-  const metric=logMetrics(l);
-  const type=e.mode==='sets'?'e1rm':e.mode==='bodysets'?'bestReps':e.mode==='time'?'seconds':null;
-  const value=type==='e1rm'?metric.e1rm:type==='bestReps'?metric.bestReps:type==='seconds'?metric.seconds:0;
-  if(!Number.isFinite(value)||value<=0)continue;
-  if(!map.has(e.id))map.set(e.id,[]);
-  map.get(e.id).push({value,date:l.date,when:logWhen(l)});
+  const m=logMetrics(l),time=logWhen(l);
+  if(e.mode==='sets')record(e.id,'estimated1rm',m.e1rm,time);
+  if(e.mode==='bodysets')record(e.id,'reps',m.bestReps,time);
+  if(e.mode==='time')record(e.id,'seconds',m.seconds,time);
+  if(e.mode==='distance'){
+    record(e.id,'distance',m.distance,time);
+    if(m.distance>=4.95&&m.distance<=5.05&&n(l.minutes)>0)
+      record(e.id,'5kpace',n(l.minutes)/m.distance,time);
+  }
+  if(e.mode==='duration'){
+    if(Number.isInteger(Number(l.lengths))&&n(l.lengths)>0)
+      record(e.id,'lengths',n(l.lengths),time);
+    else record(e.id,'minutes',m.minutes,time);
+  }
  }
- const list=[];
- for(const [id,samples] of map){
-  samples.sort((a,b)=>a.when-b.when);
-  if(samples.length<2)continue;
-  const initial=samples[0].value,best=Math.max(...samples.map(x=>x.value));
-  const e=ex(id),unit=e.mode==='sets'?'kg estimated 1RM':e.mode==='time'?'s held':'consecutive reps';
-  list.push({name:e.name,initial,best,improvement:best-initial,unit});
+ const units={estimated1rm:'kg estimated 1RM',reps:'consecutive reps',seconds:'s held',
+   distance:'km logged',lengths:'pool lengths logged',minutes:'minutes logged', '5kpace':'min/km over ~5 km'};
+ const output=[];
+ for(const item of series.values()){
+  item.values.sort((a,b)=>a.time-b.time);
+  if(item.values.length<2)continue;
+  const initial=item.values[0].value;
+  const best=item.kind==='5kpace'?Math.min(...item.values.map(x=>x.value)):Math.max(...item.values.map(x=>x.value));
+  const improvement=item.kind==='5kpace'?initial-best:best-initial;
+  output.push({name:ex(item.id).name,initial,best,improvement,unit:units[item.kind],kind:item.kind});
  }
- return list.sort((a,b)=>b.improvement/Math.max(1,b.initial)-a.improvement/Math.max(1,a.initial)).slice(0,3);
+ return output.sort((a,b)=>b.improvement/Math.max(1,b.initial)-a.improvement/Math.max(1,a.initial)).slice(0,4);
 }
 function listView(){
  return '<div class="fd-campaigns"><header class="fd-campaign-hero"><small>Long-term training</small><h1>Campaigns</h1><p>Train consistently. Build skills. Track what changes, not the number on the scale.</p></header>'+
@@ -242,7 +261,7 @@ function details(def){
   const phases='<details class="fd-campaign-disclosure"><summary>Chapter milestones · '+state.medals.filter(m=>m.earned).length+' earned</summary><div class="fd-campaign-chapters">'+state.medals.map((m,i)=>'<div class="fd-campaign-chapter '+(m.earned?'earned':'')+'"><div class="fd-campaign-chapter-name"><strong>'+(m.earned?'◆ ':'' )+escape(m.name)+'</strong><small>'+(m.earned?'Medal earned':m.finished?'Chapter finished':'Upcoming / underway')+'</small></div><small>'+m.wins+'/'+m.needed+' qualifying weeks</small></div>').join('')+'</div></details>';
   const benchmarks=benchmark(def,state.rows);
   const comparison='<details class="fd-campaign-disclosure"><summary>Performance changes</summary>'+
-   (benchmarks.length?benchmarks.map(x=>'<div class="fd-campaign-benchmark"><strong>'+escape(x.name)+'</strong><span>'+Math.round(x.initial*10)/10+' → '+Math.round(x.best*10)/10+' '+escape(x.unit)+(x.improvement>0?' · +'+Math.round(x.improvement*10)/10:'')+'</span></div>').join(''):'<p class="hint">Record the same exercise at least twice to compare its first recorded performance with its best result. No bodyweight or appearance target.</p>')+
+   (benchmarks.length?benchmarks.map(x=>'<div class="fd-campaign-benchmark"><strong>'+escape(x.name)+'</strong><span>'+Math.round(x.initial*10)/10+' → '+Math.round(x.best*10)/10+' '+escape(x.unit)+(x.improvement>0?(x.kind==='5kpace'?' · '+Math.round(x.improvement*100)/100+' min/km faster':' · +'+Math.round(x.improvement*10)/10):'')+'</span></div>').join(''):'<p class="hint">Record the same exercise at least twice to compare its first recorded performance with its best result. No bodyweight or appearance target.</p>')+
    '<p class="hint">Estimated lifting strength is based on logged sets of 1–10 reps. Comparisons are per exercise, not between different variations.</p></details>';
   inner='<div class="fd-campaign-stats"><div><strong>'+state.complete+'/'+def.weeks+'</strong><span>Qualifying weeks</span></div><div><strong>'+Math.min(def.weeks,state.elapsed+1)+'</strong><span>Current / final week</span></div><div><strong>'+state.medals.filter(m=>m.earned).length+'/'+def.phases.length+'</strong><span>Chapter medals</span></div></div>'+
     (state.graduated?'<div class="fd-campaign-graduate">◆ '+(def.id==='squat'?'Masterwork':'Campaign')+' completed — consistency earned across '+state.complete+' weeks.</div>':'')+
