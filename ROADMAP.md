@@ -45,6 +45,18 @@ The 5K Engine uses ordinary running logs, not an inferred interval/easy/tempo ta
 
 **Separate research/design:** [PROGRESSION_DESIGN.md](./PROGRESSION_DESIGN.md) describes how an independent Just 6 Weeks-style repetition/hold progression engine could run alongside variant progressions and simpler fallback exercises. Not implemented in v0.6.2.
 
+## Optional Progressive Overload — v0.7.0
+
+A set-based exercise choice now offers **Just log sets & reps** (original detailed logger) or **Progressive overload** (a new guided session). Progressive sessions are also found under **More → Progressions**.
+
+- Three choices: **volume**, **variants**, or **both**. Each set can use any compatible movement variation, including back-off to a simpler one; no hardcoded “difficulty ladder” or compulsory order.
+- The guided screen shows one prominent working set, big actual-repetition controls, optional weight editing, an automatic visible rest timer and a variation selector kept behind disclosure. Next-set targets use recent real performance and conservative +1 / hold / −1 adjustments after consecutive outcomes, rather than blindly following a fixed calendar.
+- Unfinished sessions are **device-local drafts**. On finishing, actual completed reps/holds are written as existing exercise records; missed zero-repetition sets are *not* fabricated. An existing session run ID guards against accidental repeated saves. Records count normally towards ExerciseDex, campaigns and other earned rewards. No forced workout grouping.
+- Persistence awards are recalculated from completed guided-session IDs and distinct training weeks (1/5/10/20 sessions; 4/12 weeks) and produce their own limited XP once per earned threshold. Corrections or deletion recalculate them.
+- An optional **possible plateau** suggestion appears only after comparable recent sessions show little change; it offers a relevant supporting exercise, never diagnoses fatigue or injury.
+- Progression-track preferences are validated under `v8.tracks` and cloud fingerprinted; old saves with no v8 remain compatible. A previously configured track keeps its settings; session drafts are intentionally not cloud-synced.
+- This is an **initial adaptive rule set**, not a scientifically validated training prescription. Test on actual phones, including offline/restore/lock-screen behaviour, before relying on it for critical save flows. A future refinement should adapt set targets to user-reported effort, session difficulty, and recovery in more detail.
+
 ## Priority 2 — Smart movement prompts and Quick Missions (deferred)
 
 **Goal:** Encourage useful spontaneous activity throughout the day without making every movement a formal workout.
