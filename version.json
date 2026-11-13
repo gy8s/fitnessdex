@@ -1,5 +1,5 @@
 {
-  "version": "0.7.0",
+  "version": "0.7.1",
   "released": "2026-11-13",
-  "notes": "Progressive Overload: 3/5-set guided sessions, variant switching, conservative progression, rest timer, persistence awards and stronger logging set controls."
+  "notes": "Save-stability refinement: guided sessions use stable draft IDs to prevent duplicate saves after interruptions; persistence counts distinct training days."
 }
