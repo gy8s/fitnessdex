@@ -1,6 +1,6 @@
 # FitnessDex — Adaptive progression and exercise-variant design
 
-Status: **Design only**. Nothing in this document is implemented or part of a saved activity schema. Written 13 November 2026.
+Status: **Initial training mode implemented in v0.7.0 (13 November 2026)**. This document retains the longer-term design, including features not yet implemented. Guided session draft state is device-local; progression enrolments are validated under v8 and finished sets are ordinary activity records.
 
 ## Product intent
 
@@ -76,4 +76,4 @@ A user could be increasing standard push-ups from 12 to 20 **while learning two 
 
 ## Development decision
 
-**Do not implement the adaptive progression engine in the current campaign release.** First verify exercise/workout structure and cloud-save reliability, then prototype the session flow and adaptable algorithm using push-ups with saved fixtures, followed by multi-variant and fallback tests. Only after that should the general engine be exposed to all eligible movements.
+**v0.7.0 implemented:** optional Quick Set and Progressive Overload logging, five-step guided sessions, volume/variants/both choices, per-set variant switching, rest countdown, drafts, real-record saves, persistence badges, basic hold/reps adaptation and optional plateau support. **Still to do:** extensive device/offline/cloud conflict testing, user-perceived effort and recovery integration, better loaded-weight progressions, finer exercise-specific prescriptions, richer support exercise rules and full set-editing of saved guided sessions. The current adaptive rule is deliberately conservative and is not a clinical training prescription.
