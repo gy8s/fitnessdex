@@ -36,6 +36,21 @@ function longestStreak(ds){
  }
  return best;
 }
+function scheduledStreak(ds,m){
+ let run=0,best=0,previous=null;
+ for(const date of [...new Set(ds)].sort()){
+  let missed=false;
+  if(previous){
+   const cursor=dateFrom(previous);cursor.setDate(cursor.getDate()+1);
+   while(stamp(cursor)<date){
+    if(due(stamp(cursor),m).length){missed=true;break;}
+    cursor.setDate(cursor.getDate()+1);
+   }
+  }
+  run=previous&&!missed?run+1:1;best=Math.max(best,run);previous=date;
+ }
+ return best;
+}
 function careRewards(m=care()){
  const dates=new Set([...m.water.entries.map(x=>x.date),...m.supplements.taken.map(x=>x.date)]);
  let xp=0;const waterDays=[],supplementDays=[];
@@ -45,7 +60,7 @@ function careRewards(m=care()){
   const check=checkIns(day,m);
   if(check.all){supplementDays.push(day);xp+=5;if(check.onTime)xp+=2;}
  }
- const waterStreak=longestStreak(waterDays),supplementStreak=longestStreak(supplementDays);
+ const waterStreak=longestStreak(waterDays),supplementStreak=scheduledStreak(supplementDays,m);
  for(const streak of [waterStreak,supplementStreak])CARE_STREAKS.forEach((n,i)=>{if(streak>=n)xp+=CARE_STREAK_XP[i];});
  return {xp,waterStreak,supplementStreak,waterDays:waterDays.length,supplementDays:supplementDays.length};
 }
