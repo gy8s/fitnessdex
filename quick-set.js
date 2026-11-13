@@ -76,7 +76,8 @@ window.fdQuickClose=()=>{if(draft?.sets?.length&&!confirm('Discard this unsaved 
 window.fdQuickAgain=()=>window.fdQuickStart(draft?.root||lastRoot);
 let lastRoot=null;
 window.fdQuickSave=()=>{
- if(!draft||!draft.sets.length)return alert('Log at least one set.');
+ if(!draft)return;
+ if(!draft.sets.length)return alert('Log at least one set.');
  if(S.logs.some(l=>l.quickSessionId===draft.id)){lastRoot=draft.root;draft=null;persist();stage='done';render();return;}
  const before=JSON.stringify(S),current=new Date(),byExercise=new Map();
  for(const item of draft.sets){
