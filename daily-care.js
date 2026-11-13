@@ -133,3 +133,69 @@ const careShow=next=>{carePage=next;tab='care';render();window.scrollTo({top:0,b
 window.fdCareHome=()=>careShow('home');
 window.fdCareWater=()=>careShow('water');
 window.fdCareSupplements=()=>careShow('supplements');
+
+function addWater(ml,when){
+ if(!Number.isInteger(ml)||ml<50||ml>1500||!Number.isFinite(when.getTime())||stamp(when)!==today()||when.getTime()>Date.now()+60000)return toast('Choose 50–1,500 ml and a valid time today.');
+ if(drinks(today()).length>=30)return toast('Maximum 30 water entries per day.');
+ carePersist(m=>{
+  if(!m.water.goals.some(x=>x.date===today()))m.water.goals.push({date:today(),ml:m.water.baseGoal});
+  m.water.entries.push({id:'water-'+uid(),date:today(),at:when.toISOString(),ml});
+ },fmt(ml)+' water logged');
+}
+window.fdCareAddWater=ml=>addWater(ml,new Date());
+window.fdCareCustomWater=()=>{
+ const ml=Number(document.getElementById('fd-care-ml')?.value),t=document.getElementById('fd-care-at')?.value||'';
+ if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t))return toast('Choose a valid time.');
+ addWater(ml,new Date(today()+'T'+t+':00'));
+};
+window.fdCareUndoWater=id=>{
+ if(!care().water.entries.some(x=>x.id===id)||!confirm('Remove this water entry?'))return;
+ carePersist(m=>{m.water.entries=m.water.entries.filter(x=>x.id!==id);},'Water entry removed');
+};
+window.fdCareChangeGoal=()=>{
+ const goal=Number(document.getElementById('fd-care-daygoal')?.value);
+ if(!Number.isInteger(goal)||goal<1000||goal>5000)return toast('Choose a target between 1 and 5 L.');
+ carePersist(m=>{const x=m.water.goals.find(x=>x.date===today());if(x)x.ml=goal;else m.water.goals.push({date:today(),ml:goal});},'Water target updated');
+};
+window.fdCareChangeDefault=()=>{
+ const goal=Number(document.getElementById('fd-care-basegoal')?.value);
+ if(!Number.isInteger(goal)||goal<1000||goal>5000)return toast('Choose a target between 1 and 5 L.');
+ carePersist(m=>{m.water.baseGoal=goal;},'Default target updated');
+};
+window.fdCareNewSupp=()=>{careEdit=null;careShow('editor');};
+window.fdCareEditSupp=id=>{if(!care().supplements.items.some(x=>x.id===id))return;careEdit=id;careShow('editor');};
+window.fdCareSaveSupp=()=>{
+ const name=document.getElementById('fd-care-name')?.value?.trim()||'',note=document.getElementById('fd-care-note')?.value?.trim()||'',t=document.getElementById('fd-care-time')?.value||'';
+ const days=[0,1,2,3,4,5,6].filter(x=>document.getElementById('fd-care-week-'+x)?.checked);
+ if(!name||name.length>70||note.length>100||t&&!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(t)||days.length===0)return toast('Enter a supplement name and at least one scheduled day.');
+ if(care().supplements.items.some(x=>x.id!==careEdit&&!x.archivedAt&&x.name.toLowerCase()===name.toLowerCase()))return toast('This supplement is already registered. Edit its schedule instead.');
+ if(!careEdit&&care().supplements.items.length>=30)return toast('Maximum 30 registered routines.');
+ const successful=carePersist(m=>{
+  const existing=m.supplements.items.find(x=>x.id===careEdit);
+  if(existing)Object.assign(existing,{name,note,time:t,days});
+  else m.supplements.items.push({id:'supp-'+uid(),name,note,time:t,days,createdAt:new Date().toISOString(),archivedAt:null});
+ },careEdit?'Routine updated':'Supplement registered');
+ if(successful){careEdit=null;careShow('supplements');}
+};
+window.fdCareArchiveSupp=()=>{
+ const row=care().supplements.items.find(x=>x.id===careEdit);
+ if(!row||!confirm('Archive this routine? Recorded history stays saved.'))return;
+ const successful=carePersist(m=>{m.supplements.items.find(x=>x.id===careEdit).archivedAt=new Date().toISOString();},'Routine archived');
+ if(successful){careEdit=null;careShow('supplements');}
+};
+window.fdCareLogTaken=id=>{
+ const m=care(),x=m.supplements.items.find(s=>s.id===id&&!s.archivedAt),day=today();
+ if(!x||taken(id,day,m))return;
+ const now=new Date(),min=now.getHours()*60+now.getMinutes(),scheduled=x.time?Number(x.time.slice(0,2))*60+Number(x.time.slice(3)):null;
+ const onTime=scheduled===null?null:Math.abs(scheduled-min)<=90;
+ carePersist(m=>{if(!m.supplements.taken.some(x=>x.supplementId===id&&x.date===day))m.supplements.taken.push({id:'taken-'+uid(),supplementId:id,date:day,at:now.toISOString(),onTime});},
+ onTime===true?'Supplement logged · on schedule':'Supplement check-in logged');
+};
+window.fdCareUndoTaken=id=>{
+ const row=taken(id,today());
+ if(!row||!confirm('Undo this supplement check-in?'))return;
+ carePersist(m=>{m.supplements.taken=m.supplements.taken.filter(x=>x.id!==row.id);},'Supplement check-in removed');
+};
+const oldAchievements=achievements;
+achievements=function(){return oldAchievements()+careAchievements();};
+})();
