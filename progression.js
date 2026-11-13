@@ -1,4 +1,4 @@
-/* FitnessDex v0.7 — progression tracks and a one-set-at-a-time logging experience.
+/* FitnessDex v0.7.3 — progression tracks and a one-set-at-a-time logging experience.
  * Uses existing exercise IDs and ordinary logs as the source of truth.
  * Each variant remains a separate real exercise record; sessions only reference those logs.
  */
@@ -179,7 +179,7 @@ function step(){
  const seen=draft.actual.reduce((a,s)=>a+(s.skipped?0:s.reps),0);
  return '<section class="fd-p-page fd-p-setscreen"><button class="fd-p-back" onclick="fdProgPause()">‹ Save for later</button>'+
   '<div class="fd-p-sethead"><small>'+escP(FOCI[t.focus])+' · SET '+(i+1)+' OF '+draft.planned.length+'</small><h1>'+escP(e.name)+'</h1></div>'+
-  '<div class="fd-p-setrail">'+draft.planned.map((p,k)=>'<span class="'+(k<i?'done':k===i?'current':'')+'">'+(k<i?(draft.actual[k]?.skipped?'–':'✓'):p.target)+'</span>').join('')+'</div>'+
+  '<div class="fd-p-setrail" aria-label="Set progress">'+draft.planned.map((p,k)=>'<span class="'+(k<i?'done':k===i?'current':'')+'" aria-label="Set '+(k+1)+(k<i?(draft.actual[k]?.skipped?' skipped':': '+draft.actual[k]?.reps+' repetitions'):': target '+p.target+' repetitions')+'">'+(k<i?(draft.actual[k]?.skipped?'–':draft.actual[k]?.reps):p.target)+'</span>').join('')+'</div>'+
   '<div class="fd-p-big-target"><span>Suggested target</span><strong>'+draft.selectedTarget+'</strong><small>repetitions</small></div>'+
   '<div class="fd-p-inline-edit"><label for="fd-p-reps">Actual reps</label><input id="fd-p-reps" aria-label="Actual repetitions" type="number" min="0" max="1000" step="1" value="'+draft.selectedTarget+'">'+
    (weighted?'<label for="fd-p-weight">Weight (kg)</label><input id="fd-p-weight" type="number" min="0.5" max="1000" step="0.5" value="'+(defaultWeight||'')+'" placeholder="kg">':'')+'</div>'+
@@ -200,7 +200,8 @@ function rest(){
  const left=Math.max(0,Math.ceil((draft.restUntil-Date.now())/1000)),previous=draft.actual[draft.actual.length-1],miss=previous&&!previous.skipped&&previous.reps<previous.target;
  return '<section class="fd-p-page fd-p-restscreen"><button class="fd-p-back" onclick="fdProgPause()">‹ Save for later</button><div class="fd-p-heading"><small>RECOVER</small><h1>Rest before your next set</h1></div>'+
   '<strong class="fd-p-restclock" id="fd-p-rest-count">'+formatTime(left)+'</strong>'+
-  (miss?'<p class="fd-p-help">You logged '+previous.reps+'/'+previous.target+' reps. You can try another variation next; this isn’t a failed workout.</p>':'<p class="fd-p-help">Rest as needed. You can continue or end the session without penalty.</p>')+
+  (previous&&!previous.skipped?'<div class="fd-v3-rest-status '+(miss?'is-adjusted':'is-met')+'"><span aria-hidden="true">'+(miss?'↗':'✓')+'</span><div><strong>Set logged · '+previous.reps+' / '+previous.target+' reps</strong><small>'+(miss?'You can switch to another variation next.':'Target met. Recover before continuing.')+'</small></div></div>':'')+
+  (miss?'<p class="fd-p-help">Missed targets don’t erase your session. Rest or change variation as needed.</p>':'<p class="fd-p-help">Rest as needed. You can continue or end the session without penalty.</p>')+
   '<button class="fd-p-primary" onclick="fdProgContinue()">Next set</button><button class="fd-p-change" onclick="fdProgAddRest()">+ 30 seconds</button><button class="fd-p-muted" onclick="fdProgFinishEarly()">Finish session now</button></section>';
 }
 function formatTime(n){return Math.floor(n/60)+':'+String(n%60).padStart(2,'0');}
@@ -212,21 +213,46 @@ function review(){
  if(!draft)return list();
  const completed=draft.actual.filter(x=>!x.skipped);
  const sum=completed.reduce((a,x)=>a+x.reps,0);
- return '<section class="fd-p-page"><div class="fd-p-heading"><small>SESSION REVIEW</small><h1>Save your actual sets</h1><p>'+completed.length+' sets · '+sum+' repetitions across '+new Set(completed.map(x=>x.id)).size+' variation(s)</p></div>'+
-  '<div class="fd-p-set-summary">'+draft.actual.map((x,i)=>'<div><span>Set '+(i+1)+'</span><strong>'+ (x.skipped?'Skipped':escP(ex(x.id)?.name||x.id)+' · '+x.reps+(x.weight?' × '+x.weight+' kg':''))+'</strong></div>').join('')+'</div>'+
-  '<p class="fd-p-help">Real sets are stored as ordinary exercise logs. Progression and campaigns use those same records, without creating a second copy.</p>'+
-  '<button class="fd-p-primary" '+(completed.length?'':'disabled')+' onclick="fdProgSave()">Save session & progress</button>'+
+ const hit=completed.filter(x=>x.reps>=x.target).length;
+ return '<section class="fd-p-page fd-p-review">'+
+  '<div class="fd-p-heading"><small>SESSION REVIEW</small><h1>Ready to save?</h1><p>Check the movements and repetitions you actually performed.</p></div>'+
+  '<div class="fd-v3-recap"><div><b>'+sum+'</b><span>repetitions</span></div><div><b>'+completed.length+'</b><span>sets logged</span></div><div><b>'+hit+'</b><span>targets met</span></div></div>'+
+  '<div class="fd-v3-review-list">'+draft.actual.map((x,i)=>'<div class="fd-v3-review-row '+(x.skipped?'is-skipped':x.reps>=x.target?'is-met':'is-adjusted')+'">'+
+     '<span class="fd-v3-review-marker">'+(x.skipped?'–':x.reps>=x.target?'✓':'•')+'</span><div><small>SET '+(i+1)+'</small><strong>'+(x.skipped?'Skipped':escP(ex(x.id)?.name||x.id))+'</strong></div>'+
+     '<b>'+(x.skipped?'—':x.reps+'<small> / '+x.target+' reps</small>')+'</b></div>').join('')+'</div>'+
+  (hit<completed.length?'<p class="fd-p-help">Some targets were missed. Your completed sets still count as training, and you can adjust your next session.</p>':'')+
+  '<button class="fd-p-primary" '+(completed.length?'':'disabled')+' onclick="fdProgSave()">Save '+completed.length+' set'+(completed.length===1?'':'s')+'</button>'+
   '<button class="fd-p-muted" onclick="fdProgPause()">Keep as unfinished draft</button></section>';
 }
 function outcome(){
  const ss=model().sessions.find(s=>s.id===view.id);if(!ss)return list();
- const counts=ss.setRefs.reduce((a,r)=>a+toN(readSet(r)?.reps),0);
- const variations=new Set(ss.setRefs.map(x=>x.id)).size;
- return '<section class="fd-p-page fd-p-result"><div class="fd-p-result-icon">◆</div><small>PROGRESSION SAVED</small><h1>'+counts+' repetitions logged</h1><p>'+ss.setRefs.length+' actual sets · '+variations+' variation'+(variations===1?'':'s')+'</p>'+
-  (newBadges.length?'<div class="fd-p-granted"><strong>New persistence award'+(newBadges.length===1?'':'s')+'</strong><p>'+newBadges.map(escP).join(' · ')+'</p></div>':'')+
-  '<div class="fd-p-support"><strong>Persistence matters</strong><p>Each completed progression session contributes towards long-term consistency awards. Hard sets and substitutions still count.</p></div>'+
-  '<details class="fd-p-fold"><summary>Persistence awards</summary>'+awardRows()+'</details>'+
-  '<button class="fd-p-primary" onclick="fdProgHub(\''+ss.trackId+'\')">Back to progression</button><button class="fd-p-muted" onclick="navigate(\'home\')">Done for now</button></section>';
+ const sets=ss.setRefs.map((r,i)=>({ref:r,actual:readSet(r),index:i})).filter(x=>!!x.actual);
+ const total=sets.reduce((a,x)=>a+toN(x.actual.reps),0);
+ const met=sets.filter(x=>toN(x.actual.reps)>=x.ref.target).length;
+ const goal=ss.setRefs.length+(ss.skips?.length||0),complete=goal>0&&met===goal&&!ss.partial;
+ const names=new Set(sets.map(x=>x.ref.id)),awardStates=awards();
+ const next=awardStates.find(x=>!x.earned&&['five','ten','month','long'].includes(x.id));
+ const nextProgress=next?Math.min(next.goal,next.progress):0;
+ const nextUnits=next&&['month','long'].includes(next.id)?'weeks':'days';
+ const track=byTrack(ss.trackId),headline=ss.partial?'Partial session saved':complete?'Every target met':'Session saved';
+ return '<section class="fd-p-page fd-p-result fd-v3-results">'+
+  '<div class="fd-v3-hero"><div class="fd-v3-emblem" aria-hidden="true">✓</div><span class="fd-v3-eyebrow">SESSION RECORDED</span>'+
+   '<h1>'+headline+'</h1><div class="fd-v3-total"><strong>'+total+'</strong><span>reps logged</span></div>'+
+   '<div class="fd-v3-result-facts"><span>'+sets.length+' set'+(sets.length===1?'':'s')+'</span><span>'+names.size+' variation'+(names.size===1?'':'s')+'</span><span>'+met+'/'+goal+' targets met</span></div></div>'+
+  '<div class="fd-v3-section-heading"><h2>Your sets</h2><small>Actual / suggested</small></div>'+
+  '<div class="fd-v3-set-list">'+sets.map(({ref,actual,index})=>{
+    const reps=toN(actual.reps),ok=reps>=ref.target,percent=ref.target?Math.min(100,Math.round(100*reps/ref.target)):0;
+    const variant=ex(ref.id)?.name||ref.id;
+    const switched=ref.id!==ref.plannedId;
+    return '<div class="fd-v3-set '+(ok?'is-met':'is-adjusted')+'">'+
+     '<div class="fd-v3-set-top"><span class="fd-v3-set-number">'+(ok?'✓':'·')+'</span><strong>Set '+(index+1)+'</strong><b>'+reps+'<small> / '+ref.target+'</small></b></div>'+
+     '<div class="fd-v3-meter" role="img" aria-label="'+reps+' of '+ref.target+' target repetitions"><span style="width:'+percent+'%"></span></div>'+
+     '<div class="fd-v3-set-bottom"><span>'+escP(variant)+(actual.weight?' · '+escP(actual.weight)+' kg':'')+'</span><span>'+(switched?'Variation changed':ok?'Target met':'Target adjusted')+'</span></div></div>';
+   }).join('')+'</div>'+
+  (newBadges.length?'<div class="fd-v3-earned"><span class="fd-v3-award-symbol" aria-hidden="true">✦</span><div><small>PERSISTENCE AWARD UNLOCKED</small><strong>'+newBadges.map(escP).join(' · ')+'</strong></div></div>':'')+
+  (next?'<div class="fd-v3-nextaward"><div><small>NEXT PERSISTENCE AWARD</small><strong>'+escP(next.name)+'</strong><span>'+nextProgress+' of '+next.goal+' '+nextUnits+' of training</span></div><span class="fd-v3-nextaward-fraction">'+nextProgress+'/'+next.goal+'</span><div class="fd-v3-meter"><span style="width:'+Math.min(100,Math.round(nextProgress/next.goal*100))+'%"></span></div></div>':'')+
+  '<button class="fd-p-primary fd-v3-nextaction" onclick="fdProgHub(\''+ss.trackId+'\')">Continue '+escP(track?ex(track.baseId)?.name||'training':'training')+' →</button>'+
+  '<button class="fd-p-muted" onclick="navigate(\'home\')">Done for now</button></section>';
 }
 window.fdProgressionView=function(){
  if(!model().tracks.length&&view.kind!=='setup')return list();
