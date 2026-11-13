@@ -1,4 +1,4 @@
-/* FitnessDex v0.7 — progression tracks and a one-set-at-a-time logging experience.
+/* FitnessDex v0.7.3 — progression tracks and a one-set-at-a-time logging experience.
  * Uses existing exercise IDs and ordinary logs as the source of truth.
  * Each variant remains a separate real exercise record; sessions only reference those logs.
  */
