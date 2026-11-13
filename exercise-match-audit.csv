@@ -1,0 +1,147 @@
+FitnessDex ID,FitnessDex exercise,Source ID,Source exercise,Status
+e001,"Wall push-up",0659,"push-up (wall)",matched
+e002,"Incline push-up",0493,"incline push-up",matched
+e003,"Knee push-up",,"",unmatched — needs review
+e004,"Standard push-up",0662,"push-up",matched
+e005,"Close-grip push-up",0259,"close-grip push-up",matched
+e006,"Diamond push-up",0283,"diamond push-up",matched
+e007,"Decline push-up",0279,"decline push-up",matched
+e008,"Archer push-up",3294,"archer push up",matched
+e009,"Pseudo-planche push-up",,"",unmatched — needs review
+e010,"Inverted row",0499,"inverted row",matched
+e011,"Assisted pull-up",,"",unmatched — needs review
+e012,"Negative pull-up",,"",unmatched — needs review
+e013,"Strict pull-up",0652,"pull-up",matched
+e014,"Chest-to-bar pull-up",,"",unmatched — needs review
+e015,"Archer pull-up",3293,"archer pull up",matched
+e016,"Muscle-up",0631,"muscle up",matched
+e017,"Plank",,"",unmatched — needs review
+e018,"Side plank",,"",unmatched — needs review
+e019,"Hollow hold",,"",unmatched — needs review
+e020,"Dead hang",,"",unmatched — needs review
+e021,"Tuck L-sit",,"",unmatched — needs review
+e022,"L-sit",3419,"l-sit on floor",matched
+e023,"Wall handstand",,"",unmatched — needs review
+e024,"Freestanding handstand",3302,"handstand",matched
+e025,"Back squat",0043,"barbell full squat",matched
+e026,"Front squat",0042,"barbell front squat",matched
+e027,"Goblet squat",,"",unmatched — needs review
+e028,"Bulgarian split squat",,"",unmatched — needs review
+e029,"Deadlift",0032,"barbell deadlift",matched
+e030,"Romanian deadlift",0085,"barbell romanian deadlift",matched
+e031,"Bench press",0025,"barbell bench press",matched
+e032,"Overhead press",,"",unmatched — needs review
+e033,"Dumbbell chest press",0289,"dumbbell bench press",matched
+e034,"Barbell row",0027,"barbell bent over row",matched
+e035,"Dumbbell row",,"",unmatched — needs review
+e036,"Standing forward fold",,"",unmatched — needs review
+e037,"Pancake stretch",,"",unmatched — needs review
+e038,"Front split progression",,"",unmatched — needs review
+e039,"Middle split progression",,"",unmatched — needs review
+e040,"Hip flexor stretch",,"",unmatched — needs review
+e041,"Shoulder mobility",,"",unmatched — needs review
+e042,"Thoracic rotation",,"",unmatched — needs review
+e043,"Glute bridge",3013,"low glute bridge on floor",matched
+e044,"Full bridge progression",,"",unmatched — needs review
+e045,"Walking",,"",unmatched — needs review
+e046,"Running",,"",unmatched — needs review
+e047,"Trail running",,"",unmatched — needs review
+e048,"Outdoor cycling",,"",unmatched — needs review
+e049,"Indoor cycling",,"",unmatched — needs review
+e050,"Rowing machine",,"",unmatched — needs review
+e051,"Swimming",,"",unmatched — needs review
+e052,"Skipping rope",,"",unmatched — needs review
+e053,"Assisted one-arm push-up",,"",unmatched — needs review
+e054,"One-arm push-up",,"",unmatched — needs review
+e055,"Tempo push-up",,"",unmatched — needs review
+e056,"Paused push-up",,"",unmatched — needs review
+e057,"Elevated inverted row",,"",unmatched — needs review
+e058,"Chin-up",1326,"chin-up",matched
+e059,"Weighted pull-up",0841,"weighted pull-up",matched
+e060,"Assisted dip",,"",unmatched — needs review
+e061,"Bench dip",,"",unmatched — needs review
+e062,"Parallel-bar dip",,"",unmatched — needs review
+e063,"Weighted dip",,"",unmatched — needs review
+e064,"Crunch",0274,"crunch floor",matched
+e065,"Sit-up",,"",unmatched — needs review
+e066,"Lying leg raise",,"",unmatched — needs review
+e067,"Hanging knee raise",,"",unmatched — needs review
+e068,"Hanging straight-leg raise",0475,"hanging straight leg raise",matched
+e069,"Hollow rock",,"",unmatched — needs review
+e070,"Tuck V-sit",,"",unmatched — needs review
+e071,"V-sit",3420,"v-sit on floor",matched
+e072,"Active hang",,"",unmatched — needs review
+e073,"Scapular pull-up",0688,"scapular pull-up",matched
+e074,"Bodyweight squat",,"",unmatched — needs review
+e075,"Split squat",,"",unmatched — needs review
+e076,"Assisted pistol squat",,"",unmatched — needs review
+e077,"Pistol squat",1759,"single leg squat (pistol) male",matched
+e078,"Shrimp squat",,"",unmatched — needs review
+e079,"Wall handstand push-up (partial)",,"",unmatched — needs review
+e080,"Wall handstand push-up",,"",unmatched — needs review
+e081,"Freestanding handstand push-up",,"",unmatched — needs review
+e082,"Frog stand",,"",unmatched — needs review
+e083,"Wall handstand shoulder taps",,"",unmatched — needs review
+e084,"Half split stretch",,"",unmatched — needs review
+e085,"Seated pike stretch",,"",unmatched — needs review
+e086,"Active pike compression",,"",unmatched — needs review
+e087,"Deep lunge stretch",,"",unmatched — needs review
+e088,"Couch stretch",,"",unmatched — needs review
+e089,"ATG split squat",,"",unmatched — needs review
+e090,"Pigeon pose",,"",unmatched — needs review
+e091,"90/90 hip switches",,"",unmatched — needs review
+e092,"Lotus preparation",,"",unmatched — needs review
+e093,"Full lotus",,"",unmatched — needs review
+e094,"Left front split",,"",unmatched — needs review
+e095,"Right front split",,"",unmatched — needs review
+e096,"Supported middle split",,"",unmatched — needs review
+e097,"Oversplit progression",,"",unmatched — needs review
+e098,"Standing shoulder flexion at wall",,"",unmatched — needs review
+e099,"Shoulder bind",,"",unmatched — needs review
+e100,"Wall slides",,"",unmatched — needs review
+e101,"Thoracic extension drill",,"",unmatched — needs review
+e102,"Supine spinal twist",,"",unmatched — needs review
+e103,"Standing side bend",,"",unmatched — needs review
+e104,"Deep squat hold",,"",unmatched — needs review
+e105,"Downward dog",,"",unmatched — needs review
+e106,"Hero pose",,"",unmatched — needs review
+e107,"Reclined hero pose",,"",unmatched — needs review
+e108,"Calf stretch",1377,"calf stretch with hands against wall",matched
+e109,"Ankle dorsiflexion drill",,"",unmatched — needs review
+e110,"Bridge wall walk",,"",unmatched — needs review
+e111,"Advanced backbend",,"",unmatched — needs review
+e112,"Scorpion pose",,"",unmatched — needs review
+e113,"Needle pose",,"",unmatched — needs review
+e114,"Ankle-behind-head",,"",unmatched — needs review
+e115,"Full spinal twist",,"",unmatched — needs review
+e116,"Contortion backbend",,"",unmatched — needs review
+e117,"Forward-fold gap-to-floor test",,"",unmatched — needs review
+e118,"Front-split floor-gap test",,"",unmatched — needs review
+e119,"Dumbbell lunge",0336,"dumbbell lunge",matched
+e120,"Weighted calf raise",,"",unmatched — needs review
+e121,"Backstroke swim",,"",unmatched — needs review
+e122,"Front crawl swim",,"",unmatched — needs review
+e123,"Breaststroke swim",,"",unmatched — needs review
+e124,"Flutter kick with kickboard",,"",unmatched — needs review
+e125,"Rowing technique drills",,"",unmatched — needs review
+e126,"Cycling cadence drill",,"",unmatched — needs review
+e127,"Safety-bar squat",,"",unmatched — needs review
+e128,"Hack squat",0743,"sled hack squat",matched
+e129,"Hip belt squat",,"",unmatched — needs review
+e130,"Box squat",,"",unmatched — needs review
+e131,"Deficit deadlift",,"",unmatched — needs review
+e132,"Rack pull",0074,"barbell rack pull",matched
+e133,"Good morning",0044,"barbell good morning",matched
+e134,"Stiff-leg deadlift",,"",unmatched — needs review
+e135,"Floor press",,"",unmatched — needs review
+e136,"Board press",,"",unmatched — needs review
+e137,"Landmine press",,"",unmatched — needs review
+e138,"Single-arm dumbbell overhead press",,"",unmatched — needs review
+e139,"Preacher curl",,"",unmatched — needs review
+e140,"Hammer curl",,"",unmatched — needs review
+e141,"Rear-delt raise",,"",unmatched — needs review
+e142,"Glute-ham raise",3193,"glute-ham raise",matched
+e143,"Seated calf raise",0594,"lever seated calf raise",matched
+e144,"Ab wheel rollout",0857,"wheel rollerout",matched
+e145,"Reverse crunch",0872,"reverse crunch",matched
+e146,"Pallof press",,"",unmatched — needs review
