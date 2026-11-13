@@ -154,8 +154,8 @@ const weekOf=(date,start)=>Math.floor((midnight(date)-midnight(start))/DAY/7);
 const records=()=>Array.isArray(S.v7?.campaigns)?S.v7.campaigns:[];
 const enrollment=id=>records().find(x=>x.id===id);
 let selected=null;
-function phaseIndex(def,index){return Math.min(def.phases.length-1,Math.floor(index/(def.weeks/def.phases.length)));}
-function phaseBounds(def,p){const span=def.weeks/def.phases.length;return [p*span,Math.min(def.weeks,(p+1)*span)];}
+function phaseBounds(def,p){return [Math.round(p*def.weeks/def.phases.length),Math.round((p+1)*def.weeks/def.phases.length)];}
+function phaseIndex(def,index){const p=def.phases.findIndex((_,i)=>index<phaseBounds(def,i)[1]);return p<0?def.phases.length-1:p;}
 function allIDs(def){return new Set(def.slots.flatMap(x=>x.ids));}
 function countedLogs(def,started){
  const ids=allIDs(def),now=Date.now();
@@ -164,7 +164,7 @@ function countedLogs(def,started){
 function weekStatus(def,started,index,rows){
  const logs=rows.filter(l=>weekOf(l.date,started)===index);
  const days=new Set(logs.map(x=>x.date)).size;
- const slots=def.slots.map(slot=>({...slot,done:logs.some(x=>slot.ids.includes(x.id))}));
+ const slots=def.slots.map(slot=>{const covered=new Set(logs.filter(l=>slot.ids.includes(l.id)).map(l=>l.date)).size;const target=slot.days||1;return {...slot,covered,target,done:covered>=target};});
  const completed=days>=def.days&&slots.every(x=>x.done);
  return {index,days,slots,completed};
 }
@@ -219,7 +219,7 @@ function details(def){
  const phase=phaseIndex(def,stage),phaseInfo=def.phases[phase];
  let inner='';
  if(!active){
-  inner='<section class="fd-campaign-panel"><h2>Start when you are ready</h2><p>A 12-week campaign is a calendar-based programme; the Squat Masterwork lasts 52 weeks. There are no automatic weight increases or forced workouts.</p><button class="primary fd-campaign-main" onclick="fdCampaignStart(\''+def.id+'\')">Start '+escape(def.name)+'</button></section>';
+  inner='<section class="fd-campaign-panel"><h2>Start when you are ready</h2><p>This is a '+def.weeks+'-week calendar-based programme. There are no automatic weight increases or forced workouts.</p><button class="primary fd-campaign-main" onclick="fdCampaignStart(\''+def.id+'\')">Start '+escape(def.name)+'</button></section>';
  }else{
   const current=state.activeIndex===null?null:state.weeks[state.activeIndex];
   const slots=current?.slots||[];
@@ -228,16 +228,16 @@ function details(def){
   const isTrainedToday=current&&state.rows.some(l=>l.date===today()&&next.ids.includes(l.id));
   const suggestions=(current?
    '<section class="fd-campaign-panel"><div class="fd-campaign-sectionhead"><h2>This week</h2><span>'+current.days+'/'+def.days+' training days</span></div>'+
-   '<div class="fd-campaign-track">'+slots.map(s=>'<div><span class="'+(s.done?'fd-campaign-check':'fd-campaign-uncheck')+'">'+(s.done?'✓':'○')+'</span><span>'+escape(s.title)+'</span></div>').join('')+'</div>'+
+   '<div class="fd-campaign-track">'+slots.map(s=>'<div><span class="'+(s.done?'fd-campaign-check':'fd-campaign-uncheck')+'">'+(s.done?'✓':'○')+'</span><span>'+escape(s.title)+(s.target>1?' · '+s.covered+'/'+s.target+' days':'')+'</span></div>').join('')+'</div>'+
    '<p class="hint">'+(current.completed?'Weekly plan complete. More work is optional.':unmet?'One focus at a time. Complete the remaining areas across at least two days.':'All areas covered. One more separate training day completes the weekly plan.')+'</p>'+
    (isTrainedToday?'<p class="hint">You already logged this area today. Consider recovery before another demanding session.</p>':'')+
    '<button class="primary fd-campaign-main" onclick="fdCampaignLog(\''+next.pick+'\')">'+(unmet?'Log '+escape(next.title):'Log another exercise')+'</button>'+
    '<details class="fd-campaign-options"><summary>Choose a different exercise</summary>'+def.slots.map(s=>'<div class="fd-campaign-alternatives"><b>'+escape(s.title)+'</b><div>'+s.ids.filter(id=>!!ex(id)).map(id=>'<button type="button" class="small" onclick="fdCampaignLog(\''+id+'\')">'+escape(ex(id).name)+'</button>').join('')+'</div></div>').join('')+'</details></section>'
    :'<section class="fd-campaign-panel"><h2>Campaign period finished</h2><p>'+state.complete+' of '+def.weeks+' weeks met the training targets. Your logged work and best measurements remain in FitnessDex.</p></section>');
   const planGuide=phase===0?'2 comfortable sets per exercise':phase===1?'2–3 controlled sets where appropriate':'2–3 quality sets; choose loads or holds that suit your current ability';
-  const sessionPlan='<details class="fd-campaign-sessions"><summary>Session A & B plans <small>optional examples</small></summary>'+
-   '<p>Use these as two sessions on separate days. Adapt the exercises and avoid load or movement progressions you are not ready for. General aim: '+escape(planGuide)+'.</p>'+
-   PHASE_SESSIONS[def.id][phase].map((items,i)=>'<div class="fd-campaign-session"><h3>Session '+(i===0?'A':'B')+'</h3>'+
+  const sessionPlan='<details class="fd-campaign-sessions"><summary>Suggested sessions <small>optional examples</small></summary>'+
+   '<p>Use these examples on separate days. Adapt the exercises and avoid load or movement progressions you are not ready for. General aim: '+escape(planGuide)+'.</p>'+
+   PHASE_SESSIONS[def.id][phase].map((items,i)=>'<div class="fd-campaign-session"><h3>Session '+String.fromCharCode(65+i)+'</h3>'+
       items.map(id=>'<div class="fd-campaign-session-row"><span>'+escape(ex(id).name)+'</span><button class="small" onclick="fdCampaignLog(\''+id+'\')">Log</button></div>').join('')+'</div>').join('')+'</details>';
   const phases='<details class="fd-campaign-disclosure"><summary>Chapter milestones · '+state.medals.filter(m=>m.earned).length+' earned</summary><div class="fd-campaign-chapters">'+state.medals.map((m,i)=>'<div class="fd-campaign-chapter '+(m.earned?'earned':'')+'"><div class="fd-campaign-chapter-name"><strong>'+(m.earned?'◆ ':'' )+escape(m.name)+'</strong><small>'+(m.earned?'Medal earned':m.finished?'Chapter finished':'Upcoming / underway')+'</small></div><small>'+m.wins+'/'+m.needed+' qualifying weeks</small></div>').join('')+'</div></details>';
   const benchmarks=benchmark(def,state.rows);
@@ -259,7 +259,7 @@ window.fdCampaignBack=()=>{selected=null;tab='campaigns';render();window.scrollT
 window.fdCampaignStart=id=>{
  const def=byId(id);if(!def||enrollment(id))return;
  if(!S.v7)S.v7={campaigns:[]};
- if(!Array.isArray(S.v7.campaigns))return;
+ if(!Array.isArray(S.v7.campaigns)||S.v7.campaigns.length>=DEFINITIONS.length)return;
  S.v7.campaigns.push({id,started:today()});
  if(!save()){S.v7.campaigns.pop();return;}
  selected=id;render();toast(def.name+' started. Your existing activity logs count automatically.');
