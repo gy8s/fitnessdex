@@ -45,6 +45,12 @@ The 5K Engine uses ordinary running logs, not an inferred interval/easy/tempo ta
 
 **Separate research/design:** [PROGRESSION_DESIGN.md](./PROGRESSION_DESIGN.md) describes how an independent Just 6 Weeks-style repetition/hold progression engine could run alongside variant progressions and simpler fallback exercises. Not implemented in v0.6.2.
 
+## Deep squat mobility progression — v0.7.2
+
+- Added **Supported deep squat hold** (e147) → **Unsupported deep squat hold** (e148) as two distinct, individually logged time-based skills in ExerciseDex → Flexibility & mobility → General mobility.
+- The existing **Deep squat hold** (e104) remains unchanged, including its historic records and its general supported/unsupported guidance. Existing entries must not be silently reclassified as unsupported.
+- The unsupported variation has an advisory preparation milestone of 20 seconds of supported practice. This is not an automatic safety or balance clearance; users can record actual practice freely.
+
 ## Progressive Overload — v0.7.0
 
 - Choose **Just log sets & reps** or **Follow a progression** after selecting a suitable exercise.
