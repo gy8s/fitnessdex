@@ -30,9 +30,16 @@ class MainActivity:ComponentActivity(){
  private lateinit var result:TextView
  private lateinit var tokenInput:EditText
  private var syncing=false
+ private var firstPairing=false
 
  private val stepPermissionPrompt=registerForActivityResult(PermissionController.createRequestPermissionResultContract()){granted->
-   if(stepsPermission in granted)syncNow() else status("Step permission declined; nothing was uploaded.")
+   if(stepsPermission in granted){
+     if(firstPairing){firstPairing=false;enableBackground()}
+     syncNow()
+   }else{
+     firstPairing=false
+     status("Step permission declined; nothing was uploaded.")
+   }
  }
  private val backgroundPermissionPrompt=registerForActivityResult(PermissionController.createRequestPermissionResultContract()){granted->
    if(backgroundPermission in granted){
@@ -41,7 +48,7 @@ class MainActivity:ComponentActivity(){
      status("Automatic syncing enabled. You can close this app; FitnessDex will refresh cloud totals automatically.")
     }else{
      autoStatus("Automatic sync OFF · background access not allowed")
-     status("Background access was declined. You can still sync when you open this companion.")
+     status("Background access was declined. You can still sync when opening FitnessDex step setup.")
    }
  }
  private fun dp(value:Int)=(resources.displayMetrics.density*value).toInt()
@@ -76,8 +83,8 @@ class MainActivity:ComponentActivity(){
    text(root,"FD  /  FITNESSDEX",14f,"#8AEACD")
    text(root,"Connect your steps",28f,"#F4FCFF",10)
    text(root,"Read-only daily step totals from Health Connect. FitnessDex exercise logs stay unchanged.",14f,"#B4CAD8",9)
-   text(root,"1. Open FitnessDex → More → Daily steps. Create and copy a pairing code.",14f,"#E5EDF2",18)
-   text(root,"2. Paste the code here. It is encrypted on this phone.",14f,"#E5EDF2",10)
+   text(root,"Normally, connecting from FitnessDex pairs this screen automatically. One app, one account.",14f,"#E5EDF2",18)
+   text(root,"If automatic pairing fails, you can paste a private pairing code here instead.",14f,"#E5EDF2",10)
    tokenInput=EditText(this).apply{
      hint="Paste FitnessDex pairing code"
      setHintTextColor(Color.rgb(142,162,174))
@@ -94,12 +101,10 @@ class MainActivity:ComponentActivity(){
        allowOrSync()
      }catch(e:Exception){status(e.message?:"Pairing code is invalid.")}
    }
-   text(root,"3. Allow Health Connect step access. Enable automatic sync once; then the companion can work without being opened.",14f,"#E5EDF2",16)
+   text(root,"Allow read-only Health Connect step access once. Background uploads run inside this same app.",14f,"#E5EDF2",16)
    button(root,"Enable automatic syncing · one-time setup"){enableBackground()}
    button(root,"Sync now (optional)"){allowOrSync()}
-   button(root,"Open FitnessDex"){
-     startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://gy8s.github.io/fitnessdex/")))
-   }
+   button(root,"Back to FitnessDex"){finish()}
    button(root,"Clear pairing from this phone"){
      TokenStore.clear(this)
      SyncWorker.cancel(this)
@@ -115,8 +120,22 @@ class MainActivity:ComponentActivity(){
    status(when{
      HealthConnectClient.getSdkStatus(this)!=HealthConnectClient.SDK_AVAILABLE->"Health Connect unavailable. Update it through Android Settings."
      TokenStore.get(this)==null->"Health Connect ready. Pair this device to begin."
-     else->"Paired. Opened companion checks for new steps. Turn on automatic sync once for updates while closed."
+     else->"Device paired. Step uploads can run automatically in the background."
    })
+   val incoming=intent?.data
+   if(intent?.action==Intent.ACTION_VIEW&&incoming?.scheme=="fitnessdex"&&
+      incoming.host=="steps"&&incoming.path=="/connect"){
+     val token=incoming.getQueryParameter("token")?:""
+     intent?.data=null
+     if(Regex("^[A-Za-z0-9_-]{43}$").matches(token)){
+       try{
+         TokenStore.save(this,token)
+         firstPairing=true
+         status("Paired. Requesting permission to read steps…")
+         window.decorView.post{allowOrSync()}
+       }catch(e:Exception){status("Could not pair: "+(e.message?:"Unknown error"))}
+     }else status("Invalid link. Create a new pairing link in FitnessDex.")
+   }
  }
  private fun health():HealthConnectClient?{
    if(HealthConnectClient.getSdkStatus(this)!=HealthConnectClient.SDK_AVAILABLE){

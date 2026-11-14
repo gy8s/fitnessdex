@@ -4,11 +4,24 @@
   <uses-permission android:name="android.permission.health.READ_STEPS" />
   <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
   <queries><package android:name="com.google.android.apps.healthdata" /></queries>
-  <application android:label="FitnessDex Steps" android:icon="@drawable/ic_fd"
+  <application android:label="FitnessDex" android:icon="@drawable/ic_fd"
     android:allowBackup="false" android:usesCleartextTraffic="false"
     android:theme="@android:style/Theme.Material.NoActionBar">
+    <activity android:name="com.google.androidbrowserhelper.trusted.LauncherActivity" android:exported="true">
+      <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL"
+        android:value="https://gy8s.github.io/fitnessdex/" />
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
     <activity android:name=".MainActivity" android:exported="true">
-      <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="fitnessdex" android:host="steps" android:pathPrefix="/connect" />
+      </intent-filter>
     </activity>
     <activity android:name=".PrivacyActivity" android:exported="true">
       <intent-filter><action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" /></intent-filter>

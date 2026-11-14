@@ -1,5 +1,5 @@
 {
-  "version": "0.8.12",
+  "version": "0.9.0",
   "released": "2026-11-14",
-  "notes": "Companion v0.1.2: one-time background Health Connect permission, clear sync status and minimum-interval ~15-minute automatic step uploads. FitnessDex continues checking cloud totals automatically while open."
+  "notes": "Unified Android app prototype: same FitnessDex web UI, existing cloud data and notifications, with one-time native Health Connect step pairing inside the same Android package."
 }

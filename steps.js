@@ -6,6 +6,8 @@ const GOAL_KEY='fitnessdex-step-goal-v1';
 const st={rows:[],devices:[],signed:false,loading:false,error:'',pair:'',goal:8000};
 try{const n=Number(localStorage.getItem(GOAL_KEY));if([4000,6000,8000,10000,12000,15000].includes(n))st.goal=n;}catch(e){}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const nativeLink=token=>'intent://steps/connect?token='+encodeURIComponent(token)+'#Intent;scheme=fitnessdex;package=io.github.gy8s.fitnessdex.steps;end';
+const nativeAndroid=()=>/Android/i.test(navigator.userAgent);
 const fmt=n=>Number(n||0).toLocaleString('en-GB');
 const api=()=>window.fdCloudClient?.();
 const dateKey=x=>[x.getFullYear(),String(x.getMonth()+1).padStart(2,'0'),String(x.getDate()).padStart(2,'0')].join('-');
@@ -52,17 +54,17 @@ window.fdStepsView=()=>{
  '<div class="fd-steps-metrics"><div><b>'+fmt(total)+'</b><small>Last 7 days</small></div><div><b>'+hits+'/7</b><small>Target days</small></div></div>'+
  '<div class="fd-steps-chart"><div class="row"><h2>Last seven days</h2><span class="muted">Daily totals</span></div><div class="fd-steps-bars">'+bars+'</div></div>'+
  '<label class="fd-steps-goal-label" for="fd-steps-goal">Daily step goal</label><select id="fd-steps-goal" onchange="fdStepsSetGoal(this.value)">'+[4000,6000,8000,10000,12000,15000].map(v=>'<option value="'+v+'" '+(v===st.goal?'selected':'')+'>'+fmt(v)+' steps</option>').join('')+'</select>'+
- '<div class="fd-steps-pair"><strong>Connect your Samsung</strong><p>Pair the FitnessDex Steps companion once. Grant background step access to sync automatically around every 15 minutes when Android allows. No need to open the companion routinely.</p>'+
- '<a class="fd-steps-apk" href="https://github.com/gy8s/fitnessdex/releases/download/fitnessdex-steps-v0.1.2/app-debug.apk" target="_blank" rel="noopener noreferrer">Download Android companion ↗</a>'+
+ '<div class="fd-steps-pair"><strong>Connect your steps</strong><p>Install FitnessDex for Android once, then connect Health Connect inside the same app. Steps upload automatically when Android allows.</p>'+
+ '<a class="fd-steps-apk" href="https://github.com/gy8s/fitnessdex/releases/download/fitnessdex-android-v0.2.0/app-debug.apk" target="_blank" rel="noopener noreferrer">Get the FitnessDex Android app ↗</a>'+
  '<p class="fd-step-connection">'+(st.devices.length?'✓ '+st.devices.length+' paired device(s)':st.signed?'No paired device yet':'Sign in to cloud saving first')+'</p>'+
- (st.signed?'<button class="fd-care-primary" onclick="fdStepsPair()">Create private pairing code</button>':'<button class="fd-care-secondary" onclick="navigate(\'more\');fdMoreCloud()">Cloud saving sign-in</button>')+
- (st.pair?'<div class="fd-step-pair-token"><label for="fd-step-token">Copy into the companion app</label><textarea id="fd-step-token" rows="2" readonly>'+esc(st.pair)+'</textarea><button class="fd-care-secondary" onclick="fdStepsCopy()">Copy code</button><small>This grants step uploads only. It disappears when you reload this page.</small></div>':'')+
+ (st.signed?'<button class="fd-care-primary" onclick="fdStepsPair()">Connect Health Connect</button>':'<button class="fd-care-secondary" onclick="navigate(\'more\');fdMoreCloud()">Cloud saving sign-in</button>')+
+ (st.pair?'<div class="fd-step-pair-token">'+(nativeAndroid()?'<a class="fd-care-primary fd-native-pair" href="'+esc(nativeLink(st.pair))+'">Open step setup inside FitnessDex</a>':'<p>Open this page on your Android phone to complete setup.</p>')+'<details class="fd-care-details"><summary>Manual pairing (fallback)</summary><label for="fd-step-token">Pairing code</label><textarea id="fd-step-token" rows="2" readonly>'+esc(st.pair)+'</textarea><button class="fd-care-secondary" onclick="fdStepsCopy()">Copy code</button><small>Upload-only private code. Never share it.</small></details></div>':'')+
  (devices?'<details class="fd-care-details"><summary>Paired devices</summary>'+devices+'</details>':'')+
- '<button class="fd-care-secondary" onclick="fdStepsRefresh()">Refresh steps</button>'+(st.error?'<p class="fd-step-error">'+esc(st.error)+'</p>':'')+'</div>'+
+ '<button class="fd-care-secondary" onclick="fdStepsRefresh()">Refresh cloud totals</button>'+(st.error?'<p class="fd-step-error">'+esc(st.error)+'</p>':'')+'</div>'+
  '<p class="fd-care-note">Health Connect aggregates multiple step sources to avoid duplicated steps. No step XP is awarded yet, so previously logged walking cannot be rewarded twice.</p></section>';
 };
 window.fdStepsSetGoal=value=>{const n=Number(value);if(![4000,6000,8000,10000,12000,15000].includes(n))return;st.goal=n;try{localStorage.setItem(GOAL_KEY,String(n));}catch(e){}render();};
-window.fdStepsPair=async()=>{try{st.pair=(await request('pair')).token;await load();toast('Copy the pairing code into FitnessDex Steps.');}catch(e){st.error=e?.message||'Pairing failed';render();}};
+window.fdStepsPair=async()=>{try{st.pair=(await request('pair')).token;await load();toast('Tap Open step setup inside FitnessDex to connect.');}catch(e){st.error=e?.message||'Pairing failed';render();}};
 window.fdStepsCopy=async()=>{if(!st.pair)return;try{await navigator.clipboard.writeText(st.pair);toast('Pairing code copied.');}catch(e){document.getElementById('fd-step-token')?.select();toast('Select and copy the code.');}};
 window.fdStepsRevoke=async id=>{if(!confirm('Unlink this device? Previous step totals remain saved.'))return;try{await request('revoke',{id});st.devices=st.devices.filter(d=>d.id!==id);st.pair='';render();toast('Device unlinked.');}catch(e){toast(e?.message||'Could not unlink');}};
 window.fdStepsRefresh=()=>{void load();};
