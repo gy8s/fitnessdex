@@ -542,3 +542,32 @@ main{padding-top:21px}
 .fd-steps-sync-info strong{font-size:12px;color:#c7e7e4}
 .fd-steps-sync-info small{font-size:11px;color:#b4cbd7;line-height:1.55}
 .fd-steps-page .fd-step-error{border:1px solid #8a7048;background:#3a3027;padding:12px 14px;border-radius:11px;font-size:12px;color:#f2dbbc;line-height:1.6}
+
+/* Movement session recorder v0.9.1 */
+.fd-move-home{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:16px;border:1px solid #3c5c68;background:linear-gradient(125deg,#18333a,#173045);border-radius:17px;margin:12px 0;color:#f1f8fc}
+.fd-move-home-icon{display:grid;place-items:center;border-radius:13px;width:50px;height:50px;font-size:26px;color:#9bf2d3;background:#246450}
+.fd-move-home>span:nth-child(2){flex:1;display:grid;gap:5px}
+.fd-move-home small{color:#bdd1dd;font-size:12px}
+.fd-move-home b{font-size:21px}
+.fd-move-panel,.fd-move-history{border:1px solid #33566c;border-radius:18px;background:#132a3d;padding:18px;margin:15px 0;display:grid;gap:12px}
+.fd-move-panel h2,.fd-move-history h2{font-size:18px;margin:0}
+.fd-move-panel p,.fd-move-note{margin:0;color:#b3c8d6;font-size:12px;line-height:1.55}
+.fd-move-buttons{display:flex;gap:9px;flex-wrap:wrap}
+.fd-move-buttons button{flex:1;min-width:70px;min-height:46px;font-weight:700}
+.fd-move-running-label{font-weight:750;color:#85e9c6;font-size:14px}
+.fd-move-timer{font-size:clamp(36px,10vw,58px);letter-spacing:-1px;font-weight:800;font-variant-numeric:tabular-nums}
+.fd-move-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fd-move-metrics span{background:#203c50;border:1px solid #31596d;border-radius:12px;padding:13px;display:grid;gap:4px}
+.fd-move-metrics b{font-size:23px}
+.fd-move-metrics small{color:#b7c9d5;font-size:11px}
+.fd-move-finish{display:grid;gap:10px;margin-top:6px}
+.fd-move-finish label{font-weight:650;font-size:12px}
+.fd-move-finish input,.fd-move-finish textarea{width:100%;background:#101f30;border-radius:10px;border:1px solid #446278;color:#f6fafd;padding:12px}
+.fd-move-finish button{min-height:44px}
+.fd-move-discard{border:0;background:none;color:#caa4a4}
+.fd-move-past{padding:12px 0;display:grid;gap:4px;border-top:1px solid #385064}
+.fd-move-past strong{font-size:14px}
+.fd-move-past small{font-size:12px;color:#b8cbd7}
+.fd-move-past p{color:#b8cbd7;font-size:12px;margin:0}
+.fd-movement-page .fd-step-error{padding:12px;border:1px solid #9b7058;border-radius:12px}
+.fd-start-movement{width:100%;margin:12px 0;min-height:46px}

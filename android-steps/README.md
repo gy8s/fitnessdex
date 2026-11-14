@@ -31,3 +31,7 @@ The main launcher now opens FitnessDex in Chrome's Trusted Web Activity mode (or
 The private, upload-only pairing token travels from the signed-in web page through a user-clicked Android intent link. Android Keystore encrypts it on the phone. Existing WorkManager sync reads only seven-day aggregate steps and attempts uploads about every 15 minutes, subject to Android battery policies. No new cloud tables or exercise save changes.
 
 **Limitations:** Full-screen TWA requires a Digital Asset Links JSON at https://gy8s.github.io/.well-known/assetlinks.json (domain root, not /fitnessdex/), with the permanent APK signing fingerprint. Otherwise Chrome displays a Custom Tab toolbar. The current build remains debug signed on GitHub Actions; smooth future APK upgrades require a persistent private release signing key in protected GitHub secrets. Do not commit a keystore.
+
+## Movement sessions (v0.2.1)
+
+The FitnessDex web interface now records walk, hike and run sessions. Server-side session control saves active segments across pauses and resumes. Health Connect aggregate step totals are reconciled independently for each active segment on the Android 15-minute WorkManager cycle, and are never added again to the daily step total. Displayed session steps may lag until the next Android sync; the session timer is live while the screen is open. This is **not yet second-by-second live sensor streaming**, which requires a foreground health sensor service and a bridge into the Chrome-hosted web app.

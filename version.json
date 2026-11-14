@@ -1,5 +1,5 @@
 {
-  "version": "0.9.0",
+  "version": "0.9.1",
   "released": "2026-11-14",
-  "notes": "Unified Android app prototype: same FitnessDex web UI, existing cloud data and notifications, with one-time native Health Connect step pairing inside the same Android package."
+  "notes": "Walk/hike/run session recorder with Start, Pause, Resume and Finish, cloud-backed intervals, manually entered distance, and separate Health Connect step attribution. No double-counted daily steps or movement XP."
 }
