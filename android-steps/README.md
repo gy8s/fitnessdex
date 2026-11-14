@@ -35,3 +35,9 @@ The private, upload-only pairing token travels from the signed-in web page throu
 ## Movement sessions (v0.2.1)
 
 The FitnessDex web interface now records walk, hike and run sessions. Server-side session control saves active segments across pauses and resumes. Health Connect aggregate step totals are reconciled independently for each active segment on the Android 15-minute WorkManager cycle, and are never added again to the daily step total. Displayed session steps may lag until the next Android sync; the session timer is live while the screen is open. This is **not yet second-by-second live sensor streaming**, which requires a foreground health sensor service and a bridge into the Chrome-hosted web app.
+
+## Live step preview (Android v0.2.2)
+
+During an active FitnessDex walk, hike or run, tap **Switch on live step updates** to open the native physical-activity permission screen in the same APK. A short-lived foreground health service (with an ongoing notification) uses the low-power TYPE_STEP_COUNTER sensor and uploads *provisional* session and daily totals roughly every ten seconds. It stops after Finish. The Health Connect background sync remains authoritative, handles pause/resume intervals, and never adds these session steps to daily steps again.
+
+Live tracking is intentionally not an always-running foreground service. Outside dedicated exercise, Android/Samsung Health keeps collecting steps; Health Connect sync catches up. This first version requires a second tap to activate live sensor mode after Start because Chrome requires a user gesture to launch native app intents.

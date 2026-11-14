@@ -42,10 +42,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           APK="android-steps/app/build/outputs/apk/debug/app-debug.apk"
-          if gh release view fitnessdex-android-v0.2.1 >/dev/null 2>&1; then
-            gh release upload fitnessdex-android-v0.2.1 "$APK#FitnessDex-Android.apk" --clobber
+          if gh release view fitnessdex-android-v0.2.2 >/dev/null 2>&1; then
+            gh release upload fitnessdex-android-v0.2.2 "$APK#FitnessDex-Android.apk" --clobber
           else
-            gh release create fitnessdex-android-v0.2.1 "$APK#FitnessDex-Android.apk" \
-              --title "FitnessDex Android 0.2.1" \
+            gh release create fitnessdex-android-v0.2.2 "$APK#FitnessDex-Android.apk" \
+              --title "FitnessDex Android 0.2.2" \
               --notes "One Android app with FitnessDex game through Chrome plus native Health Connect steps, cloud saves and web push preserved. Debug-signed prototype; stable future updates require a permanent private signing key."
           fi

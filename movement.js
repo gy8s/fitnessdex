@@ -6,6 +6,9 @@ const client=()=>window.fdCloudClient?.();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const fmt=n=>Number(n||0).toLocaleString('en-GB');
 const label={walk:'Walk',hike:'Hike',run:'Run'};
+const nativeAndroid=()=>/Android/i.test(navigator.userAgent);
+const sensorLink=id=>'intent://steps/live?session='+encodeURIComponent(id)+'#Intent;scheme=fitnessdex;package=io.github.gy8s.fitnessdex.steps;end';
+const liveFor=record=>{const snap=window.fdStepsLive?.();return snap?.session_id===record.id?snap:null;};
 const ms=t=>{const x=Date.parse(t||'');return Number.isFinite(x)?x:0;};
 const clock=n=>{n=Math.max(0,Math.floor(n/1000));const h=Math.floor(n/3600),m=Math.floor(n%3600/60),s=n%60;return [h,m,s].map(v=>String(v).padStart(2,'0')).join(':');};
 const active=()=>st.sessions.find(x=>x.state==='active'||x.state==='paused')||null;
@@ -21,6 +24,13 @@ const measured=record=>{
  for(const s of segments){if(s.steps===null||s.steps===undefined)partial=true;else steps+=Number(s.steps)||0;}
  return {steps:partial?steps:steps,partial};
 };
+function updateLive(){
+ const x=active(),el=document.getElementById('fd-move-steps'),text=document.getElementById('fd-move-steps-label');
+ if(!x||!el||!text)return;
+ const l=liveFor(x),s=measured(x);
+ el.textContent=l?fmt(Math.max(s.steps||0,Number(l.estimated_session_steps)||0)):s.steps===null?'—':fmt(s.steps);
+ text.textContent=l?'Live step estimate':s.partial?'Steps pending Health Connect sync':'Steps from Health Connect';
+}
 const when=t=>new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
 const listTitle=s=>label[s.kind]||'Movement';
 const asyncLoading=()=>st.loading||st.busy;
@@ -49,7 +59,8 @@ async function load(){
  }catch(e){st.error=e?.message||'Movement records could not be loaded';}
  finally{
   st.loading=false;
-  if(tab==='movement'||tab==='home')render();
+  if(tab==='movement'&&active()&&document.getElementById('fd-move-elapsed'))updateLive();
+  else if(tab==='movement'||tab==='home')render();
  }
 }
 async function action(operation,sessionId=null,kind=null,distance=null,notes=null){
@@ -98,9 +109,10 @@ window.fdMovementView=()=>{
  const auth=(!signed?'<div class="fd-move-panel"><p>Sign in under More → Cloud saving to save sessions across devices.</p></div>':'');
  const current=x?'<div class="fd-move-panel"><div class="fd-move-running-label">'+esc(listTitle(x))+' · '+(x.state==='active'?'In progress':'Paused')+'</div><div id="fd-move-elapsed" class="fd-move-timer" role="timer">'+clock(duration(x))+'</div>'+
  '<p class="fd-move-note">Active time only. Paused time is excluded.</p>'+
- '<div class="fd-move-metrics"><span><b>'+(()=>{const s=measured(x);return s.steps===null?'—':fmt(s.steps);})()+'</b><small>Steps attributed so far</small></span><span><b>'+bySession(x.id).length+'</b><small>Active intervals</small></span></div>'+
- '<p class="fd-move-note">Step count is read from Health Connect after sync, not added to daily steps. It may lag behind the timer.</p>'+
+ '<div class="fd-move-metrics"><span><b id="fd-move-steps">'+(()=>{const l=liveFor(x),s=measured(x);return l?fmt(Math.max(s.steps||0,Number(l.estimated_session_steps)||0)):s.steps===null?'—':fmt(s.steps);})()+'</b><small id="fd-move-steps-label">'+(liveFor(x)?'Live step estimate':'Health Connect steps')+'</small></span><span><b>'+bySession(x.id).length+'</b><small>Active intervals</small></span></div>'+
+ '<p class="fd-move-note">Live step figures are provisional. Health Connect reconciles the final count without adding them to the daily total twice.</p>'+
  '<div class="fd-move-buttons">'+(x.state==='active'?'<button class="fd-care-secondary" onclick="fdMovementPause()">Pause</button>':'<button class="fd-care-primary" onclick="fdMovementResume()">Resume</button>')+'</div>'+
+ (nativeAndroid()&&!liveFor(x)?'<a class="fd-move-sensor" href="'+esc(sensorLink(x.id))+'">Switch on live step updates</a>':'')+
  '<div class="fd-move-finish"><h2>Finish session</h2><label for="fd-move-distance">Distance (km)</label><input id="fd-move-distance" type="number" min="0" max="250" step="0.01" inputmode="decimal" placeholder="Enter distance, optional"/>'+
  '<label for="fd-move-notes">Notes (optional)</label><textarea id="fd-move-notes" rows="2" maxlength="1000" placeholder="Route, terrain, how it felt"></textarea>'+
  '<button class="fd-care-primary" onclick="fdMovementFinish()">Finish & save</button><button class="fd-move-discard" onclick="fdMovementDiscard()">Discard session</button></div></div>':
@@ -135,6 +147,7 @@ setInterval(()=>{
 },1000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&tab==='movement')void load();});
 window.addEventListener('focus',()=>{if(tab==='movement')void load();});
+window.addEventListener('fitnessdex:steps-updated',()=>{if(tab==='movement')updateLive();});
 setInterval(()=>{if(!document.hidden&&['movement','home'].includes(tab))void load();},30000);
 const auth=client()?.auth;
 if(auth?.onAuthStateChange)auth.onAuthStateChange((event,session)=>{

@@ -1,5 +1,7 @@
 package io.github.gy8s.fitnessdex.steps
 
+import android.hardware.Sensor
+import android.hardware.SensorManager
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color

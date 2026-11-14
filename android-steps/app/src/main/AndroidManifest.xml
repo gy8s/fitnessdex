@@ -21,6 +21,7 @@
         <category android:name="android.intent.category.DEFAULT" />
         <category android:name="android.intent.category.BROWSABLE" />
         <data android:scheme="fitnessdex" android:host="steps" android:pathPrefix="/connect" />
+        <data android:scheme="fitnessdex" android:host="steps" android:pathPrefix="/live" />
       </intent-filter>
     </activity>
     <activity android:name=".PrivacyActivity" android:exported="true">

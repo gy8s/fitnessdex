@@ -1,5 +1,5 @@
 {
-  "version": "0.9.1",
+  "version": "0.9.2",
   "released": "2026-11-14",
-  "notes": "Walk/hike/run session recorder with Start, Pause, Resume and Finish, cloud-backed intervals, manually entered distance, and separate Health Connect step attribution. No double-counted daily steps or movement XP."
+  "notes": "Optional Android hardware step counter while a walk, hike or run is active; ten-second provisional updates with Health Connect reconciliation and unchanged daily step totals."
 }
