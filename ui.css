@@ -503,3 +503,9 @@ main{padding-top:21px}
 .fd-reminder-panel>.fd-care-secondary{margin:0;min-height:43px}
 .fd-reminders-page .fd-care-note{margin:0;color:#a9c1ce}
 @media(max-width:400px){.fd-reminder-times{gap:5px}.fd-reminder-times input{font-size:12px;padding:8px 3px}.fd-reminder-panel{padding:13px}}
+
+/* v0.8.6 — background delivery status */
+.fd-reminder-push{padding:15px;border-radius:14px;border:1px solid #3a6071;background:#142b3f;display:grid;gap:8px}
+.fd-reminder-push strong{font-size:14px;color:#e2f5ec}
+.fd-reminder-push p{font-size:12px;color:#aecaD9;line-height:1.5;margin:0}
+.fd-reminder-push .fd-care-secondary{margin:2px 0 0;min-height:43px}

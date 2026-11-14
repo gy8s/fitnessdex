@@ -1,5 +1,5 @@
 {
-  "version": "0.8.5",
+  "version": "0.8.6",
   "released": "2026-11-14",
-  "notes": "Opt-in water and supplement notifications with improved app opening behaviour and permission tests. Reminders run while FitnessDex is active; closed-app push delivery is not yet enabled."
+  "notes": "Secure opt-in background Web Push linked to Supabase cloud sign-in. Device subscriptions use public VAPID keys, scheduled delivery occurs while the app is closed, and foreground reminders back off when connected."
 }

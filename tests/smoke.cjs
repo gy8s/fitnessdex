@@ -23,6 +23,8 @@ for(const path of ['index.html','ui.css','version.json',...external]){
 }
 for(const file of external){new vm.Script(read(file),{filename:file});}
 assert(external.includes('notifications.js'),'Foreground notification UI module missing');
+assert(external.includes('push-client.js'),'Background push registration module missing');
+assert(sw.includes("self.addEventListener('push'"),'Background push delivery handler missing');
 assert(sw.includes("self.addEventListener('notificationclick'"),'Notifications must navigate correctly when tapped');
 new vm.Script(sw,{filename:'sw.js'});
 

@@ -129,6 +129,7 @@ window.addEventListener('fitnessdex:saved',()=>{if(uid&&!paused){dirty=true;queu
 window.addEventListener('online',()=>{if(dirty)queue(500);});
 if(!window.supabase?.createClient){draw();return;}
 client=window.supabase.createClient(URL,KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
+window.fdCloudClient=()=>client;
 draw();
 client.auth.onAuthStateChange((event,session)=>{
  if(['INITIAL_SESSION','SIGNED_IN','SIGNED_OUT'].includes(event))setTimeout(()=>authChanged(session),0);

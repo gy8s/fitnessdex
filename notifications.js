@@ -65,7 +65,7 @@ async function notify(title,body,section,tag){
 let working=false;
 async function check(){
  const s=read();
- if(working||!s.enabled||!supported()||Notification.permission!=='granted')return;
+ if(working||!s.enabled||!supported()||Notification.permission!=='granted'||window.fdPushIsConnected?.())return;
  working=true;
  try{
   if(s.water&&waterPending()){
@@ -103,7 +103,8 @@ function view(){
  '<button class="fd-care-secondary" onclick="fdReminderSave()">Save reminder preferences</button></div>'+
  (active?'<button class="fd-care-primary" onclick="fdReminderTest()">Send test notification</button><button class="fd-care-muted" onclick="fdReminderDisable()">Turn off reminders</button>':
  '<button class="fd-care-primary" '+(!available||permission==='denied'?'disabled':'')+' onclick="fdReminderEnable()">Enable notifications</button>')+
- '<p class="fd-care-note">These are foreground reminders: FitnessDex needs to be running to check the schedule. They are not guaranteed with the app closed, the phone asleep or Android restricting background activity. Reliable closed-app delivery requires a future push service. This feature does not send your health or supplement records to any notification provider.</p></section>';
+ '<div class="fd-reminder-push"><strong>Background delivery</strong><p id="fd-background-status">'+(window.fdPushStatus?.().text||'Sign in to cloud saving to connect.')+'</p>'+(active?'<button class="fd-care-secondary" onclick="fdPushConnect()">Connect / refresh background push</button>':'')+'</div>'+ 
+ '<p class="fd-care-note">When background push is connected, FitnessDex can notify you while closed. Otherwise these are foreground reminders: FitnessDex needs to be running to check the schedule. They are not guaranteed with the app closed, the phone asleep or Android restricting background activity. Reliable closed-app delivery requires a future push service. This feature does not send your health or supplement records to any notification provider.</p></section>';
 }
 window.fdReminderStatus=()=>({config:read(),permission:supported()?Notification.permission:'unsupported'});
 window.fdReminderView=view;
@@ -112,7 +113,7 @@ window.fdReminderSave=()=>{
  const slots=[0,1,2].map(i=>document.getElementById('fd-reminder-slot-'+i)?.value||'');
  if(slots.some(x=>!TIME.test(x))||new Set(slots).size!==3)return toast('Choose three different, valid reminder times.');
  const curr=read(),next={...curr,water:!!document.getElementById('fd-reminder-water')?.checked,supplements:!!document.getElementById('fd-reminder-supp')?.checked,slots:slots.sort()};
- if(write(next)){render();toast('Reminder preferences saved on this device.');}
+ if(write(next)){window.dispatchEvent(new Event('fitnessdex:reminder-settings'));render();toast('Reminder preferences saved on this device.');}
 };
 window.fdReminderEnable=async()=>{
  if(!supported())return toast('System notifications are not available in this browser.');
@@ -121,11 +122,11 @@ window.fdReminderEnable=async()=>{
   if(permission!=='granted')return render();
   const reg=await navigator.serviceWorker.getRegistration('./');
   if(!reg||!reg.active||typeof reg.showNotification!=='function')return toast('Reopen FitnessDex once its offline service is ready, then try again.');
-  if(write({...read(),enabled:true})){render();toast('Reminders enabled for this device. Use the test button to check delivery.');}
+  if(write({...read(),enabled:true})){render();window.dispatchEvent(new Event('fitnessdex:reminder-settings'));toast('Notifications enabled. Connecting background push when cloud saving is signed in.');}
  }catch(e){toast('Could not enable notifications: '+(e.message||'device error'));}
 };
-window.fdReminderDisable=()=>{
- if(write({...read(),enabled:false})){render();toast('FitnessDex reminders turned off.');}
+window.fdReminderDisable=async()=>{
+ if(write({...read(),enabled:false})){await window.fdPushDisconnect?.();render();toast('FitnessDex reminders turned off on this device.');}
 };
 window.fdReminderTest=async()=>{
  if(!read().enabled)return toast('Enable reminders first.');
