@@ -23,7 +23,7 @@ adb forward --remove tcp:9222
 adb shell am force-stop "$PACKAGE"
 adb shell am start -W -n "$PACKAGE/.MainActivity"
 sleep 8
-PID2="$(adb shell pidof "$PACKAGE" | tr -d '\\r')"
+PID2="$(adb shell pidof "$PACKAGE" | tr -d '\r')"
 test -n "$PID2"
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID2}"
 node android-shell/tests/check-webview.cjs after-restart
