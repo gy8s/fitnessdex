@@ -1,5 +1,5 @@
 {
-  "version": "0.9.2",
+  "version": "0.9.3",
   "released": "2026-11-14",
-  "notes": "Optional Android hardware step counter while a walk, hike or run is active; ten-second provisional updates with Health Connect reconciliation and unchanged daily step totals."
+  "notes": "Holistic daily step breakdown: dedicated walk/hike/run steps versus everyday or unassigned movement, with pending Health Connect sync clearly labelled; pace calculated from recorded distance and active time."
 }

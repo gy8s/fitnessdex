@@ -30,6 +30,9 @@ assert(read('movement.js').includes("fdMovementPause"),'Movement pause action mi
 assert(read('movement.js').includes("fdMovementResume"),'Movement resume action missing');
 assert(read('movement.js').includes("fdMovementFinish"),'Movement finish action missing');
 assert(read('movement.js').includes('intent://steps/live?session='),'Native live sensor link missing');
+assert(read('movement.js').includes('fdMovementBreakdownToday'),'Daily exercise/outside step breakdown missing');
+assert(read('steps.js').includes('Other / awaiting sync'),'Pending attribution must be labelled');
+assert(read('movement.js').includes('secsPerKm'),'Session pace calculation missing');
 assert(read('steps.js').includes('fitnessdex_live_steps'),'Live sensor cloud read missing');
 assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('FOREGROUND_SERVICE_HEALTH'),'Health service permission missing');
 assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('android:name=".LiveStepsService"'),'Foreground sensor service not registered');

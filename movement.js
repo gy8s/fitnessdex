@@ -33,6 +33,27 @@ function updateLive(){
 }
 const when=t=>new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
 const listTitle=s=>label[s.kind]||'Movement';
+const todayAt=t=>{const d=new Date(t),now=new Date();return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate();};
+window.fdMovementBreakdownToday=total=>{
+ if(!Number.isFinite(total)||total<0)return null;
+ let exercise=0,unconfirmed=false,sessions=0;
+ for(const record of st.sessions){
+  if(record.state==='finished'&&!todayAt(record.started_at)&&!todayAt(record.finished_at))continue;
+  if(record.state!=='finished'&&!todayAt(record.started_at)){unconfirmed=true;continue;}
+  if(!todayAt(record.started_at)||record.finished_at&&!todayAt(record.finished_at)){unconfirmed=true;continue;}
+  sessions++;
+  const steps=measured(record);
+  let attributable=steps.steps||0;
+  if(record.state!=='finished'){
+   const live=liveFor(record);
+   if(live)attributable=Math.max(attributable,Number(live.estimated_session_steps)||0);
+   unconfirmed=true;
+  }
+  if(steps.partial)unconfirmed=true;
+  exercise+=attributable;
+ }
+ return {exercise:Math.min(total,Math.max(0,exercise)),other:Math.max(0,total-exercise),unconfirmed,sessions};
+};
 const asyncLoading=()=>st.loading||st.busy;
 async function load(){
  if(st.loading||!navigator.onLine||!client())return;
@@ -120,7 +141,14 @@ window.fdMovementView=()=>{
  ['walk','hike','run'].map(k=>'<button class="fd-care-primary" onclick="fdMovementStart(\''+k+'\')">'+label[k]+'</button>').join('')+'</div></div>';
  const history=recent.map(s=>{
   const count=measured(s),pieces=[when(s.started_at),clock(duration(s))];
-  if(s.distance_km!==null)pieces.push(Number(s.distance_km).toFixed(2)+' km');
+  if(s.distance_km!==null){
+   const distance=Number(s.distance_km);
+   pieces.push(distance.toFixed(2)+' km');
+   if(distance>0.01&&duration(s)>0){
+    const secsPerKm=Math.round(duration(s)/1000/distance);
+    pieces.push(Math.floor(secsPerKm/60)+':'+String(secsPerKm%60).padStart(2,'0')+' /km');
+   }
+  }
   pieces.push(count.steps===null||count.partial?'Steps pending sync':fmt(count.steps)+' steps');
   return '<div class="fd-move-past"><strong>'+esc(listTitle(s))+'</strong><small>'+pieces.map(esc).join(' · ')+'</small>'+(s.notes?'<p>'+esc(s.notes)+'</p>':'')+'</div>';
  }).join('');
