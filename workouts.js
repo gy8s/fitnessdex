@@ -52,18 +52,20 @@
     const rows=S.logs.filter(l=>targetIds.has(logId(l)));
     if(rows.length===0)return false;
     if(rows.some(isInWorkout)){alert('Some records already belong to a workout. Remove them from that workout first.');return false;}
+    if(!checkpoint('Before grouping exercises'))return false;
+    const before=JSON.stringify(S);
     const workoutId='w-'+uid();
     const chosenName=String(name||newGroupName(rows)).trim().slice(0,80)||'Workout';
     model().workouts.push({id:workoutId,name:chosenName,createdAt:new Date().toISOString()});
     for(const l of rows)l.sessionId=workoutId;
-    refreshRewardsAndSave();
+    if(!refreshRewardsAndSave(before))return false;
     toast(`Workout created: ${chosenName} · ${rows.length} exercise records`);
     return true;
   }
-  function refreshRewardsAndSave(){resetDerived();reconcileCompleted();ensureBoard();save();render();}
+  function refreshRewardsAndSave(before){resetDerived();reconcileCompleted();ensureBoard();if(!save()){S=JSON.parse(before);resetDerived();return false;}render();return true;}
   window.fdCreateSuggestedWorkout=function(){const rows=recentSuggestion();if(!rows)return;groupRecords(rows.map(logId));};
   window.fdReviewSuggestedWorkout=function(){const rows=recentSuggestion();tab='workouts';render();if(rows){const chosen=new Set(rows.map(logId));document.querySelectorAll('#fd-standalone-checks input[type=checkbox]').forEach(input=>{input.checked=chosen.has(input.value);});}document.getElementById('fd-workout-create')?.scrollIntoView({block:'start',behavior:'smooth'});};
-  window.fdDismissWorkoutSuggestion=function(){const rows=recentSuggestion();if(!rows)return;const latest=Math.max(...rows.map(timeOf));model().dismissed.push({date:rows[0].date,until:latest+2*60*60*1000});model().dismissed=model().dismissed.slice(-60);save();renderSuggestion();};
+  window.fdDismissWorkoutSuggestion=function(){const rows=recentSuggestion();if(!rows)return;const latest=Math.max(...rows.map(timeOf));const before=JSON.stringify(S);model().dismissed.push({date:rows[0].date,until:latest+2*60*60*1000});model().dismissed=model().dismissed.slice(-60);if(!save()){S=JSON.parse(before);return;}renderSuggestion();};
   window.fdGroupSelectedWorkout=function(){
     const ids=[...document.querySelectorAll('#fd-standalone-checks input:checked')].map(x=>x.value);
     if(!ids.length)return alert('Select at least one activity to put in the workout.');
@@ -75,22 +77,26 @@
     const w=namedWorkout(id);if(!w)return;
     const name=prompt('Workout name',w.name);if(name===null)return;
     if(!name.trim())return alert('Enter a workout name.');
-    w.name=name.trim().slice(0,80);save();render();
+    if(!checkpoint('Before renaming workout'))return;
+    const before=JSON.stringify(S);w.name=name.trim().slice(0,80);if(!save()){S=JSON.parse(before);return;}render();
   };
   window.fdRemoveFromWorkout=function(id){
     const l=S.logs.find(x=>logId(x)===id);if(!l||!isInWorkout(l))return;
-    const previousWorkoutId=l.sessionId;
+    if(!checkpoint('Before separating exercise'))return;
+    const before=JSON.stringify(S),previousWorkoutId=l.sessionId;
     l.sessionId=null;
     model().workouts=model().workouts.filter(w=>w.id!==previousWorkoutId || S.logs.some(other=>other.sessionId===w.id));
-    refreshRewardsAndSave();
+    if(!refreshRewardsAndSave(before))return;
     toast('Exercise is now standalone. Its sets and achievements are retained.');
   };
   window.fdUngroupWorkout=function(id){
     const w=namedWorkout(id);if(!w)return;
     if(!confirm(`Make every exercise in “${w.name}” standalone? No exercise records will be deleted.`))return;
+    if(!checkpoint('Before ungrouping workout'))return;
+    const before=JSON.stringify(S);
     S.logs.filter(l=>l.sessionId===id).forEach(l=>{l.sessionId=null;});
     model().workouts=model().workouts.filter(x=>x.id!==id);
-    refreshRewardsAndSave();
+    if(!refreshRewardsAndSave(before))return;
     toast('Workout ungrouped. All exercise records retained.');
   };
   function logItem(l,grouped=false){
