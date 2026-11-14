@@ -16,3 +16,5 @@ The APK launches the FitnessDex web interface, preserving its signed-in cloud ac
 Build Android with JDK 17 and Gradle 8.13. Run the Node smoke test, Android Gradle compilation, and a real-device acceptance check for pairing, first upload, open-app refresh, background refresh, a walk, pause/resume/finish, and cloud restoration. CI compilation **does not replace real-device validation**.
 
 The current automated GitHub APK builds use ephemeral debug signing. **Future seamless APK updates are not yet guaranteed**. Before a later release, configure a private persistent release signing key in GitHub Secrets, then migrate to that signed series. Never overwrite a published APK with a differently signed build and never commit a private keystore.
+
+Android Browser Helper's launcher requires its optional ManageDataLauncherActivity to be declared in AndroidManifest.xml, even if site-settings shortcuts are disabled. Omitting it caused a reproducible fatal exception at startup on the API 35 emulator. The emulator smoke test now rejects a crash or failure to open Chrome.
