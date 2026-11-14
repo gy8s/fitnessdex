@@ -40,21 +40,16 @@ jobs:
           profile: pixel_6
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
-            set -e
             adb shell input keyevent 82
             adb install -r android-steps/app/build/outputs/apk/debug/app-debug.apk
-            echo "=== Browser availability ==="
-            adb shell pm list packages | grep -Ei 'chrome|browser' || true
+            adb shell pm list packages | grep -q 'com.android.chrome'
             adb logcat -c
-            echo "=== Launch FitnessDex ==="
-            adb shell am start -W -n io.github.gy8s.fitnessdex.steps/.FitnessDexLauncherActivity || true
-            sleep 12
-            echo "=== Foreground activity ==="
-            adb shell dumpsys activity activities | grep -E 'ResumedActivity|topResumedActivity|mResumedActivity|fitnessdex|chrome' | head -60 || true
-            echo "=== Runtime errors ==="
-            adb logcat -d -v time -s AndroidRuntime:E | tail -n 160
-            if adb logcat -d -v brief -s AndroidRuntime:E | grep -q 'FATAL EXCEPTION'; then
-              echo "ANDROID APP CRASHED ON LAUNCH"
-              exit 1
-            fi
-            echo "No fatal exception detected (browser rendering still requires manual validation)"
+            adb shell am start -W -n io.github.gy8s.fitnessdex.steps/com.google.androidbrowserhelper.trusted.LauncherActivity
+            sleep 8
+            adb shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' | head -n 8
+            adb shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' | grep -q 'com.android.chrome'
+            ! adb logcat -d -v brief -s AndroidRuntime:E | grep -q 'FATAL EXCEPTION'
+            adb shell am start -W -n io.github.gy8s.fitnessdex.steps/.MainActivity
+            sleep 3
+            adb shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' | grep -q 'io.github.gy8s.fitnessdex.steps'
+            ! adb logcat -d -v brief -s AndroidRuntime:E | grep -q 'FATAL EXCEPTION'
