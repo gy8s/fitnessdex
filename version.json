@@ -1,5 +1,5 @@
 {
-  "version": "1.0.1",
+  "version": "0.8.7",
   "released": "2026-11-14",
-  "notes": "Fix Android launch crash by restoring the standard Android Browser Helper activity. One FitnessDex installation, with Health Connect background steps and manual refresh."
+  "notes": "Background Web Push reminders, authenticated device subscriptions, cloud-backed scheduled delivery, and a server-queued closed-app test. Notifications remain opt-in and private."
 }
