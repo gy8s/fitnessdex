@@ -32,6 +32,8 @@ assert(read('movement.js').includes("fdMovementFinish"),'Movement finish action 
 assert(read('movement.js').includes('intent://steps/live?session='),'Native live sensor link missing');
 assert(read('steps.js').includes('fitnessdex_live_steps'),'Live sensor cloud read missing');
 assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('FOREGROUND_SERVICE_HEALTH'),'Health service permission missing');
+assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('android:name=".LiveStepsService"'),'Foreground sensor service not registered');
+assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/MainActivity.kt').includes('requestLiveSensor'),'Native live-step deep link not wired');
 assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/LiveStepsService.kt').includes('TYPE_STEP_COUNTER'),'Hardware step sensor missing');
 assert(read('steps.js').includes('intent://steps/connect?token='),'Native pairing link missing');
 assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('com.google.androidbrowserhelper.trusted.LauncherActivity'),'Unified Android launcher missing');

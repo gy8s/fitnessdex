@@ -2,6 +2,9 @@ package io.github.gy8s.fitnessdex.steps
 
 import android.hardware.Sensor
 import android.hardware.SensorManager
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -33,7 +36,30 @@ class MainActivity:ComponentActivity(){
  private lateinit var tokenInput:EditText
  private var syncing=false
  private var firstPairing=false
+ private var pendingLiveSession:String?=null
 
+ private val liveSensorPermission=registerForActivityResult(ActivityResultContracts.RequestPermission()){granted->
+   val session=pendingLiveSession
+   pendingLiveSession=null
+   if(granted&&session!=null)startLiveSensor(session)
+   else status("Physical activity permission declined. Session timing and Health Connect syncing still work.")
+ }
+ private fun requestLiveSensor(session:String){
+   if(TokenStore.get(this)==null){status("Connect Health Connect under FitnessDex → Daily steps first.");return}
+   if((getSystemService(SENSOR_SERVICE) as SensorManager).getDefaultSensor(Sensor.TYPE_STEP_COUNTER)==null){
+     status("This phone does not expose a step-counter sensor. Health Connect still works.");return
+   }
+   if(checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION)!=PackageManager.PERMISSION_GRANTED){
+     pendingLiveSession=session
+     liveSensorPermission.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+   }else startLiveSensor(session)
+ }
+ private fun startLiveSensor(session:String){
+   try{
+     startForegroundService(Intent(this,LiveStepsService::class.java).putExtra("session",session))
+     finish()
+   }catch(e:Exception){status("Android blocked live tracking: "+(e.message?:"Unknown error"))}
+ }
  private val stepPermissionPrompt=registerForActivityResult(PermissionController.createRequestPermissionResultContract()){granted->
    if(stepsPermission in granted){
      if(firstPairing){firstPairing=false;enableBackground()}
@@ -137,6 +163,13 @@ class MainActivity:ComponentActivity(){
          window.decorView.post{allowOrSync()}
        }catch(e:Exception){status("Could not pair: "+(e.message?:"Unknown error"))}
      }else status("Invalid link. Create a new pairing link in FitnessDex.")
+   }else if(intent?.action==Intent.ACTION_VIEW&&incoming?.scheme=="fitnessdex"&&
+      incoming.host=="steps"&&incoming.path=="/live"){
+     val id=incoming.getQueryParameter("session")?:""
+     intent?.data=null
+     if(Regex("^[a-fA-F0-9-]{36}$").matches(id))
+       window.decorView.post{requestLiveSensor(id)}
+     else status("Invalid live tracking link.")
    }
  }
  private fun health():HealthConnectClient?{
