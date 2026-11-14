@@ -1,5 +1,5 @@
 {
-  "version": "0.8.7",
+  "version": "0.8.8",
   "released": "2026-11-14",
-  "notes": "Background Web Push reminders, authenticated device subscriptions, cloud-backed scheduled delivery, and a server-queued closed-app test. Notifications remain opt-in and private."
+  "notes": "Read-only Health Connect steps dashboard: last-seven-day totals, goal setting and securely paired Android companion access. No changes to existing exercise records or XP."
 }
