@@ -145,6 +145,7 @@ function careAchievements(){
  [['Water',rewards.waterStreak],['Supplements',rewards.supplementStreak]].map(([title,n])=>
  '<div class="fd-care-achievement-row"><strong>'+title+'</strong><small>Longest streak: '+n+' days</small><div>'+CARE_STREAKS.map(x=>'<span class="'+(n>=x?'earned':'')+'">'+x+'d</span>').join('')+'</div></div>').join('')+'</section>';
 }
+window.fdCareIsEditing=()=>carePage==='editor';
 window.fdCareView=()=>carePage==='water'?careWaterPage():carePage==='supplements'?careSuppPage():carePage==='editor'?careEditPage():careHomePage();
 const careShow=next=>{carePage=next;tab='care';render();window.scrollTo({top:0,behavior:'instant'});};
 window.fdCareHome=()=>careShow('home');
