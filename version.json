@@ -1,5 +1,5 @@
 {
-  "version": "0.9.4",
+  "version": "0.9.5",
   "released": "2026-11-14",
-  "notes": "Android APK release URL verified against the published asset; smoke tests now check the actual uploaded filename."
+  "notes": "Step freshness labelled; update from phone inside FitnessDex; APK and pairing moved into repair controls."
 }

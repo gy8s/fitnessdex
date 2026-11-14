@@ -109,10 +109,11 @@ class MainActivity:ComponentActivity(){
      setBackgroundColor(Color.rgb(11,24,38))
    }
    text(root,"FD  /  FITNESSDEX",14f,"#8AEACD")
-   text(root,"Connect your steps",28f,"#F4FCFF",10)
+   text(root,"Step sync",28f,"#F4FCFF",10)
    text(root,"Read-only daily step totals from Health Connect. FitnessDex exercise logs stay unchanged.",14f,"#B4CAD8",9)
-   text(root,"Normally, connecting from FitnessDex pairs this screen automatically. One app, one account.",14f,"#E5EDF2",18)
-   text(root,"If automatic pairing fails, you can paste a private pairing code here instead.",14f,"#E5EDF2",10)
+   text(root,"Update step totals from your phone directly into FitnessDex.",14f,"#E5EDF2",18)
+   if(TokenStore.get(this)==null){
+   text(root,"If this installation is not paired, paste a pairing code from FitnessDex here.",14f,"#E5EDF2",10)
    tokenInput=EditText(this).apply{
      hint="Paste FitnessDex pairing code"
      setHintTextColor(Color.rgb(142,162,174))
@@ -129,9 +130,10 @@ class MainActivity:ComponentActivity(){
        allowOrSync()
      }catch(e:Exception){status(e.message?:"Pairing code is invalid.")}
    }
-   text(root,"Allow read-only Health Connect step access once. Background uploads run inside this same app.",14f,"#E5EDF2",16)
+   }
+   text(root,"Allow step access once. Automatic updates run inside FitnessDex.",14f,"#E5EDF2",16)
    button(root,"Enable automatic syncing · one-time setup"){enableBackground()}
-   button(root,"Sync now (optional)"){allowOrSync()}
+   button(root,"Update steps now"){allowOrSync()}
    button(root,"Back to FitnessDex"){finish()}
    button(root,"Clear pairing from this phone"){
      TokenStore.clear(this)
@@ -163,6 +165,13 @@ class MainActivity:ComponentActivity(){
          window.decorView.post{allowOrSync()}
        }catch(e:Exception){status("Could not pair: "+(e.message?:"Unknown error"))}
      }else status("Invalid link. Create a new pairing link in FitnessDex.")
+   }else if(intent?.action==Intent.ACTION_VIEW&&incoming?.scheme=="fitnessdex"&&
+      incoming.host=="steps"&&incoming.path=="/sync"){
+     intent?.data=null
+     window.decorView.post{
+       if(TokenStore.get(this)==null) status("This installation is not paired. Open FitnessDex → Daily steps → Setup or repair.")
+       else allowOrSync()
+     }
    }else if(intent?.action==Intent.ACTION_VIEW&&incoming?.scheme=="fitnessdex"&&
       incoming.host=="steps"&&incoming.path=="/live"){
      val id=incoming.getQueryParameter("session")?:""
