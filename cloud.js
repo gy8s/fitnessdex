@@ -17,7 +17,7 @@ const meaningful = s => !!(s?.logs?.length || s?.claimed?.length || s?.recoveryD
 let client, uid=null, email='', serverStamp=null, cloudData=null, cloudStamp=null, paused=false, choice=false, busy=false, dirty=false, timer=null, epoch=0;
 let status='Saved on this device. Sign in for automatic cloud backups.';
 const buttonStyle='background:#27344a;border:1px solid #3b4c64;color:#fff;padding:7px 10px;border-radius:8px;cursor:pointer;margin:3px;font:inherit';
-function setStatus(msg){status=msg;draw();}
+function setStatus(msg){status=msg;window.fdSyncStatus?.(msg);draw();}
 function draw(){
  if(!client){section.textContent='Cloud saving unavailable. Local saving still works.';return;}
  section.innerHTML='<div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div><b>☁ Cloud saves</b><div id="fd-sync-status" style="color:#adc0d5;font-size:12px;margin-top:5px">'+esc(status)+'</div></div><div id="fd-controls"></div></div><div id="fd-extra"></div>';
@@ -59,8 +59,9 @@ function restoreCloud(data){
  next.claimed=Array.isArray(next.claimed)?next.claimed:[];
  next.v3=next.v3||{active:[],completed:[],nextSerial:0};
  next.v4=next.v4||{hunts:[],lastResult:null};
+ const before=JSON.stringify(S);
  paused=true;S=next;resetDerived();reconcileCompleted();ensureBoard();
- const ok=save();render();paused=false;
+ const ok=save();if(!ok){S=JSON.parse(before);resetDerived();}render();paused=false;
  return ok;
 }
 function remember(stamp){
