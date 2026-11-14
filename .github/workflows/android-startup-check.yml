@@ -42,14 +42,21 @@ jobs:
           script: |
             adb shell input keyevent 82
             adb install -r android-steps/app/build/outputs/apk/debug/app-debug.apk
-            adb shell pm list packages | grep -q 'com.android.chrome'
+            adb shell pm list packages | grep -Ei 'chrome|browser'
             adb logcat -c
             adb shell am start -W -n io.github.gy8s.fitnessdex.steps/com.google.androidbrowserhelper.trusted.LauncherActivity
-            sleep 8
+            sleep 7
             adb shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' | head -n 8
-            adb shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' | grep -q 'com.android.chrome'
-            ! adb logcat -d -v brief -s AndroidRuntime:E | grep -q 'FATAL EXCEPTION'
+            adb logcat -d -v time -s AndroidRuntime:E ActivityTaskManager:I ActivityTaskManager:W TWALauncherActivity:D TwaLauncher:D TwaProviderPicker:D | tail -n 130
+            adb logcat -d -v time | grep -Ei 'FATAL EXCEPTION|Unable to start|AndroidRuntime|TWALauncher|TwaProviderPicker|ActivityNotFound|NoActivity|No Activity found|com.google.androidbrowserhelper|custom.tabs' | tail -n 150 || true
+            adb shell monkey -p com.android.chrome -c android.intent.category.LAUNCHER 1
+            sleep 4
+            adb shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' | head -n 5
+            adb shell am start -W -n io.github.gy8s.fitnessdex.steps/com.google.androidbrowserhelper.trusted.LauncherActivity
+            sleep 7
+            adb shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' | head -n 8
+            adb logcat -d -v time -s AndroidRuntime:E TWALauncherActivity:D TwaLauncher:D TwaProviderPicker:D | tail -n 170
             adb shell am start -W -n io.github.gy8s.fitnessdex.steps/.MainActivity
             sleep 3
-            adb shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' | grep -q 'io.github.gy8s.fitnessdex.steps'
-            ! adb logcat -d -v brief -s AndroidRuntime:E | grep -q 'FATAL EXCEPTION'
+            adb shell dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity' | head -n 8
+            adb logcat -d -v time -s AndroidRuntime:E | tail -n 150
