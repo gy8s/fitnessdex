@@ -77,8 +77,8 @@ function checkAwards(){
  }
  return gained;
 }
-function persist(message){
- const gained=checkAwards();if(!save())return;
+function persist(message,before){
+ const gained=checkAwards();if(!save()){if(before){S=JSON.parse(before);resetDerived();}return;}
  render();toast(message+(gained?' · '+gained+' new reward'+(gained===1?'':'s')+'!':''));
 }
 function record(id,quantity){
@@ -87,9 +87,10 @@ function record(id,quantity){
  if(!Number.isFinite(quantity)||quantity<0||quantity>max||(id!=='alcohol'&&!Number.isInteger(quantity)))return toast('Enter a valid amount of '+cat.unit+'.');
  const m=model(),previous=rowFor(id,selectedDate);
  if(previous&&previous.quantity>0&&quantity===0&&!confirm('Replace an existing use record with a zero-use day?'))return;
+ const before=JSON.stringify(S);
  if(previous)previous.quantity=quantity;else m.days.push({category:id,date:selectedDate,quantity});
  m.days.sort((a,b)=>a.date.localeCompare(b.date)||a.category.localeCompare(b.category));
- persist(quantity===0?'Avoidance day recorded':'Amount recorded');
+ persist(quantity===0?'Avoidance day recorded':'Amount recorded',before);
 }
 window.fdHabitsZero=id=>record(id,0);
 window.fdHabitsQuantity=id=>{
@@ -103,8 +104,8 @@ window.fdHabitsDateChange=value=>{
 window.fdHabitsRemove=id=>{
  const m=model(),existing=rowFor(id,selectedDate);
  if(!existing||!confirm('Remove this daily record? The day will become untracked. Earned rewards are retained.'))return;
- m.days.splice(m.days.indexOf(existing),1);
- persist('Daily record removed');
+ const before=JSON.stringify(S);m.days.splice(m.days.indexOf(existing),1);
+ persist('Daily record removed',before);
 };
 window.fdHabitsBaseline=id=>{
  const cat=category(id),el=document.getElementById('fd-habit-baseline-'+id);
@@ -112,8 +113,8 @@ window.fdHabitsBaseline=id=>{
  const val=Number(el.value),max=id==='alcohol'?500:id==='smoking'?500:id==='takeaway'?100:0,old=model().baselineWeek[id];
  if(!Number.isFinite(val)||val<=0||val>max||(id!=='alcohol'&&!Number.isInteger(val)))return toast('Enter a positive, realistic weekly baseline.');
  if(old>0&&old!==val&&!confirm('Change the baseline? Existing reward badges will remain earned, and future comparisons will use the new amount.'))return;
- model().baselineWeek[id]=val;
- persist('Weekly baseline saved');
+ const before=JSON.stringify(S);model().baselineWeek[id]=val;
+ persist('Weekly baseline saved',before);
 };
 function section(cat){
  const id=cat.id,m=model(),current=rowFor(id,selectedDate),days=last28(id),trend=reduction(id),now=currentStreak(id),best=longestStreak(id),base=m.baselineWeek[id];
