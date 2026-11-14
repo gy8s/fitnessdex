@@ -126,7 +126,8 @@ assert.equal(cvApp.state().logs.length,211,'Repeating last must not auto-save a 
 cvWin.fdHistoryQuery='older walking record 209';
 assert(cvApp.history().includes('older walking record 209'),'Searching whole History (beyond latest 200) failed');
 cvWin.fdHistoryQuery='';
-for(const [id,value] of Object.entries({date:cv.date,clock:'12:00',notes:'Unfinished and recoverable',session:'standalone'}))
+const doneAt=new Date(Date.now()-120000),doneDay=[doneAt.getFullYear(),String(doneAt.getMonth()+1).padStart(2,'0'),String(doneAt.getDate()).padStart(2,'0')].join('-'),doneClock=[String(doneAt.getHours()).padStart(2,'0'),String(doneAt.getMinutes()).padStart(2,'0')].join(':');
+for(const [id,value] of Object.entries({date:doneDay,clock:doneClock,notes:'Unfinished and recoverable',session:'standalone'}))
  cv.doc.getElementById(id).value=value;
 cv.doc.handlers.input({target:{closest(){return true}}});
 assert(cv.keys.has('fitnessdex-quick-log-draft-v1'),'Ordinary quick-log draft not captured');
