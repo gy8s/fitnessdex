@@ -1,5 +1,5 @@
 {
   "version": "1.0.1",
   "released": "2026-11-14",
-  "notes": "One FitnessDex Android installation: simpler step connection, automatic background setup, immediate sync on app launch, and clear freshness labels."
+  "notes": "Fix Android launch crash by restoring the standard Android Browser Helper activity. One FitnessDex installation, with Health Connect background steps and manual refresh."
 }
