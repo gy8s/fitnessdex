@@ -44,8 +44,8 @@ jobs:
         run: |
           APK="android-steps/app/build/outputs/apk/debug/app-debug.apk"
           if gh release view fitnessdex-android-v1.0.0 >/dev/null 2>&1; then
-            echo "Release tag already exists. Never overwrite an APK with a different signing key." >&2
-            exit 1
+            echo "Immutable signed APK already exists: do not overwrite or re-sign this release."
+            exit 0
           fi
           gh release create fitnessdex-android-v1.0.0 "$APK#FitnessDex-Android.apk" \
             --title "FitnessDex Android 1.0.0" \
