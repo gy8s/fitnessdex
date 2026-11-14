@@ -12,6 +12,9 @@ const dateKey=x=>[x.getFullYear(),String(x.getMonth()+1).padStart(2,'0'),String(
 const nowKey=()=>dateKey(new Date());
 const percent=n=>Math.min(100,Math.max(0,Math.round(100*n/st.goal)));
 const current=()=>st.rows.find(r=>r.day===nowKey())?.steps??null;
+const lastSync=()=>st.rows.reduce((m,r)=>Math.max(m,Date.parse(r.synced_at)||0),0);
+const syncedLabel=()=>{const n=lastSync();return n?new Date(n).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'Never';};
+const noData=()=>st.devices.length>0&&st.rows.length>0&&st.rows.every(r=>r.steps===0);
 const last7=()=>{const now=new Date();return Array.from({length:7},(_,i)=>{const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-6+i),day=dateKey(d);return {day,steps:st.rows.find(r=>r.day===day)?.steps??null};});};
 async function session(){const c=api();if(!c)return null;const x=await c.auth.getSession();if(x.error)throw x.error;return x.data?.session||null;}
 async function request(route,data={}){
@@ -44,11 +47,13 @@ window.fdStepsView=()=>{
  const devices=st.devices.map(d=>'<div class="fd-step-device"><span>Linked '+esc(new Date(d.created_at).toLocaleDateString('en-GB'))+(d.last_used_at?' · last synced '+esc(new Date(d.last_used_at).toLocaleDateString('en-GB')):' · awaiting first sync')+'</span><button onclick="fdStepsRevoke(\''+esc(d.id)+'\')">Unlink</button></div>').join('');
  return '<section class="fd-care-page fd-steps-page"><div class="fd-care-top"><button class="fd-care-back" onclick="navigate(\'more\')">‹ More</button><small>HEALTH CONNECT</small><h1>Daily steps</h1><p>Step totals from your phone, kept separate from exercise records.</p></div>'+
  '<div class="fd-steps-hero"><small>TODAY</small><div><strong>'+(n===null?'—':fmt(n))+'</strong><span> / '+fmt(st.goal)+' steps</span></div><div class="fd-care-gauge"><span style="width:'+percent(n||0)+'%"></span></div><p>'+(n===null?'Connect your Android companion to see steps.':n>=st.goal?'Daily target reached':fmt(st.goal-n)+' steps to your target')+'</p></div>'+
+ '<div class="fd-steps-sync-info"><strong>Last device upload:</strong> '+esc(syncedLabel())+'<small>Refresh checks the cloud, not Health Connect. Reopen FitnessDex Steps and sync there to upload new totals.</small></div>'+
+ (noData()?'<p class="fd-step-error">All uploaded totals are zero. No step records reached FitnessDex. Open Health Connect → Data and access → Activity → Steps, and check Samsung Health has written records.</p>':'')+
  '<div class="fd-steps-metrics"><div><b>'+fmt(total)+'</b><small>Last 7 days</small></div><div><b>'+hits+'/7</b><small>Target days</small></div></div>'+
  '<div class="fd-steps-chart"><div class="row"><h2>Last seven days</h2><span class="muted">Daily totals</span></div><div class="fd-steps-bars">'+bars+'</div></div>'+
  '<label class="fd-steps-goal-label" for="fd-steps-goal">Daily step goal</label><select id="fd-steps-goal" onchange="fdStepsSetGoal(this.value)">'+[4000,6000,8000,10000,12000,15000].map(v=>'<option value="'+v+'" '+(v===st.goal?'selected':'')+'>'+fmt(v)+' steps</option>').join('')+'</select>'+
  '<div class="fd-steps-pair"><strong>Connect your Samsung</strong><p>Android restricts Health Connect to native apps. Pair the small FitnessDex Steps companion to read seven days of steps.</p>'+
- '<a class="fd-steps-apk" href="https://github.com/gy8s/fitnessdex/releases/download/fitnessdex-steps-v0.1.0/app-debug.apk" target="_blank" rel="noopener noreferrer">Download Android companion ↗</a>'+
+ '<a class="fd-steps-apk" href="https://github.com/gy8s/fitnessdex/releases/download/fitnessdex-steps-v0.1.1/app-debug.apk" target="_blank" rel="noopener noreferrer">Download Android companion ↗</a>'+
  '<p class="fd-step-connection">'+(st.devices.length?'✓ '+st.devices.length+' paired device(s)':st.signed?'No paired device yet':'Sign in to cloud saving first')+'</p>'+
  (st.signed?'<button class="fd-care-primary" onclick="fdStepsPair()">Create private pairing code</button>':'<button class="fd-care-secondary" onclick="navigate(\'more\');fdMoreCloud()">Cloud saving sign-in</button>')+
  (st.pair?'<div class="fd-step-pair-token"><label for="fd-step-token">Copy into the companion app</label><textarea id="fd-step-token" rows="2" readonly>'+esc(st.pair)+'</textarea><button class="fd-care-secondary" onclick="fdStepsCopy()">Copy code</button><small>This grants step uploads only. It disappears when you reload this page.</small></div>':'')+
@@ -76,7 +81,9 @@ if(c)c.auth.onAuthStateChange((event,auth)=>{
  if(event==='SIGNED_OUT'){st.signed=false;st.rows=[];st.devices=[];st.pair='';if(tab==='steps'||tab==='home')render();}
  if(auth?.user&&['INITIAL_SESSION','SIGNED_IN'].includes(event))setTimeout(()=>void load(),0);
 });
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&tab==='steps')void load();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&['home','steps'].includes(tab))void load();});
+window.addEventListener('focus',()=>{if(['home','steps'].includes(tab))void load();});
+setInterval(()=>{if(!document.hidden&&['home','steps'].includes(tab))void load();},60000);
 if(tab==='home')render();
 void load();
 })();

@@ -25,7 +25,9 @@ for(const file of external){new vm.Script(read(file),{filename:file});}
 assert(external.includes('notifications.js'),'Foreground notification UI module missing');
 assert(external.includes('push-client.js'),'Background push registration module missing');
 assert(external.includes('steps.js'),'Health Connect steps dashboard module missing');
-assert(read('steps.js').includes('fitnessdex-steps-v0.1.0/app-debug.apk'),'Companion install link missing');
+assert(read('steps.js').includes('All uploaded totals are zero'),'Missing-source warning must appear');
+assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/StepSync.kt').includes('if(days.isEmpty())'),'Empty Health Connect source must not upload fake steps');
+assert(read('steps.js').includes('fitnessdex-steps-v0.1.1/app-debug.apk'),'Companion install link missing');
 assert(sw.includes("self.addEventListener('push'"),'Background push delivery handler missing');
 assert(read('push-client.js').includes('fdPushBackgroundTest'),'Queued server push test missing');
 assert(sw.includes("self.addEventListener('notificationclick'"),'Notifications must navigate correctly when tapped');

@@ -36,7 +36,7 @@ class SyncWorker(appContext:Context,params:WorkerParameters):CoroutineWorker(app
    private const val NAME="fitnessdex_health_connect_step_sync"
    fun schedule(context:Context){
      val constraints=Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-     val request=PeriodicWorkRequestBuilder<SyncWorker>(3,TimeUnit.HOURS).setConstraints(constraints).build()
+     val request=PeriodicWorkRequestBuilder<SyncWorker>(30,TimeUnit.MINUTES).setConstraints(constraints).build()
      WorkManager.getInstance(context).enqueueUniquePeriodicWork(NAME,ExistingPeriodicWorkPolicy.UPDATE,request)
    }
    fun cancel(context:Context){WorkManager.getInstance(context).cancelUniqueWork(NAME)}

@@ -536,3 +536,9 @@ main{padding-top:21px}
 /* Download the Android Health Connect bridge from the verified release asset. */
 .fd-steps-apk{display:block;text-decoration:none;text-align:center;font-size:13px;font-weight:800;color:#dffcf0;background:#245b55;border:1px solid #4cae98;border-radius:12px;padding:14px;line-height:1.4}
 .fd-steps-apk:hover,.fd-steps-apk:focus-visible{border-color:#9bebc6;background:#2a7668;color:white}
+
+/* v0.8.11 — distinguish cloud fetch from a fresh Health Connect upload */
+.fd-steps-sync-info{display:grid;gap:5px;border:1px solid #3b6173;background:#142e41;border-radius:12px;padding:13px 15px;font-size:13px}
+.fd-steps-sync-info strong{font-size:12px;color:#c7e7e4}
+.fd-steps-sync-info small{font-size:11px;color:#b4cbd7;line-height:1.55}
+.fd-steps-page .fd-step-error{border:1px solid #8a7048;background:#3a3027;padding:12px 14px;border-radius:11px;font-size:12px;color:#f2dbbc;line-height:1.6}

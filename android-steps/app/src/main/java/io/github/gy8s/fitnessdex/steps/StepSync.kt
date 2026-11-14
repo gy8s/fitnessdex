@@ -15,7 +15,7 @@ import java.net.URL
 import java.time.LocalDate
 import java.time.ZoneId
 
-data class StepDay(val day:LocalDate,val steps:Long)
+data class StepDay(val day:LocalDate,val steps:Long,val hasRecords:Boolean)
 
 object StepSync {
  private const val UPLOAD="https://ntepqkhftnnwtowpuggt.supabase.co/functions/v1/fitnessdex-steps/upload"
@@ -30,13 +30,16 @@ object StepSync {
      val end=day.plusDays(1).atStartOfDay(zone).toInstant()
      val result=hc.aggregate(AggregateRequest(metrics=setOf(StepsRecord.COUNT_TOTAL),
        timeRangeFilter=TimeRangeFilter.between(start,end)))
-     totals+=StepDay(day,(result[StepsRecord.COUNT_TOTAL]?:0L).coerceAtLeast(0L))
+     val count=result[StepsRecord.COUNT_TOTAL]
+     totals+=StepDay(day,(count?:0L).coerceAtLeast(0L),count!=null)
    }
    return totals
  }
  suspend fun sync(context:Context):List<StepDay>{
    val token=TokenStore.get(context)?:throw IOException("Pair with FitnessDex first.")
-   val days=readSevenDays(context)
+   val days=readSevenDays(context).filter{it.hasRecords}
+   // Missing Health Connect records must never be published as an all-zero success.
+   if(days.isEmpty())throw IOException("No step records found in Health Connect. Check Health Connect > Data and access > Activity > Steps; then allow Samsung Health to write Steps and reopen Samsung Health.")
    withContext(Dispatchers.IO){
      val values=JSONArray()
      days.forEach{values.put(JSONObject().put("day",it.day.toString()).put("steps",it.steps))}

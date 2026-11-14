@@ -1,5 +1,5 @@
 {
-  "version": "0.8.10",
+  "version": "0.8.11",
   "released": "2026-11-14",
-  "notes": "Step-tracking dashboard refresh now appears immediately at startup and updates when Health Connect data synchronizes. Android companion v0.1.0 available from Steps settings."
+  "notes": "Investigate missing step readings: display last device sync and Health Connect no-data warnings, refresh cloud totals while FitnessDex is visible, and link companion 0.1.1 with faster sync and truthful missing-data handling."
 }

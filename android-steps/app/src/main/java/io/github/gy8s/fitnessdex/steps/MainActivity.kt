@@ -36,7 +36,7 @@ class MainActivity:ComponentActivity(){
  private val backgroundPermissionPrompt=registerForActivityResult(PermissionController.createRequestPermissionResultContract()){granted->
    if(backgroundPermission in granted){
      SyncWorker.schedule(this)
-     status("Background sync enabled. Android schedules an update approximately every 3 hours.")
+     status("Background sync enabled. Android attempts an update roughly every 30 minutes; timing can vary.")
    }else status("Background access was declined. Manual syncing still works.")
  }
  private fun dp(value:Int)=(resources.displayMetrics.density*value).toInt()
@@ -100,7 +100,7 @@ class MainActivity:ComponentActivity(){
    }
    statusView=text(root,"Checking Health Connect…",14f,"#AAE8D5",19)
    result=text(root,"",15f,"#E3F4F6",8)
-   text(root,"Background access needs a second Health Connect permission. Android may delay background work due to battery settings; use manual sync whenever needed.",12f,"#A6BDC9",14)
+   text(root,"If step totals are missing, inspect Health Connect → Data and access → Activity → Steps. Samsung Health must have permission to WRITE steps there. Android may delay background work.",12f,"#A6BDC9",14)
    val scroll=ScrollView(this).apply{isFillViewport=true;addView(root)}
    setContentView(scroll)
    status(when{
@@ -150,9 +150,9 @@ class MainActivity:ComponentActivity(){
    lifecycleScope.launch{
      try{
        val days=StepSync.sync(this@MainActivity)
-       val current=days.lastOrNull()
-       status("Seven days synced to FitnessDex successfully.")
-       result.text="Today: "+String.format(Locale.UK,"%,d",current?.steps?:0L)+" steps\n"+
+       val current=days.find{it.day==LocalDate.now()}
+       status(days.size.toString()+" day(s) of recorded steps synced to FitnessDex.")
+       result.text="Today: "+(if(current!=null)String.format(Locale.UK,"%,d",current.steps)+" steps" else "No step records in Health Connect yet")+"\n"+
          "Date: "+(current?.day?:LocalDate.now())+"\nOpen FitnessDex → Daily steps → Refresh steps."
      }catch(e:Exception){status("Sync failed: "+(e.message?:"Unknown error"))}
      finally{syncing=false}
@@ -161,7 +161,7 @@ class MainActivity:ComponentActivity(){
  override fun onResume(){
    super.onResume()
    if(!::statusView.isInitialized||TokenStore.get(this)==null||syncing||
-     System.currentTimeMillis()-TokenStore.lastSync(this)<=3*3600_000L)return
+     System.currentTimeMillis()-TokenStore.lastSync(this)<90_000L)return
    val hc=health()?:return
    lifecycleScope.launch{
      try{if(stepsPermission in hc.permissionController.getGrantedPermissions())syncNow()}
