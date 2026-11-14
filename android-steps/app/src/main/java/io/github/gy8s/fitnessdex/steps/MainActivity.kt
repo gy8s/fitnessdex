@@ -25,7 +25,7 @@ import java.util.Locale
 class MainActivity:ComponentActivity(){
  private val stepsPermission=HealthPermission.getReadPermission(StepsRecord::class)
  private val backgroundPermission=HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
- private lateinit var status:TextView
+ private lateinit var statusView:TextView
  private lateinit var result:TextView
  private lateinit var tokenInput:EditText
  private var syncing=false
@@ -40,7 +40,7 @@ class MainActivity:ComponentActivity(){
    }else status("Background access was declined. Manual syncing still works.")
  }
  private fun dp(value:Int)=(resources.displayMetrics.density*value).toInt()
- private fun status(message:String){if(::status.isInitialized)status.text=message}
+ private fun status(message:String){if(::statusView.isInitialized)statusView.text=message}
  private fun text(parent:LinearLayout,label:String,size:Float,color:String,top:Int=0):TextView{
    val t=TextView(this).apply{
      text=label;textSize=size;setTextColor(Color.parseColor(color))
@@ -98,7 +98,7 @@ class MainActivity:ComponentActivity(){
      SyncWorker.cancel(this)
      status("Local pairing cleared. To revoke cloud access, also unlink under FitnessDex → Daily steps.")
    }
-   status=text(root,"Checking Health Connect…",14f,"#AAE8D5",19)
+   statusView=text(root,"Checking Health Connect…",14f,"#AAE8D5",19)
    result=text(root,"",15f,"#E3F4F6",8)
    text(root,"Background access needs a second Health Connect permission. Android may delay background work due to battery settings; use manual sync whenever needed.",12f,"#A6BDC9",14)
    val scroll=ScrollView(this).apply{isFillViewport=true;addView(root)}
@@ -160,7 +160,7 @@ class MainActivity:ComponentActivity(){
  }
  override fun onResume(){
    super.onResume()
-   if(!::status.isInitialized||TokenStore.get(this)==null||syncing||
+   if(!::statusView.isInitialized||TokenStore.get(this)==null||syncing||
      System.currentTimeMillis()-TokenStore.lastSync(this)<=3*3600_000L)return
    val hc=health()?:return
    lifecycleScope.launch{
