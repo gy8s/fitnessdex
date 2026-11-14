@@ -4,6 +4,14 @@ Updated: 13 November 2026
 
 This file records priorities and planned features. A roadmap item is **not** an implementation commitment or a completed feature. Keep the app's one-action-at-a-time design and preserve existing exercise IDs, activity history, rewards and cloud saves.
 
+## Reliability — v0.8.1
+
+- [x] Check device-save results for ordinary exercise logging/editing, deletion, recovery-day changes, import and restore. If storage rejects a write, roll back in-memory changes and retain the open form when appropriate; never show a false success.
+- [x] Add a small visible device/cloud status indicator; explain attention states and link directly to cloud settings.
+- [x] Keep up to three pre-change local recovery checkpoints, validate snapshots before restoring, and protect the current save before replacement.
+- [x] Add zero-dependency release checks for version coherence, JavaScript syntax, PWA cache contents and transactional log saving.
+- [ ] Real-device destructive restore, concurrent cloud changes, storage-quota failure and PWA update tests remain manual release gates.
+
 ## Daily care — v0.8.0
 
 - Water only, no nutrition. Default target 2 L/day, adjustable daily and default targets up to 5 L for different needs. One-tap 250/500/750 ml entries, custom amount/time, undo.
