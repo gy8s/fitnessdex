@@ -45,7 +45,12 @@ assert(read('steps.js').includes('All uploaded totals are zero'),'Missing-source
 assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/SyncWorker.kt').includes('15,TimeUnit.MINUTES'),'Background step sync should use Android minimum period');
 assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/MainActivity.kt').includes('Automatic sync ON'),'Companion must expose automatic sync status');
 assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/StepSync.kt').includes('if(days.isEmpty())'),'Empty Health Connect source must not upload fake steps');
-assert(read('steps.js').includes('fitnessdex-android-v0.2.2/app-debug.apk'),'Companion install link missing');
+const androidWorkflow=read('.github/workflows/steps-android.yml');
+const releaseTag=androidWorkflow.match(/gh release view (fitnessdex-android-v[\d.]+)/)?.[1];
+const releaseName=androidWorkflow.match(/\$APK#([\w.-]+\.apk)/)?.[1];
+assert(releaseTag&&releaseName,'Android APK release tag or asset name missing from workflow');
+assert(read('steps.js').includes('/releases/download/'+releaseTag+'/'+releaseName),
+ 'Android APK download must match published GitHub release asset name');
 assert(sw.includes("self.addEventListener('push'"),'Background push delivery handler missing');
 assert(read('push-client.js').includes('fdPushBackgroundTest'),'Queued server push test missing');
 assert(sw.includes("self.addEventListener('notificationclick'"),'Notifications must navigate correctly when tapped');
