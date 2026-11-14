@@ -43,9 +43,8 @@ assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('android:
 assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/MainActivity.kt').includes('requestLiveSensor'),'Native live-step deep link not wired');
 assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/LiveStepsService.kt').includes('TYPE_STEP_COUNTER'),'Hardware step sensor missing');
 assert(read('steps.js').includes('intent://steps/connect?token='),'Native pairing link missing');
-assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('android:name=".FitnessDexLauncherActivity"'),'Unified native launcher missing');
-assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/FitnessDexLauncherActivity.kt').includes('SyncWorker.syncOnOpen'),'Launch must request an immediate step refresh');
-assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/SyncWorker.kt').includes('OneTimeWorkRequestBuilder<SyncWorker>'),'Immediate background sync must be scheduled');
+assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"'),'Use the standard Android Browser Helper launcher');
+assert(!fs.existsSync('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/FitnessDexLauncherActivity.kt'),'No custom startup logic that can terminate FitnessDex');
 assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/MainActivity.kt').includes('if(firstPairing){firstPairing=false;enableBackground()}'),'Pairing with existing read permission must still request background sync');
 assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('android:scheme="fitnessdex"'),'Native step deep link missing');
 assert(read('steps.js').includes('All uploaded totals are zero'),'Missing-source warning must appear');

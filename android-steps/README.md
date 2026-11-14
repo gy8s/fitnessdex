@@ -7,7 +7,7 @@ The APK launches the FitnessDex web interface, preserving its signed-in cloud ac
 - From Daily steps, connect the phone once. The Android app requests Health Connect Steps read access and, where supported, background-read access.
 - The pairing token is upload-only and encrypted by Android Keystore; the web UI never holds the stored native token.
 - A successful pairing immediately uploads the last seven days of Health Connect aggregates. Empty Health Connect days do not become invented zero totals.
-- On opening the Android launcher after a period without upload, it schedules an immediate one-time Health Connect sync. Periodic WorkManager uploads run at Android's 15-minute minimum when background permission is granted. **Android can delay background work; this is not constant real-time daily tracking.**
+- The Android launcher uses Android Browser Helper's standard implementation. Periodic WorkManager uploads run at Android's 15-minute minimum when background permission is granted. Tap **Update steps now** for immediate Health Connect catch-up. **Android can delay background work; this is not constant real-time daily tracking.**
 - Dedicated walk/hike/run sessions can separately activate the existing foreground sensor service for provisional 10-second step updates. These are not added twice to the daily total.
 - The UI labels stale totals instead of calling them current. Samsung Health must actually have written its steps to Health Connect.
 

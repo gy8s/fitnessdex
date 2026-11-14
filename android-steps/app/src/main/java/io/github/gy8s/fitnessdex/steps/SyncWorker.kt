@@ -8,8 +8,6 @@ import androidx.health.connect.client.records.StepsRecord
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -36,23 +34,11 @@ class SyncWorker(appContext:Context,params:WorkerParameters):CoroutineWorker(app
  }
  companion object{
    private const val NAME="fitnessdex_health_connect_step_sync"
- private const val OPEN_NAME="fitnessdex_update_steps_on_open"
    fun schedule(context:Context){
      val constraints=Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
      val request=PeriodicWorkRequestBuilder<SyncWorker>(15,TimeUnit.MINUTES).setConstraints(constraints).build()
      WorkManager.getInstance(context).enqueueUniquePeriodicWork(NAME,ExistingPeriodicWorkPolicy.UPDATE,request)
    }
-   fun syncOnOpen(context:Context){
-     // The minimum 15-minute periodic interval alone cannot refresh the app on launch.
-     // Avoid spamming the device when Chrome/TWA restores several activities in succession.
-     if(TokenStore.get(context)==null||System.currentTimeMillis()-TokenStore.lastSync(context)<60_000L)return
-     val constraints=Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
-     val request=OneTimeWorkRequestBuilder<SyncWorker>().setConstraints(constraints).build()
-     WorkManager.getInstance(context).enqueueUniqueWork(OPEN_NAME,ExistingWorkPolicy.KEEP,request)
-   }
-   fun cancel(context:Context){
-     WorkManager.getInstance(context).cancelUniqueWork(NAME)
-     WorkManager.getInstance(context).cancelUniqueWork(OPEN_NAME)
-   }
+   fun cancel(context:Context){WorkManager.getInstance(context).cancelUniqueWork(NAME)}
  }
 }
