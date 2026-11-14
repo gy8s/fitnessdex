@@ -1,5 +1,5 @@
 {
-  "version": "0.8.2",
+  "version": "0.8.3",
   "released": "2026-11-14",
-  "notes": "Convenience: repeat last activity, undo a saved log, restore unfinished ordinary log, Daily Care one-tap actions, full History search and safe day-change refresh."
+  "notes": "Visual polish: dashboard level progress, stronger primary action, illustrated mobile navigation and consistent card, form and Daily Care styling. No changes to saved data or logging."
 }
