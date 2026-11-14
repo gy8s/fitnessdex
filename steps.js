@@ -41,6 +41,7 @@ async function load(){
   if(a[0].error)throw a[0].error;
   st.rows=(a[0].data||[]).filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.day)&&Number.isInteger(r.steps));
   st.devices=a[1].devices||[];
+  if(st.devices.some(d=>d.last_used_at))st.pair='';
   if(a[2].error)throw a[2].error;
   st.live=a[2].data||null;
  }catch(e){st.error=e?.message||'Could not load steps';}
@@ -53,7 +54,7 @@ window.fdStepsHome=()=>{
 window.fdStepsView=()=>{
  const n=current(),breakdown=window.fdMovementBreakdownToday?.(n),seven=last7(),hits=seven.filter(x=>x.steps!==null&&x.steps>=st.goal).length,total=seven.reduce((a,x)=>a+(x.steps||0),0);
  const bars=seven.map(x=>'<div class="fd-step-day"><span class="fd-step-count">'+(x.steps===null?'—':fmt(x.steps))+'</span><div class="fd-step-bar"><span style="height:'+(x.steps===null?0:percent(x.steps))+'%" class="'+(x.steps!==null&&x.steps>=st.goal?'hit':'')+'"></span></div><small>'+new Date(x.day+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short'})+'</small></div>').join('');
- const devices=st.devices.map(d=>'<div class="fd-step-device"><span>Connection created '+esc(new Date(d.created_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))+(d.last_used_at?' · last upload '+esc(new Date(d.last_used_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})):' · never uploaded')+'</span><button onclick="fdStepsRevoke(\''+esc(d.id)+'\')">Unlink</button></div>').join('');
+
  return '<section class="fd-care-page fd-steps-page"><div class="fd-care-top"><button class="fd-care-back" onclick="navigate(\'more\')">‹ More</button><small>HEALTH CONNECT</small><h1>Daily steps</h1><p>Step totals from your phone, kept separate from exercise records.</p></div>'+
  '<div class="fd-steps-hero"><small>'+(isStale()?'LAST KNOWN TOTAL · OUT OF DATE':'TODAY')+'</small><div><strong>'+(n===null?'—':fmt(n))+'</strong><span> / '+fmt(st.goal)+' steps</span></div><div class="fd-care-gauge"><span style="width:'+percent(n||0)+'%"></span></div><p>'+(n===null?'No step data received yet.':isStale()?'Last phone upload '+esc(syncedLabel())+'; not your current total.':n>=st.goal?'Daily target reached':fmt(st.goal-n)+' steps to your target')+'</p></div>'+
  (isStale()?'<p class="fd-step-error">Phone updates are overdue. Refreshing this page cannot read steps from Android; use Update steps from this phone below.</p>':'')+
@@ -65,24 +66,22 @@ window.fdStepsView=()=>{
  '<div class="fd-steps-metrics"><div><b>'+fmt(total)+'</b><small>Last 7 days</small></div><div><b>'+hits+'/7</b><small>Target days</small></div></div>'+
  '<div class="fd-steps-chart"><div class="row"><h2>Last seven days</h2><span class="muted">Daily totals</span></div><div class="fd-steps-bars">'+bars+'</div></div>'+
  '<label class="fd-steps-goal-label" for="fd-steps-goal">Daily step goal</label><select id="fd-steps-goal" onchange="fdStepsSetGoal(this.value)">'+[4000,6000,8000,10000,12000,15000].map(v=>'<option value="'+v+'" '+(v===st.goal?'selected':'')+'>'+fmt(v)+' steps</option>').join('')+'</select>'+
- '<div class="fd-steps-pair"><strong>Phone step sync</strong><p>Last phone upload: '+esc(syncedLabel())+'. Cloud refresh cannot start a phone upload.</p>'+
- (nativeAndroid()?'<a class="fd-care-primary fd-native-pair" href="'+esc(syncLink)+'">Update steps from this phone</a>':'<p>Open FitnessDex on Android to sync your phone.</p>')+
- '<p class="fd-step-connection">'+(st.devices.length?st.devices.length+' saved connection(s) · not necessarily separate phones':st.signed?'No phone connection yet':'Sign in to cloud saving first')+'</p>'+
- '<details class="fd-care-details" '+(st.pair?'open':'')+'><summary>Setup or repair step connection</summary><p>Only use this if the update button says this installation is not paired, or if you need to reinstall FitnessDex.</p>'+
- '<a class="fd-steps-apk" href="https://github.com/gy8s/fitnessdex/releases/download/fitnessdex-android-v0.2.3/app-debug.apk" target="_blank" rel="noopener noreferrer">Install or update FitnessDex Android</a>'+
- (st.signed?'<button class="fd-care-secondary" onclick="fdStepsPair()">Pair this installation</button>':'<button class="fd-care-secondary" onclick="navigate(\'more\');fdMoreCloud()">Cloud saving sign-in</button>')+
- (st.pair?'<div class="fd-step-pair-token">'+(nativeAndroid()?'<a class="fd-care-primary fd-native-pair" href="'+esc(nativeLink(st.pair))+'">Complete pairing inside FitnessDex</a>':'<p>Open this page on Android to pair.</p>')+'<details class="fd-care-details"><summary>Manual pairing code</summary><label for="fd-step-token">Pairing code</label><textarea id="fd-step-token" rows="2" readonly>'+esc(st.pair)+'</textarea><button class="fd-care-secondary" onclick="fdStepsCopy()">Copy code</button></details></div>':'')+
- '</details>'+
- (devices?'<details class="fd-care-details"><summary>Saved connections</summary>'+devices+'</details>':'')+
- '<button class="fd-care-secondary" onclick="fdStepsRefresh()">Check latest cloud upload</button>'+
- '<p class="fd-care-note">If a fresh phone sync still reports far fewer steps than Samsung Health, check Health Connect → Activity → Steps to confirm Samsung Health is supplying data.</p>'+
+ '<div class="fd-steps-pair"><strong>Step tracking</strong>'+
+ (st.signed?(st.pair?
+  '<p>Finish connecting this phone. This is a one-time setup.</p><a class="fd-care-primary fd-native-pair" href="'+esc(nativeLink(st.pair))+'">Finish connection</a>'+
+  '<details class="fd-care-details"><summary>Connection link not opening?</summary><label for="fd-step-token">Pairing code</label><textarea id="fd-step-token" rows="2" readonly>'+esc(st.pair)+'</textarea><button class="fd-care-secondary" onclick="fdStepsCopy()">Copy code</button></details>'
+  :st.devices.some(d=>d.last_used_at)?
+  '<p>Connected. Step totals update automatically when Android permits. Last upload: '+esc(syncedLabel())+'.</p>'+
+  (nativeAndroid()?'<a class="fd-care-primary fd-native-pair" href="'+esc(syncLink)+'">Update steps now</a>':'')
+  :'<p>Connect this phone once to import your Health Connect steps.</p>'+
+  '<button class="fd-care-primary" onclick="fdStepsPair()">Connect phone</button>')
+  :'<p>Sign in under More → Cloud saving to activate step tracking.</p>')+
  (st.error?'<p class="fd-step-error">'+esc(st.error)+'</p>':'')+'</div>'+
  '<p class="fd-care-note">Health Connect aggregates multiple step sources to avoid duplicated steps. No step XP is awarded yet, so previously logged walking cannot be rewarded twice.</p></section>';
 };
 window.fdStepsSetGoal=value=>{const n=Number(value);if(![4000,6000,8000,10000,12000,15000].includes(n))return;st.goal=n;try{localStorage.setItem(GOAL_KEY,String(n));}catch(e){}render();};
-window.fdStepsPair=async()=>{try{st.pair=(await request('pair')).token;await load();toast('Tap Open step setup inside FitnessDex to connect.');}catch(e){st.error=e?.message||'Pairing failed';render();}};
+window.fdStepsPair=async()=>{try{st.pair=(await request('pair')).token;await load();toast('Tap Finish connection to enable your phone steps.');}catch(e){st.error=e?.message||'Pairing failed';render();}};
 window.fdStepsCopy=async()=>{if(!st.pair)return;try{await navigator.clipboard.writeText(st.pair);toast('Pairing code copied.');}catch(e){document.getElementById('fd-step-token')?.select();toast('Select and copy the code.');}};
-window.fdStepsRevoke=async id=>{if(!confirm('Unlink this device? Previous step totals remain saved.'))return;try{await request('revoke',{id});st.devices=st.devices.filter(d=>d.id!==id);st.pair='';render();toast('Device unlinked.');}catch(e){toast(e?.message||'Could not unlink');}};
 window.fdStepsRefresh=()=>{void load();};
 window.fdStepsOpen=()=>{navigate('steps');void load();};
 const originalRender=render;

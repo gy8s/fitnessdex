@@ -43,7 +43,10 @@ assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('android:
 assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/MainActivity.kt').includes('requestLiveSensor'),'Native live-step deep link not wired');
 assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/LiveStepsService.kt').includes('TYPE_STEP_COUNTER'),'Hardware step sensor missing');
 assert(read('steps.js').includes('intent://steps/connect?token='),'Native pairing link missing');
-assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('com.google.androidbrowserhelper.trusted.LauncherActivity'),'Unified Android launcher missing');
+assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('android:name=".FitnessDexLauncherActivity"'),'Unified native launcher missing');
+assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/FitnessDexLauncherActivity.kt').includes('SyncWorker.syncOnOpen'),'Launch must request an immediate step refresh');
+assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/SyncWorker.kt').includes('OneTimeWorkRequestBuilder<SyncWorker>'),'Immediate background sync must be scheduled');
+assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/MainActivity.kt').includes('if(firstPairing){firstPairing=false;enableBackground()}'),'Pairing with existing read permission must still request background sync');
 assert(read('android-steps/app/src/main/AndroidManifest.xml').includes('android:scheme="fitnessdex"'),'Native step deep link missing');
 assert(read('steps.js').includes('All uploaded totals are zero'),'Missing-source warning must appear');
 assert(read('android-steps/app/src/main/java/io/github/gy8s/fitnessdex/steps/SyncWorker.kt').includes('15,TimeUnit.MINUTES'),'Background step sync should use Android minimum period');
@@ -54,8 +57,11 @@ const releaseTag=androidWorkflow.match(/gh release view (fitnessdex-android-v[\d
 const apkFile=androidWorkflow.match(/APK="([^"]+\.apk)"/)?.[1];
 const releaseName=apkFile?.split('/').pop();
 assert(releaseTag&&releaseName,'Android APK release tag or source file missing from workflow');
-assert(read('steps.js').includes('/releases/download/'+releaseTag+'/'+releaseName),
- 'Android APK download must match the actual published file name, not its optional #label');
+assert.equal(releaseTag,'fitnessdex-android-v'+version.version,'Android and web version tags must agree');
+assert(read('android-steps/app/build.gradle.kts').includes('versionName = "'+version.version+'"'),'APK version must match web version');
+assert(!read('steps.js').includes('/releases/download/'),'Do not show another APK installer inside the installed app');
+assert(read('steps.js').includes('Connect phone'),'One-time step connection action missing');
+assert(read('steps.js').includes('Update steps now'),'Manual immediate catch-up action missing');
 assert(sw.includes("self.addEventListener('push'"),'Background push delivery handler missing');
 assert(read('push-client.js').includes('fdPushBackgroundTest'),'Queued server push test missing');
 assert(sw.includes("self.addEventListener('notificationclick'"),'Notifications must navigate correctly when tapped');

@@ -10,7 +10,7 @@
   <application android:label="FitnessDex" android:icon="@drawable/ic_fd"
     android:allowBackup="false" android:usesCleartextTraffic="false"
     android:theme="@android:style/Theme.Material.NoActionBar">
-    <activity android:name="com.google.androidbrowserhelper.trusted.LauncherActivity" android:exported="true">
+    <activity android:name=".FitnessDexLauncherActivity" android:exported="true">
       <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL"
         android:value="https://gy8s.github.io/fitnessdex/" />
       <intent-filter>
