@@ -32,7 +32,7 @@ async function load(){
   st.rows=(a[0].data||[]).filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(r.day)&&Number.isInteger(r.steps));
   st.devices=a[1].devices||[];
  }catch(e){st.error=e?.message||'Could not load steps';}
- finally{st.loading=false;if(tab==='steps')render();}
+ finally{st.loading=false;if(tab==='steps'||tab==='home')render();}
 }
 window.fdStepsHome=()=>{
  const n=current();
@@ -73,9 +73,10 @@ render=function(){
 };
 const c=api();
 if(c)c.auth.onAuthStateChange((event,auth)=>{
- if(event==='SIGNED_OUT'){st.signed=false;st.rows=[];st.devices=[];st.pair='';if(tab==='steps')render();}
+ if(event==='SIGNED_OUT'){st.signed=false;st.rows=[];st.devices=[];st.pair='';if(tab==='steps'||tab==='home')render();}
  if(auth?.user&&['INITIAL_SESSION','SIGNED_IN'].includes(event))setTimeout(()=>void load(),0);
 });
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&tab==='steps')void load();});
+if(tab==='home')render();
 void load();
 })();

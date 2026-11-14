@@ -1,5 +1,5 @@
 {
-  "version": "0.8.9",
+  "version": "0.8.10",
   "released": "2026-11-14",
-  "notes": "One-tap download link for the verified Health Connect Android companion APK from the Steps dashboard. Secure step pairing and existing exercise saves remain unchanged."
+  "notes": "Step-tracking dashboard refresh now appears immediately at startup and updates when Health Connect data synchronizes. Android companion v0.1.0 available from Steps settings."
 }
