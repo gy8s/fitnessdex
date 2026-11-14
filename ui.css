@@ -475,3 +475,31 @@ main{padding-top:21px}
  .fd-head-status>.pill{display:none}
 }
 @media(prefers-reduced-motion:reduce){button,.fd-level-bar>span{transition:none!important}}
+
+
+/* v0.8.4 — opt-in reminders */
+.fd-care-reminder-link{width:100%;display:flex;align-items:center;gap:13px;min-height:67px;padding:13px 16px;text-align:left;border:1px solid #3a5f72;background:#172e42;border-radius:15px}
+.fd-care-reminder-link>span:first-child{width:43px;height:43px;display:grid;place-items:center;border-radius:12px;background:#2c4366;color:#bfd8ff;font-size:24px}
+.fd-care-reminder-link>span:nth-child(2){display:grid;flex:1;gap:5px}
+.fd-care-reminder-link strong{font-size:14px}.fd-care-reminder-link small{font-size:11px;color:#afcad9}
+.fd-care-reminder-link>b{font-size:21px;color:#9bd6d1}
+.fd-reminder-status{display:flex;align-items:center;gap:13px;padding:16px;border:1px solid #43546c;background:#172839;border-radius:15px}
+.fd-reminder-status.is-on{border-color:#398e74;background:#193e39}
+.fd-reminder-status-icon{width:41px;height:41px;flex:0 0 auto;border-radius:13px;background:#29415a;color:#c8dcf0;display:grid;place-items:center;font-size:24px}
+.fd-reminder-status.is-on .fd-reminder-status-icon{background:#2b866d;color:#ecfff6}
+.fd-reminder-status>span:last-child{min-width:0;display:grid;gap:5px}
+.fd-reminder-status strong{font-size:15px}
+.fd-reminder-status small{font-size:11px;color:#b8d1dd;line-height:1.45}
+.fd-reminder-panel{padding:17px;border:1px solid #35546c;background:linear-gradient(145deg,#182e42,#132438);border-radius:16px;display:grid;gap:16px}
+.fd-reminder-panel h2{font-size:16px;margin:0}
+.fd-reminder-check{display:flex;align-items:flex-start;gap:12px;margin:0;font-size:14px}
+.fd-reminder-check input{width:21px;height:21px;flex:0 0 auto;accent-color:#6de6c3;margin:0}
+.fd-reminder-check>span{display:grid;gap:5px}
+.fd-reminder-check strong{font-size:14px;color:#e8f4fb}
+.fd-reminder-check small{font-size:11px;line-height:1.5;color:#b5cbd8}
+.fd-reminder-times{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.fd-reminder-times label{display:grid;gap:6px;font-size:11px;color:#b7cfdb;font-weight:700;min-width:0}
+.fd-reminder-times input{width:100%;min-width:0;font-size:14px;padding:10px 5px;border:1px solid #4d7180;border-radius:10px;background:#0b1c2e;color:#eafffa}
+.fd-reminder-panel>.fd-care-secondary{margin:0;min-height:43px}
+.fd-reminders-page .fd-care-note{margin:0;color:#a9c1ce}
+@media(max-width:400px){.fd-reminder-times{gap:5px}.fd-reminder-times input{font-size:12px;padding:8px 3px}.fd-reminder-panel{padding:13px}}

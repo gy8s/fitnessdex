@@ -86,6 +86,7 @@ function careHomePage(){
  return '<section class="fd-care-page">'+top('DAILY CARE','Small habits, every day','Water and supplement check-ins. No nutrition tracking.',false)+
  '<button class="fd-care-option" onclick="fdCareWater()"><span class="fd-care-icon water">◉</span><span><strong>Hydration</strong><small>'+fmt(w)+' of '+fmt(g)+'</small>'+gauge(w,g)+'</span><b>›</b></button>'+
  '<button class="fd-care-option" onclick="fdCareSupplements()"><span class="fd-care-icon supp">◇</span><span><strong>Supplements</strong><small>'+(s.due?s.done+' of '+s.due+' scheduled today':'Register a supplement routine')+'</small></span><b>›</b></button>'+
+ '<button class="fd-care-reminder-link" onclick="fdReminderOpen()"><span aria-hidden="true">◷</span><span><strong>Notifications</strong><small>Set up water and supplement reminders</small></span><b aria-hidden="true">›</b></button>'+
  '<p class="fd-care-note">Only water counts towards hydration. Supplement timing is based on the routine you choose.</p></section>';
 }
 function careWaterPage(){

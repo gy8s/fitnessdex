@@ -1,5 +1,5 @@
 {
-  "version": "0.8.3",
+  "version": "0.8.4",
   "released": "2026-11-14",
-  "notes": "Visual polish: dashboard level progress, stronger primary action, illustrated mobile navigation and consistent card, form and Daily Care styling. No changes to saved data or logging."
+  "notes": "Opt-in Android foreground reminders for water and scheduled supplements. Adjustable water reminder times, suppression for logged care, test notification, notification settings and app navigation on tap. No changes to saved records."
 }

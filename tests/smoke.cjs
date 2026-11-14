@@ -22,6 +22,8 @@ for(const path of ['index.html','ui.css','version.json',...external]){
  assert(cacheFiles.includes(path),'Missing from offline cache: '+path);
 }
 for(const file of external){new vm.Script(read(file),{filename:file});}
+assert(external.includes('notifications.js'),'Foreground notification UI module missing');
+assert(sw.includes("self.addEventListener('notificationclick'"),'Notifications must navigate correctly when tapped');
 new vm.Script(sw,{filename:'sw.js'});
 
 function boot(initial){
