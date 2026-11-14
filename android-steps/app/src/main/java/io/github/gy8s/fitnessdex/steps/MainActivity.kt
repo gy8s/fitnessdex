@@ -45,7 +45,7 @@ class MainActivity:ComponentActivity(){
    else status("Physical activity permission declined. Session timing and Health Connect syncing still work.")
  }
  private fun requestLiveSensor(session:String){
-   if(TokenStore.get(this)==null){status("Connect Health Connect under FitnessDex → Daily steps first.");return}
+   if(TokenStore.get(this)==null){status("Connect this phone from FitnessDex → Daily steps first.");return}
    if((getSystemService(SENSOR_SERVICE) as SensorManager).getDefaultSensor(Sensor.TYPE_STEP_COUNTER)==null){
      status("This phone does not expose a step-counter sensor. Health Connect still works.");return
    }
@@ -76,7 +76,7 @@ class MainActivity:ComponentActivity(){
      status("Automatic syncing enabled. You can close this app; FitnessDex will refresh cloud totals automatically.")
     }else{
      autoStatus("Automatic sync OFF · background access not allowed")
-     status("Background access was declined. You can still sync when opening FitnessDex step setup.")
+     status("Background permission was declined. Use Update steps now, or grant background access.")
    }
  }
  private fun dp(value:Int)=(resources.displayMetrics.density*value).toInt()
@@ -109,11 +109,11 @@ class MainActivity:ComponentActivity(){
      setBackgroundColor(Color.rgb(11,24,38))
    }
    text(root,"FD  /  FITNESSDEX",14f,"#8AEACD")
-   text(root,"Step sync",28f,"#F4FCFF",10)
-   text(root,"Read-only daily step totals from Health Connect. FitnessDex exercise logs stay unchanged.",14f,"#B4CAD8",9)
-   text(root,"Update step totals from your phone directly into FitnessDex.",14f,"#E5EDF2",18)
+   text(root,"FitnessDex · Steps",28f,"#F4FCFF",10)
+   text(root,"Reads your phone steps from Health Connect. No separate app is required.",14f,"#B4CAD8",9)
+   text(root,"Your daily steps appear in FitnessDex once this phone is connected.",14f,"#E5EDF2",18)
    if(TokenStore.get(this)==null){
-   text(root,"If this installation is not paired, paste a pairing code from FitnessDex here.",14f,"#E5EDF2",10)
+   text(root,"Connect once from FitnessDex → Daily steps. Enter a pairing code here only if Android fails to open the connection link.",14f,"#E5EDF2",10)
    tokenInput=EditText(this).apply{
      hint="Paste FitnessDex pairing code"
      setHintTextColor(Color.rgb(142,162,174))
@@ -131,16 +131,10 @@ class MainActivity:ComponentActivity(){
      }catch(e:Exception){status(e.message?:"Pairing code is invalid.")}
    }
    }
-   text(root,"Allow step access once. Automatic updates run inside FitnessDex.",14f,"#E5EDF2",16)
-   button(root,"Enable automatic syncing · one-time setup"){enableBackground()}
+   text(root,"Allow step access and background reading once. Your phone will then update totals automatically when Android permits.",14f,"#E5EDF2",16)
+   button(root,"Allow automatic step updates"){enableBackground()}
    button(root,"Update steps now"){allowOrSync()}
    button(root,"Back to FitnessDex"){finish()}
-   button(root,"Clear pairing from this phone"){
-     TokenStore.clear(this)
-     SyncWorker.cancel(this)
-     autoStatus("Automatic sync OFF · device unpaired")
-     status("Local pairing cleared. To revoke cloud access, also unlink under FitnessDex → Daily steps.")
-   }
    automationView=text(root,"Automatic sync: checking permissions…",14f,"#91F0D5",16)
    statusView=text(root,"Checking Health Connect…",14f,"#AAE8D5",19)
    result=text(root,"",15f,"#E3F4F6",8)
@@ -169,7 +163,7 @@ class MainActivity:ComponentActivity(){
       incoming.host=="steps"&&incoming.path=="/sync"){
      intent?.data=null
      window.decorView.post{
-       if(TokenStore.get(this)==null) status("This installation is not paired. Open FitnessDex → Daily steps → Setup or repair.")
+       if(TokenStore.get(this)==null) status("This phone is not connected. Open FitnessDex → Daily steps → Connect phone.")
        else allowOrSync()
      }
    }else if(intent?.action==Intent.ACTION_VIEW&&incoming?.scheme=="fitnessdex"&&
@@ -192,8 +186,10 @@ class MainActivity:ComponentActivity(){
    val hc=health()?:return
    lifecycleScope.launch{
      try{
-       if(stepsPermission in hc.permissionController.getGrantedPermissions())syncNow()
-       else stepPermissionPrompt.launch(setOf(stepsPermission))
+       if(stepsPermission in hc.permissionController.getGrantedPermissions()){
+         if(firstPairing){firstPairing=false;enableBackground()}
+         syncNow()
+       }else stepPermissionPrompt.launch(setOf(stepsPermission))
      }catch(e:Exception){status("Could not request step access: "+(e.message?:"Unknown"))}
    }
  }
@@ -203,7 +199,7 @@ class MainActivity:ComponentActivity(){
    if(hc.features.getFeatureStatus(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND)
      !=HealthConnectFeatures.FEATURE_STATUS_AVAILABLE){
      autoStatus("Automatic sync unavailable on this Health Connect version")
-     status("This Health Connect version does not allow background reads. Sync when you open this companion.")
+     status("Background step reading is unavailable on this phone. You can still sync manually.")
      return
    }
    lifecycleScope.launch{

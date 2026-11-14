@@ -38,14 +38,15 @@ jobs:
           name: FitnessDex-Android-APK
           path: android-steps/app/build/outputs/apk/debug/app-debug.apk
       - name: Publish test APK
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           APK="android-steps/app/build/outputs/apk/debug/app-debug.apk"
-          if gh release view fitnessdex-android-v0.2.3 >/dev/null 2>&1; then
-            gh release upload fitnessdex-android-v0.2.3 "$APK#FitnessDex-Android.apk" --clobber
-          else
-            gh release create fitnessdex-android-v0.2.3 "$APK#FitnessDex-Android.apk" \
-              --title "FitnessDex Android 0.2.3" \
-              --notes "One Android app with FitnessDex game through Chrome plus native Health Connect steps, cloud saves and web push preserved. Debug-signed prototype; stable future updates require a permanent private signing key."
+          if gh release view fitnessdex-android-v1.0.0 >/dev/null 2>&1; then
+            echo "Immutable signed APK already exists: do not overwrite or re-sign this release."
+            exit 0
           fi
+          gh release create fitnessdex-android-v1.0.0 "$APK#FitnessDex-Android.apk" \
+            --title "FitnessDex Android 1.0.0" \
+            --notes "Single-install testing release. FitnessDex v1.0.0 website, native Health Connect setup and step syncing. Debug signed: future seamless APK updates require a permanent private signing key."

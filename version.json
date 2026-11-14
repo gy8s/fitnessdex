@@ -1,5 +1,5 @@
 {
-  "version": "0.9.5",
+  "version": "1.0.0",
   "released": "2026-11-14",
-  "notes": "Step freshness labelled; update from phone inside FitnessDex; APK and pairing moved into repair controls."
+  "notes": "One FitnessDex Android installation: simpler step connection, automatic background setup, immediate sync on app launch, and clear freshness labels."
 }
