@@ -154,7 +154,7 @@ if(navigator.serviceWorker){
 try{
  const section=new URLSearchParams(location.search).get('fd-reminder');
  if(['water','supplements'].includes(section)){
-  history.replaceState(null,'',location.pathname);
+  // App-level history() is a separate function; opening the section requires no URL mutation.
   openSection(section);
  }
 }catch(e){}

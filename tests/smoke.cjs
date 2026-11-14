@@ -145,3 +145,35 @@ assert(!cvApp.state().logs.some(l=>l.at===loggedId),'Undo failed to remove the l
 assert.equal(cvApp.state().logs.length,211,'Undo must preserve earlier exercises');
 assert(cvApp.validBackup(cvApp.state()),'Undo produced an invalid backup');
 console.log('Convenience smoke checks passed: repeat, draft, full-history search, save and undo.');
+
+
+/* v0.8.5: the browser notification prompt must be user-initiated. */
+function verifyReminders(){
+ const browserStorage=new Map(),shown=[],messages=[];
+ let permissionRequests=0,intervals=0;
+ const FakeNotification={permission:'default',requestPermission:()=>{permissionRequests++;FakeNotification.permission='granted';return Promise.resolve('granted');}};
+ const fakeWindow={isSecureContext:true,addEventListener(){}};
+ const fakeDocument={getElementById(id){return {id,innerHTML:'',value:'10:00',checked:true}},querySelectorAll(){return []},addEventListener(){},body:{dataset:{}}};
+ const fakeNavigator={serviceWorker:{getRegistration:async()=>({active:{},showNotification:async(title,options)=>{shown.push({title,options})}}),addEventListener(){}}};
+ const storage={getItem:k=>browserStorage.get(k)??null,setItem:(k,v)=>browserStorage.set(k,v),removeItem:k=>browserStorage.delete(k)};
+ const module=new Function('window','document','navigator','localStorage','Notification','setInterval','location','today','S','render','tab','navigate','toast',
+  read('notifications.js')+'\nreturn window;');
+ const result=module(fakeWindow,fakeDocument,fakeNavigator,storage,FakeNotification,()=>{intervals++},{search:''},
+  ()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');},
+  {v9:{water:{baseGoal:2000,goals:[],entries:[]},supplements:{items:[],taken:[]}}},()=>{},'home',()=>{},s=>messages.push(s));
+ assert.equal(permissionRequests,0,'App must never ask for notification permission on boot');
+ assert.equal(result.fdReminderStatus().config.enabled,false,'Reminders must default to off');
+ assert.equal(intervals,1,'Reminder scheduler not registered');
+ return (async()=>{
+  await result.fdReminderEnable();
+  assert.equal(permissionRequests,1,'Enabling must request notification permission once');
+  assert.equal(result.fdReminderStatus().config.enabled,true,'Enabled reminder preference missing');
+  await result.fdReminderTest();
+  assert.equal(shown.length,1,'Test notification not delivered through service worker');
+  assert.equal(shown[0].options.data.section,'water','Test action must route to Daily Care');
+  result.fdReminderDisable();
+  assert.equal(result.fdReminderStatus().config.enabled,false,'Disabling failed to persist');
+  console.log('Reminder regression checks passed: opt-in permission, system delivery, opt-out.');
+ })();
+}
+verifyReminders().catch(e=>{console.error(e);process.exitCode=1;});

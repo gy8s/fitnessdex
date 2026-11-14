@@ -1,5 +1,5 @@
 {
-  "version": "0.8.4",
+  "version": "0.8.5",
   "released": "2026-11-14",
-  "notes": "Opt-in Android foreground reminders for water and scheduled supplements. Adjustable water reminder times, suppression for logged care, test notification, notification settings and app navigation on tap. No changes to saved records."
+  "notes": "Opt-in water and supplement notifications with improved app opening behaviour and permission tests. Reminders run while FitnessDex is active; closed-app push delivery is not yet enabled."
 }
