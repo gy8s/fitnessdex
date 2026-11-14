@@ -101,7 +101,27 @@ window.fdPushDisconnect=async()=>{
  if(!unregistered)setMode('off','This browser has stopped subscribing, but check cloud saving when reconnected.');
  return unregistered;
 };
-const handle=()=>{if(state()?.enabled&&Notification.permission==='granted')void connect();else setMode('off');};
+const handle=()=>{if(state()?.enabled&&'Notification' in window&&Notification.permission==='granted')void connect();else setMode('off');};
+
+window.fdPushBackgroundTest=async()=>{
+ if(mode!=='connected')return toast('Connect background push first, then try the test.');
+ try{
+  const account=await session();
+  if(!account?.access_token)throw Error('Sign in to cloud saving to run a background test.');
+  const registration=await navigator.serviceWorker.getRegistration('./');
+  const sub=await registration?.pushManager?.getSubscription();
+  if(!sub)throw Error('This device is not subscribed for background push.');
+  const response=await fetch(BASE+'/test',{
+   method:'POST',
+   headers:{'Authorization':'Bearer '+account.access_token,'Content-Type':'application/json'},
+   body:JSON.stringify({endpoint:sub.endpoint})
+  });
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(payload.error||'The server could not queue the test.');
+  toast('Server test queued. Close FitnessDex; a notification should arrive in around 1–2 minutes.');
+ }catch(e){toast('Background test: '+(e?.message||'failed'));}
+};
+
 window.addEventListener('fitnessdex:reminder-settings',handle);
 window.addEventListener('online',handle);
 window.addEventListener('focus',()=>{if(mode!=='connected')handle();});

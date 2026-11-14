@@ -103,7 +103,7 @@ function view(){
  '<button class="fd-care-secondary" onclick="fdReminderSave()">Save reminder preferences</button></div>'+
  (active?'<button class="fd-care-primary" onclick="fdReminderTest()">Send test notification</button><button class="fd-care-muted" onclick="fdReminderDisable()">Turn off reminders</button>':
  '<button class="fd-care-primary" '+(!available||permission==='denied'?'disabled':'')+' onclick="fdReminderEnable()">Enable notifications</button>')+
- '<div class="fd-reminder-push"><strong>Background delivery</strong><p id="fd-background-status">'+(window.fdPushStatus?.().text||'Sign in to cloud saving to connect.')+'</p>'+(active?'<button class="fd-care-secondary" onclick="fdPushConnect()">Connect / refresh background push</button>':'')+'</div>'+ 
+ '<div class="fd-reminder-push"><strong>Background delivery</strong><p id="fd-background-status">'+(window.fdPushStatus?.().text||'Sign in to cloud saving to connect.')+'</p>'+(active?'<button class="fd-care-secondary" onclick="fdPushConnect()">Connect / refresh background push</button><button class="fd-care-secondary" onclick="fdPushBackgroundTest()">Queue a closed-app test</button>':'')+'</div>'+ 
  '<p class="fd-care-note">When background push is connected, FitnessDex can notify you while closed. Otherwise these are foreground reminders: FitnessDex needs to be running to check the schedule. They are not guaranteed with the app closed, the phone asleep or Android restricting background activity. Reliable closed-app delivery requires a future push service. This feature does not send your health or supplement records to any notification provider.</p></section>';
 }
 window.fdReminderStatus=()=>({config:read(),permission:supported()?Notification.permission:'unsupported'});
