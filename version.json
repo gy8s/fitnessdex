@@ -1,5 +1,5 @@
 {
   "version": "0.9.4",
   "released": "2026-11-14",
-  "notes": "Android install link corrected to match published APK asset; cross-check added to release smoke tests."
+  "notes": "Android APK release URL verified against the published asset; smoke tests now check the actual uploaded filename."
 }
