@@ -1,5 +1,5 @@
 {
-  "version": "0.8.0",
-  "released": "2026-11-13",
-  "notes": "Daily care: hydration tracking and consistency rewards, supplement routines and timing, safe local/cloud v9 records. No nutrition."
+  "version": "0.8.1",
+  "released": "2026-11-14",
+  "notes": "Reliability: atomic log-save confirmation, protected delete/import/restore with local recovery checkpoints, cloud status chip and CI release smoke checks."
 }
