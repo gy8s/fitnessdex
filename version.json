@@ -1,5 +1,5 @@
 {
-  "version": "0.8.8",
+  "version": "0.8.9",
   "released": "2026-11-14",
-  "notes": "Read-only Health Connect steps dashboard: last-seven-day totals, goal setting and securely paired Android companion access. No changes to existing exercise records or XP."
+  "notes": "One-tap download link for the verified Health Connect Android companion APK from the Steps dashboard. Secure step pairing and existing exercise saves remain unchanged."
 }

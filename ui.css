@@ -532,3 +532,7 @@ main{padding-top:21px}
 .fd-step-pair-token label{font-size:11px;color:#c7e8db}.fd-step-pair-token textarea{width:100%;resize:none;border:1px solid #47796e;border-radius:9px;background:#091d29;color:#fff;padding:10px;font:12px/1.6 monospace;word-break:break-all}.fd-step-pair-token small{font-size:11px;color:#bfd6d5;line-height:1.5}
 .fd-step-device{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #304c5f;font-size:12px}.fd-step-device button{font-size:11px;padding:9px;background:#493038;border-color:#81545b}.fd-step-error{color:#ffcbbe!important}
 @media(max-width:370px){.fd-steps-bars{gap:3px}.fd-step-count{font-size:9px}.fd-steps-chart{padding:12px}}
+
+/* Download the Android Health Connect bridge from the verified release asset. */
+.fd-steps-apk{display:block;text-decoration:none;text-align:center;font-size:13px;font-weight:800;color:#dffcf0;background:#245b55;border:1px solid #4cae98;border-radius:12px;padding:14px;line-height:1.4}
+.fd-steps-apk:hover,.fd-steps-apk:focus-visible{border-color:#9bebc6;background:#2a7668;color:white}
