@@ -4,6 +4,16 @@ Updated: 13 November 2026
 
 This file records priorities and planned features. A roadmap item is **not** an implementation commitment or a completed feature. Keep the app's one-action-at-a-time design and preserve existing exercise IDs, activity history, rewards and cloud saves.
 
+## Everyday convenience — v0.8.2
+
+- [x] Repeat the most recently logged exercise with its actual sets, weight, hold or cardio values prefilled for review (never automatically record a duplicate).
+- [x] Undo an ordinary exercise log directly from the completion screen, using the existing confirmed deletion and progression recalculation path.
+- [x] Recover unfinished ordinary activity forms from a device-local draft. Clear it only after a successful save; guided progression already has separate draft protection.
+- [x] Keep Daily Care actions behind a compact home disclosure, including one-tap +250 ml water and a shortcut to supplements.
+- [x] Search the full exercise history by name, ID, notes and exact date; show matches in pages of 200 without losing input focus.
+- [x] Refresh non-editing screens on local-date rollover when the PWA returns to the foreground, without discarding active input forms.
+- [ ] Check Android keyboard/input behaviour, app relaunch, and cloud sync after undo on the installed PWA.
+
 ## Reliability — v0.8.1
 
 - [x] Check device-save results for ordinary exercise logging/editing, deletion, recovery-day changes, import and restore. If storage rejects a write, roll back in-memory changes and retain the open form when appropriate; never show a false success.
