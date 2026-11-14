@@ -85,3 +85,60 @@ const empty=boot(null);
 assert.equal(empty.app.state().logs.length,0,'Existing empty profile broken');
 assert(empty.app.validBackup(empty.app.state()),'Old profile backward compatibility broken');
 console.log('FitnessDex smoke checks passed: version, PWA assets, JS syntax, old saves, failed/successful activity saves, deletion rollback, recovery.');
+
+
+/* 0.8.2: exercise-copy, quick draft, undo and old-history regression. */
+function bootConvenience(){
+ const now=new Date(),date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+ const entries=Array.from({length:210},(_,i)=>({at:'older-walk-'+i,id:'e045',mode:'distance',date,performedAt:new Date(Date.now()-(i+60)*60000).toISOString(),value:0.5,notes:'older walking record '+i}));
+ entries.push({at:'recent-pushups',id:'e004',mode:'bodysets',date,performedAt:new Date(Date.now()-15000).toISOString(),sets:[{reps:7},{reps:6}],notes:'unique newest push-ups'});
+ const seed={...sample(),logs:entries};
+ const keys=new Map([['fitnessdex-v01',JSON.stringify(seed)]]),nodes=new Map();
+ const fakeNode=id=>({id,value:'',checked:true,innerHTML:'',textContent:'',dataset:{},style:{},classList:{toggle(){},add(){},remove(){}},parentNode:{insertBefore(){}},addEventListener(){},appendChild(){},focus(){},setSelectionRange(){},scrollIntoView(){},closest(){return true},setAttribute(){},options:[]});
+ const appNode=fakeNode('app'),buttons=['home','log','dex','more'].map(tab=>({...fakeNode(tab),dataset:{tab}}));
+ const doc={
+  body:{dataset:{}},head:{appendChild(){}},hidden:false,handlers:{},
+  getElementById(id){if(id==='app')return appNode;if(!nodes.has(id))nodes.set(id,fakeNode(id));return nodes.get(id)},
+  querySelectorAll(query){
+   if(query==='.nav button')return buttons;
+   if(query==='#setrows .setrow')return [7,7].map(reps=>({querySelector(sel){return {value:sel==='.reps'?String(reps):''}}}));
+   return [];
+  },
+  querySelector(sel){if(sel==='main .nav')return fakeNode('nav');if(sel==='.nav [data-tab="more"]')return buttons[3];return null},
+  addEventListener(name,handler){this.handlers[name]=handler},createElement(tag){return fakeNode(tag)}
+ };
+ const localStorage={getItem:k=>keys.get(k)??null,setItem:(k,v)=>keys.set(k,String(v)),removeItem:k=>keys.delete(k)};
+ const win={handlers:{},addEventListener(k,cb){this.handlers[k]=cb},scrollTo(){},dispatchEvent(){}};
+ const modules=['workouts.js','habits.js','log-flow.js','ui-shell.js','campaigns.js','progression.js','set-ui.js','daily-care.js','quick-tools.js'];
+ const code='const queueMicrotask=fn=>{};\n'+codeScripts[0]+'\n'+codeScripts[1]+'\n'+modules.map(read).join('\n')+
+  '\nreturn {state:()=>S,tab:()=>tab,history,submitLog,validBackup};';
+ const app=new Function('window','document','localStorage','alert','confirm','Event','console',code)(win,doc,localStorage,
+  msg=>{throw Error('Unexpected alert: '+msg)},()=>true,function Event(type){this.type=type},console);
+ return {app,win,doc,keys,date};
+}
+const convenience=bootConvenience(),cv=convenience,cvApp=cv.app,cvWin=cv.win;
+assert.equal(cvApp.state().logs.length,211,'Existing activity records lost on boot');
+assert(cv.doc.getElementById('app').innerHTML.includes('Repeat last activity'),'Recent exercise shortcut missing');
+cvWin.fdRepeatLast();
+assert(cv.doc.getElementById('setrows').innerHTML.includes('value="7"'),'Last reps not prefilled');
+assert(cv.doc.getElementById('setrows').innerHTML.includes('value="6"'),'Second previous set missing');
+assert.equal(cvApp.state().logs.length,211,'Repeating last must not auto-save a second activity');
+cvWin.fdHistoryQuery='older walking record 209';
+assert(cvApp.history().includes('older walking record 209'),'Searching whole History (beyond latest 200) failed');
+cvWin.fdHistoryQuery='';
+for(const [id,value] of Object.entries({date:cv.date,clock:'12:00',notes:'Unfinished and recoverable',session:'standalone'}))
+ cv.doc.getElementById(id).value=value;
+cv.doc.handlers.input({target:{closest(){return true}}});
+assert(cv.keys.has('fitnessdex-quick-log-draft-v1'),'Ordinary quick-log draft not captured');
+cvWin.fdResumeQuickDraft();
+assert.equal(cv.doc.getElementById('notes').value,'Unfinished and recoverable','Draft contents not restored');
+cvApp.submitLog();
+assert.equal(cvApp.state().logs.length,212,'Completing draft did not produce a saved log');
+assert(!cv.keys.has('fitnessdex-quick-log-draft-v1'),'Successfully saved draft was not cleared');
+const loggedId=cvApp.state().v4.lastResult?.logId;
+assert(loggedId&&cvApp.state().logs.some(l=>l.at===loggedId),'Saved exercise result missing');
+cvWin.fdUndoLastLog();
+assert(!cvApp.state().logs.some(l=>l.at===loggedId),'Undo failed to remove the latest saved log');
+assert.equal(cvApp.state().logs.length,211,'Undo must preserve earlier exercises');
+assert(cvApp.validBackup(cvApp.state()),'Undo produced an invalid backup');
+console.log('Convenience smoke checks passed: repeat, draft, full-history search, save and undo.');
