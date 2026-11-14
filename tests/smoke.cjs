@@ -152,7 +152,7 @@ function verifyReminders(){
  const browserStorage=new Map(),shown=[],messages=[];
  let permissionRequests=0,intervals=0;
  const FakeNotification={permission:'default',requestPermission:()=>{permissionRequests++;FakeNotification.permission='granted';return Promise.resolve('granted');}};
- const fakeWindow={isSecureContext:true,addEventListener(){}};
+ const fakeWindow={isSecureContext:true,Notification:FakeNotification,addEventListener(){}};
  const fakeDocument={getElementById(id){return {id,innerHTML:'',value:'10:00',checked:true}},querySelectorAll(){return []},addEventListener(){},body:{dataset:{}}};
  const fakeNavigator={serviceWorker:{getRegistration:async()=>({active:{},showNotification:async(title,options)=>{shown.push({title,options})}}),addEventListener(){}}};
  const storage={getItem:k=>browserStorage.get(k)??null,setItem:(k,v)=>browserStorage.set(k,v),removeItem:k=>browserStorage.delete(k)};
