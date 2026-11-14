@@ -4,7 +4,7 @@
  */
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
+const esbuild = require('esbuild');
 
 const ROOT = path.resolve(__dirname, '../..');
 const SHELL = path.resolve(__dirname, '..');
@@ -48,9 +48,13 @@ html = replaceOnce(
 fs.writeFileSync(indexFile, html);
 
 fs.mkdirSync(path.join(OUT, 'vendor'), { recursive: true });
-const esbuild = path.join(SHELL, 'node_modules', 'esbuild', 'bin', 'esbuild');
-execFileSync(process.execPath, [
-  esbuild, 'src/supabase-global.js', '--bundle', '--platform=browser',
-  '--format=iife', '--target=es2020', '--outfile=www/vendor/supabase.js'
-], { cwd: SHELL, stdio: 'inherit' });
+esbuild.buildSync({
+  entryPoints: [path.join(SHELL, 'src/supabase-global.js')],
+  bundle: true,
+  platform: 'browser',
+  format: 'iife',
+  target: 'es2020',
+  outfile: path.join(OUT, 'vendor/supabase.js'),
+  logLevel: 'info'
+});
 console.log('Generated non-release FitnessDex Android web bundle at android-shell/www');
