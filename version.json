@@ -1,5 +1,5 @@
 {
-  "version": "0.8.11",
+  "version": "0.8.12",
   "released": "2026-11-14",
-  "notes": "Investigate missing step readings: display last device sync and Health Connect no-data warnings, refresh cloud totals while FitnessDex is visible, and link companion 0.1.1 with faster sync and truthful missing-data handling."
+  "notes": "Companion v0.1.2: one-time background Health Connect permission, clear sync status and minimum-interval ~15-minute automatic step uploads. FitnessDex continues checking cloud totals automatically while open."
 }

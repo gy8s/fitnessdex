@@ -42,10 +42,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           APK="android-steps/app/build/outputs/apk/debug/app-debug.apk"
-          if gh release view fitnessdex-steps-v0.1.1 >/dev/null 2>&1; then
-            gh release upload fitnessdex-steps-v0.1.1 "$APK#FitnessDex-Steps.apk" --clobber
+          if gh release view fitnessdex-steps-v0.1.2 >/dev/null 2>&1; then
+            gh release upload fitnessdex-steps-v0.1.2 "$APK#FitnessDex-Steps.apk" --clobber
           else
-            gh release create fitnessdex-steps-v0.1.1 "$APK#FitnessDex-Steps.apk" \
-              --title "FitnessDex Steps companion 0.1.1" \
-              --notes "Detect missing Health Connect data instead of uploading false zeros; refresh on reopen and approximate 30-minute optional background sync. Debug-signed APK may require reinstalling and re-pairing."
+            gh release create fitnessdex-steps-v0.1.2 "$APK#FitnessDex-Steps.apk" \
+              --title "FitnessDex Steps companion 0.1.2" \
+              --notes "Automatic step syncing every approximately 15 minutes when Android permits, with one-time Health Connect background permission setup and clear status. Debug-signed APK may require reinstalling and re-pairing."
           fi

@@ -25,6 +25,7 @@ import java.util.Locale
 class MainActivity:ComponentActivity(){
  private val stepsPermission=HealthPermission.getReadPermission(StepsRecord::class)
  private val backgroundPermission=HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
+ private lateinit var automationView:TextView
  private lateinit var statusView:TextView
  private lateinit var result:TextView
  private lateinit var tokenInput:EditText
@@ -36,11 +37,16 @@ class MainActivity:ComponentActivity(){
  private val backgroundPermissionPrompt=registerForActivityResult(PermissionController.createRequestPermissionResultContract()){granted->
    if(backgroundPermission in granted){
      SyncWorker.schedule(this)
-     status("Background sync enabled. Android attempts an update roughly every 30 minutes; timing can vary.")
-   }else status("Background access was declined. Manual syncing still works.")
+     autoStatus("Automatic sync ON · checks roughly every 15 minutes (Android may delay)")
+     status("Automatic syncing enabled. You can close this app; FitnessDex will refresh cloud totals automatically.")
+    }else{
+     autoStatus("Automatic sync OFF · background access not allowed")
+     status("Background access was declined. You can still sync when you open this companion.")
+   }
  }
  private fun dp(value:Int)=(resources.displayMetrics.density*value).toInt()
  private fun status(message:String){if(::statusView.isInitialized)statusView.text=message}
+ private fun autoStatus(message:String){if(::automationView.isInitialized)automationView.text=message}
  private fun text(parent:LinearLayout,label:String,size:Float,color:String,top:Int=0):TextView{
    val t=TextView(this).apply{
      text=label;textSize=size;setTextColor(Color.parseColor(color))
@@ -84,20 +90,23 @@ class MainActivity:ComponentActivity(){
      try{
        TokenStore.save(this,tokenInput.text.toString())
        tokenInput.text.clear()
-       status("Code saved securely. Allow access to steps and sync.")
+       status("Paired securely. Checking step permission and syncing…")
+       allowOrSync()
      }catch(e:Exception){status(e.message?:"Pairing code is invalid.")}
    }
-   text(root,"3. Grant read-only Health Connect permission and sync.",14f,"#E5EDF2",16)
-   button(root,"Allow steps and sync now"){allowOrSync()}
-   button(root,"Enable automatic background sync (optional)"){enableBackground()}
+   text(root,"3. Allow Health Connect step access. Enable automatic sync once; then the companion can work without being opened.",14f,"#E5EDF2",16)
+   button(root,"Enable automatic syncing · one-time setup"){enableBackground()}
+   button(root,"Sync now (optional)"){allowOrSync()}
    button(root,"Open FitnessDex"){
      startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://gy8s.github.io/fitnessdex/")))
    }
    button(root,"Clear pairing from this phone"){
      TokenStore.clear(this)
      SyncWorker.cancel(this)
+     autoStatus("Automatic sync OFF · device unpaired")
      status("Local pairing cleared. To revoke cloud access, also unlink under FitnessDex → Daily steps.")
    }
+   automationView=text(root,"Automatic sync: checking permissions…",14f,"#91F0D5",16)
    statusView=text(root,"Checking Health Connect…",14f,"#AAE8D5",19)
    result=text(root,"",15f,"#E3F4F6",8)
    text(root,"If step totals are missing, inspect Health Connect → Data and access → Activity → Steps. Samsung Health must have permission to WRITE steps there. Android may delay background work.",12f,"#A6BDC9",14)
@@ -106,7 +115,7 @@ class MainActivity:ComponentActivity(){
    status(when{
      HealthConnectClient.getSdkStatus(this)!=HealthConnectClient.SDK_AVAILABLE->"Health Connect unavailable. Update it through Android Settings."
      TokenStore.get(this)==null->"Health Connect ready. Pair this device to begin."
-     else->"Pairing code saved. Tap Allow steps and sync now."
+     else->"Paired. Opened companion checks for new steps. Turn on automatic sync once for updates while closed."
    })
  }
  private fun health():HealthConnectClient?{
@@ -126,19 +135,22 @@ class MainActivity:ComponentActivity(){
    }
  }
  private fun enableBackground(){
+   if(TokenStore.get(this)==null){status("Save your private pairing code first.");return}
    val hc=health()?:return
    if(hc.features.getFeatureStatus(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND)
      !=HealthConnectFeatures.FEATURE_STATUS_AVAILABLE){
-     status("This Health Connect version does not allow background reads. Manual syncing still works.")
+     autoStatus("Automatic sync unavailable on this Health Connect version")
+     status("This Health Connect version does not allow background reads. Sync when you open this companion.")
      return
    }
    lifecycleScope.launch{
      try{
        val granted=hc.permissionController.getGrantedPermissions()
-       if(stepsPermission !in granted)status("Please grant step access using the button above first.")
+       if(stepsPermission !in granted)status("Grant Health Connect step access using Sync now first, then enable automatic syncing.")
        else if(backgroundPermission in granted){
          SyncWorker.schedule(this@MainActivity)
-         status("Automatic background sync enabled.")
+         autoStatus("Automatic sync ON · checks roughly every 15 minutes (Android may delay)")
+         status("Automatic syncing enabled. FitnessDex refreshes its displayed totals automatically.")
        }else backgroundPermissionPrompt.launch(setOf(backgroundPermission))
      }catch(e:Exception){status("Could not enable background access: "+(e.message?:"Unknown"))}
    }
@@ -153,19 +165,33 @@ class MainActivity:ComponentActivity(){
        val current=days.find{it.day==LocalDate.now()}
        status(days.size.toString()+" day(s) of recorded steps synced to FitnessDex.")
        result.text="Today: "+(if(current!=null)String.format(Locale.UK,"%,d",current.steps)+" steps" else "No step records in Health Connect yet")+"\n"+
-         "Date: "+(current?.day?:LocalDate.now())+"\nOpen FitnessDex → Daily steps → Refresh steps."
+         "Date: "+(current?.day?:LocalDate.now())+"\nFitnessDex checks for updated cloud totals automatically."
      }catch(e:Exception){status("Sync failed: "+(e.message?:"Unknown error"))}
      finally{syncing=false}
    }
  }
  override fun onResume(){
    super.onResume()
-   if(!::statusView.isInitialized||TokenStore.get(this)==null||syncing||
-     System.currentTimeMillis()-TokenStore.lastSync(this)<90_000L)return
+   if(!::statusView.isInitialized)return
+   if(TokenStore.get(this)==null){
+     autoStatus("Automatic sync OFF · pair your device first")
+     return
+   }
    val hc=health()?:return
    lifecycleScope.launch{
-     try{if(stepsPermission in hc.permissionController.getGrantedPermissions())syncNow()}
-     catch(_:Exception){/* A user may revoke Health Connect permissions. */}
+     try{
+       val granted=hc.permissionController.getGrantedPermissions()
+       val allowed=stepsPermission in granted
+       val automatic=allowed&&backgroundPermission in granted&&
+         hc.features.getFeatureStatus(HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND)==HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+       if(automatic){
+         // Restore scheduling after an app update. UPDATE preserves the existing periodic work history.
+         SyncWorker.schedule(this@MainActivity)
+         autoStatus("Automatic sync ON · checks roughly every 15 minutes (Android may delay)")
+       }else autoStatus("Automatic sync OFF · tap Enable automatic syncing once")
+       // Opening the companion automatically catches up if a scheduled job was delayed.
+       if(allowed&&!syncing&&System.currentTimeMillis()-TokenStore.lastSync(this@MainActivity)>=90_000L)syncNow()
+     }catch(_:Exception){autoStatus("Cannot confirm automatic sync · check Health Connect permissions")}
    }
  }
 }
