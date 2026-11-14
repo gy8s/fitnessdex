@@ -1,5 +1,5 @@
 {
-  "version": "0.8.1",
+  "version": "0.8.2",
   "released": "2026-11-14",
-  "notes": "Reliability: atomic log-save confirmation, protected delete/import/restore with local recovery checkpoints, cloud status chip and CI release smoke checks."
+  "notes": "Convenience: repeat last activity, undo a saved log, restore unfinished ordinary log, Daily Care one-tap actions, full History search and safe day-change refresh."
 }
