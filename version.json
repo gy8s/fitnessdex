@@ -1,5 +1,5 @@
 {
-  "version": "0.9.3",
+  "version": "0.9.4",
   "released": "2026-11-14",
-  "notes": "Holistic daily step breakdown: dedicated walk/hike/run steps versus everyday or unassigned movement, with pending Health Connect sync clearly labelled; pace calculated from recorded distance and active time."
+  "notes": "Android install link corrected to match published APK asset; cross-check added to release smoke tests."
 }
