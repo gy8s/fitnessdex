@@ -1,0 +1,39 @@
+'use strict';
+/* Strict non-runtime checks. An Android emulator is still required. */
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const ROOT = path.resolve(__dirname, '../..');
+const OUT = path.join(ROOT, 'android-shell', 'www');
+const original = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const packed = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
+const changed = original
+  .replace('src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"', 'src="./vendor/supabase.js"')
+  .replace('<script defer src="./updates.js"></script>', '')
+  .replace('if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("Offline installation not available:",e)));}',
+           '/* Android-only: bundled files update with a signed APK, not the PWA service worker. */');
+assert.equal(packed, changed, 'The Android interface must differ ONLY in the three planned script adaptations.');
+assert(!packed.includes('cdn.jsdelivr.net'), 'Native app must not depend on an external script CDN.');
+assert(!packed.includes('navigator.serviceWorker.register'), 'Native app must not register the PWA service worker.');
+assert(!packed.includes('src="./updates.js"'), 'Native app must not display a misleading web update dialog.');
+assert(fs.statSync(path.join(OUT, 'vendor/supabase.js')).size > 10000, 'Offline Supabase client bundle must exist.');
+
+const sources = [
+  'ui.css','manifest.json','manifest.webmanifest','version.json','exercise-reference.js',
+  'workouts.js','habits.js','log-flow.js','ui-shell.js','campaigns.js','progression.js',
+  'set-ui.js','daily-care.js','quick-tools.js','notifications.js','cloud.js',
+  'push-client.js','exercise-media.js','icons/icon-192.png','icons/icon-512.png'
+];
+for (const f of sources) {
+  assert.deepEqual(fs.readFileSync(path.join(OUT, f)), fs.readFileSync(path.join(ROOT, f)),
+    'PWA asset changed in the generated Android bundle: '+f);
+}
+for (const match of packed.matchAll(/(?:src|href)="\.\/([^"?#]+)"/g)) {
+  assert(fs.existsSync(path.join(OUT, match[1])), 'HTML asset is missing: '+match[1]);
+}
+const config = JSON.parse(fs.readFileSync(path.join(ROOT,'android-shell/capacitor.config.json'),'utf8'));
+assert.equal(config.appId,'io.github.gy8s.fitnessdex');
+assert.equal(config.webDir,'www');
+assert.equal(config.server.url,undefined,'Android must load bundled assets, never a remote website.');
+console.log('PASS: unchanged PWA source assets, exact three HTML adaptations, pinned local Supabase bundle, local-only shell config.');
+console.log('NOTE: This does NOT prove visual parity, authentication, notifications, or Android runtime behaviour.');

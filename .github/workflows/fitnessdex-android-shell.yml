@@ -1,0 +1,57 @@
+name: FitnessDex Android shell proof (no APK release)
+
+on:
+  push:
+    branches: [stage2/android-shell-20261114]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-shell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Existing FitnessDex source regression checks
+        run: node tests/smoke.cjs
+      - name: Install pinned shell dependencies
+        working-directory: android-shell
+        run: npm install --no-audit --no-fund
+      - name: Generate local Android web assets
+        working-directory: android-shell
+        run: |
+          npm run build:web
+          npm run test:bundle
+      - name: Generate experimental native shell and compile debug probe
+        working-directory: android-shell
+        run: |
+          npx cap add android
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+      - name: Start on Android emulator and inspect for crashes
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          script: bash android-shell/tests/emulator-smoke.sh
+      - name: Save only test evidence (no APK)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-shell-test-evidence
+          if-no-files-found: ignore
+          path: |
+            android-shell/tests/results/fitnessdex-shell.png
+            android-shell/package-lock.json

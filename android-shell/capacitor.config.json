@@ -1,0 +1,9 @@
+{
+  "appId": "io.github.gy8s.fitnessdex",
+  "appName": "FitnessDex",
+  "webDir": "www",
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https"
+  }
+}
