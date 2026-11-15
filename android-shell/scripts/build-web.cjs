@@ -69,6 +69,9 @@ let cloud = fs.readFileSync(cloudFile, 'utf8');
 cloud = replaceOnce(cloud, 'emailRedirectTo:location.origin+location.pathname',
   'emailRedirectTo:window.fdAndroidCloud.redirect,shouldCreateUser:false', 'Use the Android email link for existing accounts');
 cloud = replaceOnce(cloud, 'detectSessionInUrl:true', '...window.fdAndroidCloud.auth', 'Use Android PKCE and native session storage');
+cloud = replaceOnce(cloud, 'const fingerprint = s => JSON.stringify(',
+  'const fingerprint = s => window.fdAndroidCloud.fingerprint(', 'Compare stable Android and JSONB snapshots');
+cloud = cloud.replace(/localStorage\.(getItem|setItem)\(STORAGE\+uid/g, 'window.fdProfileStorage.$1(STORAGE+uid');
 cloud = replaceOnce(cloud, 'try{localStorage.setItem(BACKUP,JSON.stringify(S))}',
   "try{if(!checkpoint('Before cloud restore'))return false;}", 'Create a recoverable Android snapshot before cloud restore');
 cloud = replaceOnce(cloud, 'const BACKUP = \'fitnessdex-cloud-before-restore\';\n', '', 'Remove unused browser backup key from Android');

@@ -3,6 +3,13 @@
 // Keep the PKCE verifier and authenticated session across Android restarts.
 window.fdAndroidCloud = Object.freeze({
   redirect: 'io.github.gy8s.fitnessdex://auth/callback',
+  fingerprint(state) {
+    // PostgreSQL jsonb can reorder object keys. Array order is user data.
+    return JSON.stringify(state, (_, value) => {
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) return value;
+      return Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]]));
+    });
+  },
   auth: {
     flowType: 'pkce',
     detectSessionInUrl: false,

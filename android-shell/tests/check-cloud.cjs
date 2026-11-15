@@ -112,8 +112,13 @@ async function main() {
   adb('forward', '--remove', 'tcp:9222');
   await openActivity();
   await waitFor(() => evaluate("Boolean(document.querySelector('#fd-logout'))"), 'Android did not retain its session');
-  await waitFor(() => evaluate("document.querySelector('#fd-sync-status')?.textContent.includes('Cloud save up to date')"),
-    'Android did not recognise the saved cloud revision');
+  const isSynced = "document.querySelector('#fd-sync-status')?.textContent.includes('Cloud save up to date')";
+  try {
+    await waitFor(() => evaluate(isSynced), 'Android did not recognise the saved cloud revision');
+  } catch (error) {
+    const status = await evaluate("document.querySelector('#fd-sync-status')?.textContent");
+    throw Error(error.message + ': ' + status);
+  }
   console.log('PASS: Signed-in session and cloud save survived Android restart');
 
   const remote = structuredClone(uploaded.save_data);
