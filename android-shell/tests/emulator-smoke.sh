@@ -52,6 +52,19 @@ adb shell dumpsys activity activities | grep -F "$PACKAGE" | head -n 12 || true
 # A process alive is not enough. Inspect the actual WebView content and saved profile.
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID}"
 node android-shell/tests/check-webview.cjs first
+
+VISUAL_DIR="android-shell/tests/results/visual"
+for width in 360 411; do
+  # 2.5 physical pixels per CSS pixel makes both viewport sizes reproducible.
+  adb shell wm density 400
+  adb shell wm size "$((width * 5 / 2))x2100"
+  for screen in home log dex more history care; do
+    node android-shell/tests/check-webview.cjs screen-parity "$screen" "$VISUAL_DIR/web-screen-parity.json" "$width"
+    adb exec-out screencap -p > "$VISUAL_DIR/android-$width-$screen.png"
+  done
+done
+adb shell wm size reset
+adb shell wm density reset
 restart_after_save
 PID2=""
 for attempt in $(seq 1 30); do

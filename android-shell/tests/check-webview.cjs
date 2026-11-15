@@ -4,12 +4,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { setTimeout: delay } = require('node:timers/promises');
 const { inspect } = require('./devtools.cjs');
+const { screens, inspectScreen, verifyScreen } = require('./screen-parity.cjs');
 const stage = process.argv[2];
 const stages = [
   'first', 'after-restart', 'navigation', 'activity-save', 'activity-reopen', 'activity-edit',
   'activity-edit-reopen', 'activity-delete', 'activity-delete-reopen', 'activity-restore',
   'activity-restore-reopen', 'backup-export', 'backup-import', 'backup-import-verify',
-  'migration-verify', 'upgrade-baseline', 'upgrade-verify'
+  'migration-verify', 'upgrade-baseline', 'upgrade-verify', 'screen-parity'
 ];
 if (!stages.includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
@@ -30,6 +31,26 @@ async function findTarget() {
 }
 
 (async () => {
+  if (stage === 'screen-parity') {
+    const screen = screens.find(item => item.name === process.argv[3]);
+    assert(screen, 'Choose a screen to compare');
+    const references = JSON.parse(fs.readFileSync(process.argv[4], 'utf8'));
+    const band = Number(process.argv[5]);
+    const expression = '(' + inspectScreen.toString() + ')(' + JSON.stringify(screen) + ')';
+    let state;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      state = JSON.parse(await inspect(await findTarget(), 'JSON.stringify(' + expression + ')'));
+      if (state && Math.abs(state.width - band) <= 2) break;
+      await delay(250);
+    }
+    verifyScreen(screen, state);
+    assert(Math.abs(state.width - band) <= 2, 'Unexpected Android viewport width: ' + state.width);
+    const reference = references[band + '-' + screen.name];
+    assert.equal(state.heading, reference.heading);
+    assert.deepEqual(state.tabs, reference.tabs);
+    console.log('PASS: Android ' + screen.name + ' matches v0.8.7 screen and navigation at ' + state.width + 'px');
+    return;
+  }
   if (stage === 'upgrade-baseline' || stage === 'upgrade-verify') {
     const baseline = stage === 'upgrade-baseline';
     const expression = String.raw`JSON.stringify((() => {

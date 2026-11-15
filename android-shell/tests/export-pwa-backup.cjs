@@ -6,6 +6,7 @@ const fs = require('node:fs/promises');
 const http = require('node:http');
 const path = require('node:path');
 const { chromium } = require('playwright');
+const { screens, inspectScreen, verifyScreen } = require('./screen-parity.cjs');
 
 const root = path.resolve(__dirname, '../..');
 const contentTypes = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.json':'application/json' };
@@ -68,6 +69,22 @@ async function main(output) {
     browser = await chromium.launch();
     const page = await browser.newPage();
     await page.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
+    const parity = {};
+    const visualDir = path.join(path.dirname(output), 'visual');
+    await fs.mkdir(visualDir, { recursive:true });
+    await page.goto(origin + '/');
+    await page.locator('.fd-landing-hero').waitFor();
+    for (const width of [360, 411]) {
+      await page.setViewportSize({ width, height:870 });
+      for (const screen of screens) {
+        const state = await page.evaluate(inspectScreen, screen);
+        verifyScreen(screen, state);
+        parity[width + '-' + screen.name] = state;
+        await page.screenshot({ path:path.join(visualDir, 'web-' + width + '-' + screen.name + '.png') });
+      }
+    }
+    await fs.writeFile(path.join(visualDir, 'web-screen-parity.json'), JSON.stringify(parity, null, 2));
+    console.log('PASS: captured v0.8.7 web reference screens at 360px and 411px');
     await page.goto(origin + '/test-profile');
 
     const profile = testProfile();

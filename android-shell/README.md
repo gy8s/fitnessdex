@@ -11,9 +11,9 @@ movement sessions, a cloud schema migration, new notifications, or a signing key
 - Work is restricted to branch `stage2/android-shell-20261114`.
 - `main`, GitHub Pages, existing `index.html`, local saves and Supabase stay unchanged.
 - The generated `www/` directory is **not** the PWA source of truth.
-- Native-only safe-area rules are appended to the generated CSS to avoid Android
-  status and gesture bars covering content. Original PWA `ui.css` stays unchanged;
-  an automated test strictly checks the sole additive CSS difference.
+- The Android activity handles system bar, display cutout and keyboard insets.
+  It keeps system icons light against the app's dark background. The browser
+  and Android builds use the same stylesheet.
 - The generated native HTML has five adaptations:
   1. Replace the remote Supabase CDN script with an offline local bundle.
   2. Suppress the *PWA-only* web update checker (APK releases update natively).

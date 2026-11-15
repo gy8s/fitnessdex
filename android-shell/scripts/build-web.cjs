@@ -61,10 +61,6 @@ for (const adapter of ['native-profile-storage.js', 'native-backup.js']) {
   fs.copyFileSync(path.join(SHELL, 'src', adapter), path.join(OUT, adapter));
 }
 
-// Append Android-only safe-area rules to the disposable CSS copy.
-const nativeCss = fs.readFileSync(path.join(SHELL, 'src/native-safe-area.css'), 'utf8');
-fs.appendFileSync(path.join(OUT, 'ui.css'), '\n' + nativeCss);
-
 fs.mkdirSync(path.join(OUT, 'vendor'), { recursive: true });
 esbuild.buildSync({
   entryPoints: [path.join(SHELL, 'src/supabase-global.js')],

@@ -96,4 +96,5 @@ jobs:
             android-shell/tests/results/fitnessdex-shell.png
             android-shell/tests/results/activity-dump.txt
             android-shell/tests/results/android-logcat.txt
+            android-shell/tests/results/visual/
             android-shell/package-lock.json
