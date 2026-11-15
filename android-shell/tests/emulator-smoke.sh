@@ -86,6 +86,32 @@ done
 test -n "$PID4" || { echo 'ERROR: App did not restart after activity edit'; exit 1; }
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID4}"
 node android-shell/tests/check-webview.cjs activity-edit-reopen
+node android-shell/tests/check-webview.cjs activity-delete
+adb forward --remove tcp:9222
+adb shell am force-stop "$PACKAGE"
+adb shell am start -n "$PACKAGE/.MainActivity"
+PID5=""
+for attempt in $(seq 1 30); do
+  PID5="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+  if test -n "$PID5"; then break; fi
+  sleep 3
+done
+test -n "$PID5" || { echo 'ERROR: App did not restart after deletion'; exit 1; }
+adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID5}"
+node android-shell/tests/check-webview.cjs activity-delete-reopen
+node android-shell/tests/check-webview.cjs activity-restore
+adb forward --remove tcp:9222
+adb shell am force-stop "$PACKAGE"
+adb shell am start -n "$PACKAGE/.MainActivity"
+PID6=""
+for attempt in $(seq 1 30); do
+  PID6="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+  if test -n "$PID6"; then break; fi
+  sleep 3
+done
+test -n "$PID6" || { echo 'ERROR: App did not restart after recovery restore'; exit 1; }
+adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID6}"
+node android-shell/tests/check-webview.cjs activity-restore-reopen
 adb forward --remove tcp:9222
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'

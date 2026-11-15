@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { setTimeout: delay } = require('node:timers/promises');
 const stage = process.argv[2];
-if (!['first','after-restart','navigation','activity-save','activity-reopen','activity-edit','activity-edit-reopen'].includes(stage)) throw Error('Specify a supported Android test stage');
+if (!['first','after-restart','navigation','activity-save','activity-reopen','activity-edit','activity-edit-reopen','activity-delete','activity-delete-reopen','activity-restore','activity-restore-reopen'].includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
 const probeKey = 'fitnessdex-stage2-ci-restart-check';
 
@@ -216,6 +216,107 @@ async function inspect(target, expression) {
     assert.equal(info?.notes, 'FitnessDex disposable Android test EDITED');
     assert.equal(info?.historyVisible, true, 'Edited walk not shown correctly in History');
     console.log('PASS: Android edited activity survived restart and is correct in History');
+    return;
+  }
+  if (stage === 'activity-delete') {
+    const expression = String.raw`JSON.stringify((() => {
+      const key = 'fitnessdex-v01';
+      const before = JSON.parse(localStorage.getItem(key) || '{}');
+      if (before.logs?.length !== 1 || before.logs[0]?.value !== 1.6) return {error:'Expected edited walk missing'};
+      const remove = [...document.querySelectorAll('#app .stack .entry button')].find(b => b.textContent.trim() === 'Delete');
+      if (!remove) return {error:'Delete action missing from activity History'};
+      const originalConfirm = window.confirm;
+      window.confirm = () => true;
+      try { remove.click(); } finally { window.confirm = originalConfirm; }
+      const state = JSON.parse(localStorage.getItem(key) || '{}');
+      const snapshots = JSON.parse(localStorage.getItem('fitnessdex-recovery-checkpoints-v1') || '[]');
+      const hasRecovery = snapshots.some(x => { try { return JSON.parse(x.data).logs?.some(l => l.id === 'e045' && l.value === 1.6); } catch { return false; } });
+      return {count:state.logs?.length,hasRecovery,historyEmpty:(document.querySelector('#app .stack')?.textContent || '').includes('No matching exercise records.')};
+    })())`;
+    const info = JSON.parse(await inspect(await findTarget(), expression));
+    console.log('Disposable walk deletion:', JSON.stringify(info));
+    assert.equal(info.error, undefined, info.error || '');
+    assert.equal(info.count, 0, 'Deleted walk should be removed from live data');
+    assert.equal(info.hasRecovery, true, 'Before-delete recovery snapshot missing');
+    assert.equal(info.historyEmpty, true, 'History still shows deleted walk');
+    console.log('PASS: Dummy walk deleted; recovery snapshot safely retained');
+    return;
+  }
+  if (stage === 'activity-delete-reopen') {
+    const expression = String.raw`JSON.stringify((() => {
+      if (!document.querySelector('.fd-landing-hero')) return {ready:false};
+      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const snapshots = JSON.parse(localStorage.getItem('fitnessdex-recovery-checkpoints-v1') || '[]');
+      document.querySelector('nav.nav button[data-tab=more]')?.click();
+      const history = [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data'));
+      if (!history) return {ready:true,error:'History option missing'};
+      history.click();
+      return {ready:true,count:state.logs?.length,hasRecovery:snapshots.some(x => {try{return JSON.parse(x.data).logs?.some(l=>l.id==='e045'&&l.value===1.6)}catch{return false}}),historyEmpty:(document.querySelector('#app .stack')?.textContent||'').includes('No matching exercise records.')};
+    })())`;
+    let info;
+    for (let attempt = 0; attempt < 25; attempt++) {
+      try { info = JSON.parse(await inspect(await findTarget(), expression)); if (info.ready) break; }
+      catch (err) { if (attempt % 5 === 0) console.log('Waiting for Android deletion reload:', err.message); }
+      await delay(500);
+    }
+    console.log('Deleted walk after restart:', JSON.stringify(info));
+    assert.equal(info?.ready, true);
+    assert.equal(info?.error, undefined, info?.error || '');
+    assert.equal(info?.count, 0);
+    assert.equal(info?.hasRecovery, true);
+    assert.equal(info?.historyEmpty, true);
+    console.log('PASS: Deletion persists across app restart, with recovery available');
+    return;
+  }
+  if (stage === 'activity-restore') {
+    const expression = String.raw`JSON.stringify((() => {
+      const restore = document.querySelector('#app details.fd-log-details button[onclick^="restoreCheckpoint("]');
+      if (!restore) return {error:'Recovery restore button missing'};
+      const originalConfirm = window.confirm;
+      window.confirm = () => true;
+      try { restore.click(); } finally { window.confirm = originalConfirm; }
+      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const record = state.logs?.[0];
+      return {count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,notes:record?.notes};
+    })())`;
+    const info = JSON.parse(await inspect(await findTarget(), expression));
+    console.log('Recovery snapshot restored:', JSON.stringify(info));
+    assert.equal(info.error, undefined, info.error || '');
+    assert.equal(info.count, 1);
+    assert.equal(info.exercise, 'e045');
+    assert.equal(info.distance, 1.6);
+    assert.equal(info.minutes, 20);
+    assert.equal(info.notes, 'FitnessDex disposable Android test EDITED');
+    console.log('PASS: Recovery restored the edited walking record');
+    return;
+  }
+  if (stage === 'activity-restore-reopen') {
+    const expression = String.raw`JSON.stringify((() => {
+      if (!document.querySelector('.fd-landing-hero')) return {ready:false};
+      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const record = state.logs?.[0];
+      document.querySelector('nav.nav button[data-tab=more]')?.click();
+      const history = [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data'));
+      if (!history) return {ready:true,error:'History link missing'};
+      history.click();
+      const description = document.querySelector('#app .stack .entry .sub')?.textContent || '';
+      return {ready:true,count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,historyVisible:document.querySelector('#app .stack .entry .name')?.textContent?.includes('Walking') && description.includes('1.6 km') && description.includes('20 min')};
+    })())`;
+    let info;
+    for (let attempt = 0; attempt < 25; attempt++) {
+      try { info = JSON.parse(await inspect(await findTarget(), expression)); if (info.ready) break; }
+      catch (err) { if (attempt % 5 === 0) console.log('Waiting for recovery restart:', err.message); }
+      await delay(500);
+    }
+    console.log('Restored walking record after restart:', JSON.stringify(info));
+    assert.equal(info?.ready, true);
+    assert.equal(info?.error, undefined, info?.error || '');
+    assert.equal(info?.count, 1);
+    assert.equal(info?.exercise, 'e045');
+    assert.equal(info?.distance, 1.6);
+    assert.equal(info?.minutes, 20);
+    assert.equal(info?.historyVisible, true);
+    console.log('PASS: Restored activity survives another restart and appears in History');
     return;
   }
   const expr = stage === 'first'
