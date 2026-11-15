@@ -14,7 +14,15 @@ check_version() {
 }
 open_history() {
     tap 'More'
-    tap 'History & data'
+    if ! tap 'History & data( Edit, export or import records.*)?' 2; then
+        local size width height
+        size="$(adb shell wm size | tail -1 | awk '{print $NF}' | tr -d '\r')"
+        width="${size%x*}"
+        height="${size#*x}"
+        adb shell input swipe "$((width / 2))" "$((height * 3 / 4))" \
+            "$((width / 2))" "$((height / 3))" 500
+        tap 'History & data( Edit, export or import records.*)?'
+    fi
 }
 export_backup() {
     tap 'Export complete backup'
@@ -30,8 +38,17 @@ export_backup() {
     adb shell rm "$path"
 }
 
-# Clear the previous debug app once, before the first signed release install.
-adb uninstall "$package"
+cleanup() {
+    local result="$?"
+    trap - EXIT
+    set +e
+    adb exec-out screencap -p > android-shell/tests/results/signed-upgrade.png
+    # The debug probe uses a different signing key and runs after this proof.
+    adb uninstall "$package"
+    exit "$result"
+}
+trap cleanup EXIT
+
 adb install "$proof/before.apk"
 adb shell 'find /sdcard/Download /sdcard/Documents -maxdepth 1 -name "FitnessDex_v04_backup_*.json" -type f -delete'
 check_version 2

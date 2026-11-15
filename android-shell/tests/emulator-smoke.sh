@@ -289,4 +289,3 @@ if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   exit 1
 fi
 echo 'PASS: Native Android activity launched, rendered FitnessDex UI, persisted storage after restart and produced screenshot.'
-adb shell wm size reset

@@ -90,7 +90,10 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: false
-          script: bash android-shell/tests/emulator-smoke.sh && bash android-shell/tests/check-signed-upgrade.sh
+          script: >-
+            signed=0; bash android-shell/tests/check-signed-upgrade.sh || signed=$?;
+            debug=0; bash android-shell/tests/emulator-smoke.sh || debug=$?;
+            test "$signed" -eq 0 && test "$debug" -eq 0
       - name: Save only test evidence (no APK)
         if: always()
         uses: actions/upload-artifact@v4
@@ -99,6 +102,7 @@ jobs:
           if-no-files-found: ignore
           path: |
             android-shell/tests/results/fitnessdex-shell.png
+            android-shell/tests/results/signed-upgrade.png
             android-shell/tests/results/activity-dump.txt
             android-shell/tests/results/android-logcat.txt
             android-shell/tests/results/visual/
