@@ -60,6 +60,19 @@ test -n "$PID2" || { echo "ERROR: FitnessDex process failed to return after rest
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID2}"
 node android-shell/tests/check-webview.cjs after-restart
 node android-shell/tests/check-webview.cjs navigation
+node android-shell/tests/check-webview.cjs activity-save
+adb forward --remove tcp:9222
+adb shell am force-stop "$PACKAGE"
+adb shell am start -n "$PACKAGE/.MainActivity"
+PID3=""
+for attempt in $(seq 1 30); do
+  PID3="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+  if test -n "$PID3"; then break; fi
+  sleep 3
+done
+test -n "$PID3" || { echo 'ERROR: App did not restart after disposable save'; exit 1; }
+adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID3}"
+node android-shell/tests/check-webview.cjs activity-reopen
 adb forward --remove tcp:9222
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'

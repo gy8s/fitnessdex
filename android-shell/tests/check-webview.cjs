@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { setTimeout: delay } = require('node:timers/promises');
 const stage = process.argv[2];
-if (!['first','after-restart','navigation'].includes(stage)) throw Error('Specify first, after-restart or navigation');
+if (!['first','after-restart','navigation','activity-save','activity-reopen'].includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
 const probeKey = 'fitnessdex-stage2-ci-restart-check';
 
@@ -71,6 +71,85 @@ async function inspect(target, expression) {
     const afterCount = await inspect(await findTarget(), countExpr);
     assert.equal(afterCount, beforeCount, 'Navigating must not change workout records');
     console.log('PASS: Android Home, Log, ExerciseDex and More navigation, with records unchanged');
+    return;
+  }
+  if (stage === 'activity-save') {
+    // This test writes ONE fake walking record to an isolated, disposable emulator.
+    // It must refuse to run if there are any existing activity records.
+    const expression = String.raw`JSON.stringify((() => {
+      const key = 'fitnessdex-v01';
+      const existing = JSON.parse(localStorage.getItem(key) || '{"logs":[]}');
+      if (!Array.isArray(existing.logs) || existing.logs.length) return {error:'Test phone not empty',count:existing.logs?.length};
+      const nav = document.querySelector('nav.nav button[data-tab=log]');
+      if (!nav) return {error:'Log tab not found'};
+      nav.click();
+      const cardio = document.querySelector('button.fd-category-option[data-cat=Cardio]');
+      if (!cardio) return {error:'Cardio choice not found'};
+      cardio.click();
+      const search = document.querySelector('#fd-exercise-search');
+      if (!search) return {error:'Exercise search not found'};
+      search.value = 'Walking';
+      search.dispatchEvent(new Event('input',{bubbles:true}));
+      const walking = [...document.querySelectorAll('.fd-find-results button.fd-option')].find(b => (b.getAttribute('onclick') || '').includes('e045'));
+      if (!walking) return {error:'Walking exercise not found'};
+      walking.click();
+      const value = document.querySelector('#value');
+      const extra = document.querySelector('#extra');
+      const notes = document.querySelector('#notes');
+      const session = document.querySelector('#session');
+      const save = document.querySelector('.fd-save-actions button.primary');
+      if (![value,extra,notes,session,save].every(Boolean)) return {error:'Walking form incomplete',stage:window.fdLogStage?.()};
+      value.value = '1.2';
+      extra.value = '15';
+      notes.value = 'FitnessDex disposable Android test';
+      session.value = 'standalone';
+      save.click();
+      const state = JSON.parse(localStorage.getItem(key) || '{}');
+      const record = state.logs?.find(l => l.notes === 'FitnessDex disposable Android test');
+      return {count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,notes:record?.notes,confirmed:!!document.querySelector('.fd-logged')};
+    })())`;
+    const info = JSON.parse(await inspect(await findTarget(), expression));
+    console.log('Disposable activity save:', JSON.stringify(info));
+    assert.equal(info.error, undefined, 'Walking log did not open: ' + info.error);
+    assert.equal(info.count, 1, 'Exactly one new record must be saved');
+    assert.equal(info.exercise, 'e045');
+    assert.equal(info.distance, 1.2);
+    assert.equal(info.minutes, 15);
+    assert.equal(info.confirmed, true, 'Save confirmation missing');
+    console.log('PASS: One disposable walking activity saved using real Android UI');
+    return;
+  }
+  if (stage === 'activity-reopen') {
+    const expression = String.raw`JSON.stringify((() => {
+      const page = document.querySelector('.fd-landing-hero');
+      if (!page) return {ready:false};
+      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const record = state.logs?.find(l => l.notes === 'FitnessDex disposable Android test');
+      const more = document.querySelector('nav.nav button[data-tab=more]');
+      if (!more) return {ready:false};
+      more.click();
+      const history = [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data'));
+      if (!history) return {ready:true,error:'History option missing'};
+      history.click();
+      return {ready:true,count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,historyVisible:document.querySelector('#app h2')?.textContent?.includes('History & data') && document.querySelector('#app .entry .name')?.textContent?.includes('Walking')};
+    })())`;
+    let info;
+    for (let attempt = 0; attempt < 25; attempt++) {
+      try {
+        info = JSON.parse(await inspect(await findTarget(), expression));
+        if (info.ready) break;
+      } catch (err) { if (attempt % 5 === 0) console.log('Waiting for relaunched Android page:', err.message); }
+      await delay(500);
+    }
+    console.log('Disposable activity after restart:', JSON.stringify(info));
+    assert.equal(info?.ready, true, 'Android UI did not render after activity restart');
+    assert.equal(info?.error, undefined, info?.error || '');
+    assert.equal(info?.count, 1, 'Saved activity disappeared or duplicated after restart');
+    assert.equal(info?.exercise, 'e045');
+    assert.equal(info?.distance, 1.2);
+    assert.equal(info?.minutes, 15);
+    assert.equal(info?.historyVisible, true, 'Saved walk missing from History screen');
+    console.log('PASS: Disposable activity survived force-stop and appears in History');
     return;
   }
   const expr = stage === 'first'
