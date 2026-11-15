@@ -24,8 +24,8 @@ movement sessions or a cloud schema migration.
   5. Route profile saves and recovery snapshots through app-private Android
      files. Android acknowledges each write after syncing and replacing the
      file. Earlier Android prototype saves migrate from WebView storage on read.
-- The release signing key and password belong in the owner’s protected storage.
-  CI generates a disposable proof key and publishes only test evidence.
+- Routine CI uses a disposable proof key. The permanent signing proof uses a
+  dedicated GitHub environment and keeps both APKs on the runner.
 - Debug builds are for isolated CI/emulator testing only; they are **not** the
   permanently signed release build and must **never** be presented as an update.
 - The app package identifier is `io.github.gy8s.fitnessdex`. Treat it as
@@ -56,6 +56,45 @@ The native project and npm lockfile are versioned. Capacitor copies the generate
 web assets during sync. CI uses an emulator and uploads screenshots and test logs.
 
 ## Signing a release candidate
+
+The permanent signing proof runs on GitHub Actions. In the repository settings,
+create an environment named `fitnessdex-android-signing`. Restrict it to the
+exact branch `stage2/android-shell-20261114` and configure a required reviewer.
+Disable protection-rule bypass and use the reviewer prompt to inspect the
+specific commit before a runner can use the key. If this is a one-owner
+repository, keep self-review enabled so the owner can approve that prompt.
+
+Use a trusted terminal with Java and the authenticated GitHub CLI to provision
+the secrets once. Choose a folder in protected storage, and keep a separate
+encrypted backup and the password in your password manager. Use an established
+FitnessDex release key if one already exists. To create the first key, run the
+following from the protected folder. `keytool` prompts for the password.
+
+```sh
+umask 077
+keytool -genkeypair -keystore fitnessdex-release.p12 -storetype PKCS12 \
+  -alias fitnessdex -dname 'CN=FitnessDex' -keyalg RSA -keysize 3072 -validity 10000
+```
+
+Run the next commands in Bash from the same folder. Enter the password only when
+`gh` prompts for it. Get the SHA-256 fingerprint from the `keytool` output and
+store its 64 lowercase hexadecimal characters (with colons removed) as the
+`FITNESSDEX_CERT_SHA256` **environment variable**.
+
+```sh
+base64 < fitnessdex-release.p12 | tr -d '\n' | gh secret set FITNESSDEX_KEYSTORE_BASE64 \
+  --repo gy8s/fitnessdex --env fitnessdex-android-signing
+gh secret set FITNESSDEX_STORE_PASSWORD --repo gy8s/fitnessdex --env fitnessdex-android-signing
+keytool -list -v -keystore fitnessdex-release.p12 -alias fitnessdex
+```
+
+To enable the proof for a reviewed push to the draft branch, set the repository
+Actions variable `FITNESSDEX_VERIFY_PERMANENT_SIGNING` to `true`. After the
+standard emulator job passes, approve the separate environment job. It checks
+both APKs against the stored fingerprint and tests clean install and update with
+disposable history. Remove or disable the opt-in variable after verification.
+
+### Signing locally
 
 From `android-shell`, build the production bundle with `npm run build:web` and
 `npm run test:bundle`, then run `npx cap sync android`. Set an increasing

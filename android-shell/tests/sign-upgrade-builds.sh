@@ -4,12 +4,6 @@ set -euo pipefail
 proof="${RUNNER_TEMP:?}/fitnessdex-signing-proof"
 mkdir -p "$proof"
 chmod 700 "$proof"
-sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Android SDK path required}}"
-tools="$sdk/build-tools/36.0.0"
-if [[ ! -x "$tools/apksigner" ]]; then
-    "$sdk/cmdline-tools/latest/bin/sdkmanager" 'build-tools;36.0.0'
-fi
-test -x "$tools/apksigner"
 
 # This disposable key proves the release build/update flow in CI. A release
 # candidate must be signed separately with the owner's permanent certificate.
@@ -25,18 +19,5 @@ export FITNESSDEX_CERT_SHA256="$(
         -alias "$FITNESSDEX_KEY_ALIAS" | openssl dgst -sha256 | awk '{print $NF}'
 )"
 
-# Re-bundle with the normal production HTTPS configuration and manifest.
-unset FITNESSDEX_TEST_SUPABASE_KEY
-npm run build:web
-npm run test:bundle
-npx --no-install cap sync android
-(cd android && bash gradlew --no-daemon assembleRelease -PfitnessdexVersionCode=2)
-bash scripts/sign-release.sh "$tools" android/app/build/outputs/apk/release/app-release-unsigned.apk "$proof/before.apk"
-(cd android && bash gradlew --no-daemon assembleRelease -PfitnessdexVersionCode=3)
-bash scripts/sign-release.sh "$tools" android/app/build/outputs/apk/release/app-release-unsigned.apk "$proof/after.apk"
-for apk in "$proof/before.apk" "$proof/after.apk"; do
-    "$tools/aapt" dump badging "$apk" | awk '
-        /^package:/ {print}
-        /^application-debuggable/ {debuggable=1}
-        END {exit debuggable ? 1 : 0}'
-done
+bash scripts/build-update-apks.sh "$proof"
+bash scripts/sign-update-apks.sh "$proof"
