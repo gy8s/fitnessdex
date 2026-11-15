@@ -65,12 +65,39 @@ async function inspect(target, expression) {
      })())`
     : `JSON.stringify((() => {
        const persisted = localStorage.getItem('${probeKey}');
-       localStorage.removeItem('${probeKey}');
        return {persisted, rendered:!!document.querySelector('.fd-landing-hero')};
      })())`;
-  const value = await inspect(target, expr);
-  const info = JSON.parse(value);
+  // The Android activity can launch before the local WebView finishes loading.
+  // A fast single snapshot previously reported a blank page while the saved
+  // screenshot showed the real FitnessDex UI seconds later.
+  let info;
+  let lastError;
+  let ready = false;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    try {
+      info = JSON.parse(await inspect(target, expr));
+      ready = stage === 'first'
+        ? info.hostname === 'localhost' &&
+          info.version === '0.8.7' &&
+          info.rendered === true &&
+          info.homeText === true &&
+          info.nav === true &&
+          info.cloudClient === true &&
+          info.webUpdater === false
+        : info.persisted === 'persisted' && info.rendered === true;
+      if (ready) break;
+      if (attempt % 8 === 0) console.log('Waiting for FitnessDex to render:', JSON.stringify(info));
+    } catch (err) {
+      lastError = err;
+      if (attempt % 8 === 0) console.log('WebView still loading:', err.message);
+    }
+    await delay(1500);
+  }
   console.log('WebView probe:', JSON.stringify(info));
+  if (!ready) {
+    throw Error('FitnessDex WebView did not reach the required UI/storage state: ' +
+      JSON.stringify(info) + (lastError ? ' | ' + lastError.message : ''));
+  }
   if (stage === 'first') {
     assert.equal(info.hostname, 'localhost');
     assert.equal(info.version, '0.8.7');
@@ -82,6 +109,7 @@ async function inspect(target, expression) {
   } else {
     assert.equal(info.persisted, 'persisted', 'WebView storage must survive force-stop/restart');
     assert.equal(info.rendered, true);
+    await inspect(target, `localStorage.removeItem('${probeKey}'); true`);
   }
   console.log('PASS: Android WebView ' + stage + ' UI/storage check');
 })().catch(err => { console.error(err); process.exitCode = 1; });
