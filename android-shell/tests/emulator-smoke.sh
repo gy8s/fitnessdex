@@ -185,6 +185,62 @@ adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID8}"
 node android-shell/tests/check-webview.cjs migration-verify "$PWA_BACKUP"
 echo 'PASS: PWA migration survived an Android force-stop and relaunch'
 adb forward --remove tcp:9222
+
+forward_upgrade_probe() {
+  local pid=""
+  for attempt in $(seq 1 30); do
+    pid="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+    if test -n "$pid"; then break; fi
+    sleep 3
+  done
+  test -n "$pid" || { echo 'ERROR: Android upgrade probe could not start'; exit 1; }
+  adb forward tcp:9222 "localabstract:webview_devtools_remote_${pid}"
+}
+
+LEGACY_APK="$FITNESSDEX_LEGACY_BUILD/android-shell/android/app/build/outputs/apk/debug/app-debug.apk"
+LEGACY_CHECK="$FITNESSDEX_LEGACY_BUILD/android-shell/tests/check-webview.cjs"
+UPGRADE_BASELINE="android-shell/tests/results/upgrade-baseline.json"
+test -s "$LEGACY_APK"
+# Begin the upgrade test with a clean, disposable installation of the old APK.
+# Never clear app data between installing the old APK and verifying the update.
+adb uninstall "$PACKAGE"
+adb install "$LEGACY_APK"
+adb shell am start -n "$PACKAGE/.MainActivity"
+forward_upgrade_probe
+node "$LEGACY_CHECK" first
+node "$LEGACY_CHECK" activity-save
+# The old prototype depended on WebView flushing asynchronous writes to disk.
+sleep 10
+restart_after_save
+forward_upgrade_probe
+node "$LEGACY_CHECK" activity-reopen
+node "$LEGACY_CHECK" activity-edit
+sleep 10
+restart_after_save
+forward_upgrade_probe
+node android-shell/tests/check-webview.cjs upgrade-baseline "$UPGRADE_BASELINE"
+adb shell run-as "$PACKAGE" test ! -e files/fitnessdex-v01.json
+
+adb shell am force-stop "$PACKAGE"
+adb forward --remove tcp:9222
+adb install -r "$APK"
+adb shell dumpsys package "$PACKAGE" | grep -E 'versionCode=2([[:space:]]|$)'
+adb shell am start -n "$PACKAGE/.MainActivity"
+forward_upgrade_probe
+node android-shell/tests/check-webview.cjs upgrade-verify "$UPGRADE_BASELINE"
+adb exec-out run-as "$PACKAGE" cat files/fitnessdex-v01.json | node -e '
+  const assert = require("node:assert/strict");
+  const fs = require("node:fs");
+  const migrated = JSON.parse(fs.readFileSync(0, "utf8"));
+  const original = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+  assert.deepEqual(migrated.logs, original.profile.logs);
+  console.log("PASS: In-place upgrade wrote the original walk to the native profile file");
+' "$UPGRADE_BASELINE"
+
+restart_after_save
+forward_upgrade_probe
+node android-shell/tests/check-webview.cjs upgrade-verify "$UPGRADE_BASELINE"
+adb forward --remove tcp:9222
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'
   adb logcat -d -v brief | grep -A 22 'FATAL EXCEPTION' | head -n 65

@@ -14,6 +14,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -43,7 +45,24 @@ jobs:
           npx cap add android
           npx cap sync android
           cp native/*.java android/app/src/main/java/io/github/gy8s/fitnessdex/
+          sed -i 's/^        versionCode 1$/        versionCode 2/' android/app/build.gradle
+          grep -qx '        versionCode 2' android/app/build.gradle
           cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+      - name: Build the earlier WebView-storage prototype with the same CI debug key
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/fitnessdex-legacy" 50afec50ed03f13e280de21be5b6ea7b75320181
+          legacy="$RUNNER_TEMP/fitnessdex-legacy/android-shell"
+          cmp android-shell/package.json "$legacy/package.json"
+          ln -s "$PWD/android-shell/node_modules" "$legacy/node_modules"
+          cd "$legacy"
+          npm run build:web
+          npx cap add android
+          npx cap sync android
+          cp native/*.java android/app/src/main/java/io/github/gy8s/fitnessdex/
+          cd android
+          grep -qx '        versionCode 1' app/build.gradle
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
       - name: Enable fast Android emulator support
@@ -59,6 +78,8 @@ jobs:
           test -r /dev/kvm && test -w /dev/kvm
       - name: Start on Android emulator and inspect for crashes
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          FITNESSDEX_LEGACY_BUILD: ${{ runner.temp }}/fitnessdex-legacy
         with:
           api-level: 35
           arch: x86_64

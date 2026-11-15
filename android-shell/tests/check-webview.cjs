@@ -9,7 +9,7 @@ const stages = [
   'first', 'after-restart', 'navigation', 'activity-save', 'activity-reopen', 'activity-edit',
   'activity-edit-reopen', 'activity-delete', 'activity-delete-reopen', 'activity-restore',
   'activity-restore-reopen', 'backup-export', 'backup-import', 'backup-import-verify',
-  'migration-verify'
+  'migration-verify', 'upgrade-baseline', 'upgrade-verify'
 ];
 if (!stages.includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
@@ -30,6 +30,55 @@ async function findTarget() {
 }
 
 (async () => {
+  if (stage === 'upgrade-baseline' || stage === 'upgrade-verify') {
+    const baseline = stage === 'upgrade-baseline';
+    const expression = String.raw`JSON.stringify((() => {
+      if (!document.querySelector('.fd-landing-hero') && !document.querySelector('#importFile')) return {ready:false};
+      if (${baseline} === Boolean(window.fdProfileStorage)) return {ready:true, wrongBuild:true};
+      const storage = ${baseline} ? localStorage : window.fdProfileStorage;
+      document.querySelector('nav.nav button[data-tab=more]').click();
+      [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data')).click();
+      return {
+        ready:true,
+        profile: JSON.parse(storage.getItem('fitnessdex-v01')),
+        recovery: JSON.parse(storage.getItem('fitnessdex-recovery-checkpoints-v1')),
+        preV03: storage.getItem('fitnessdex-v01-pre-v03-backup'),
+        preV04: storage.getItem('fitnessdex-v01-pre-v04-backup'),
+        history: document.querySelector('#app .stack')?.textContent,
+        recoveryText: document.querySelector('#app details.fd-log-details')?.textContent
+      };
+    })())`;
+    let info;
+    for (let attempt = 0; attempt < 25; attempt++) {
+      try {
+        info = JSON.parse(await inspect(await findTarget(), expression));
+        if (info.ready) break;
+      } catch (error) {
+        if (attempt % 5 === 0) console.log('Waiting for upgrade profile:', error.message);
+      }
+      await delay(500);
+    }
+    assert.equal(info?.ready, true, 'Upgrade profile did not load');
+    assert.equal(info.wrongBuild, undefined, 'Test opened the wrong build');
+    assert.equal(info.profile.logs.length, 1);
+    assert.match(info.history, /1\.6 km · 20 min/);
+    assert.match(info.recoveryText, /Before editing Walking/);
+    assert.equal(JSON.parse(info.recovery[0].data).logs[0].value, 1.2);
+    assert(info.preV03 && info.preV04, 'Earlier save snapshots must be present');
+    const baselinePath = process.argv[3];
+    if (baseline) {
+      fs.writeFileSync(baselinePath, JSON.stringify(info));
+      console.log('PASS: Earlier APK retained its edited walk and recovery snapshot in WebView storage');
+    } else {
+      const previous = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
+      assert.deepEqual(info.profile.logs, previous.profile.logs, 'Upgrade changed the saved record');
+      assert.deepEqual(info.recovery, previous.recovery, 'Upgrade changed recovery snapshots');
+      assert.equal(info.preV03, previous.preV03);
+      assert.equal(info.preV04, previous.preV04);
+      console.log('PASS: In-place upgrade preserved the exact walk and all earlier recovery snapshots');
+    }
+    return;
+  }
   if (stage === 'navigation') {
     // Read-only interaction test: clicks the real four tab buttons in disposable emulator storage.
     const expected = [['log','What did you do?'],['dex','ExerciseDex'],['more','More'],['home','Make today count.']];
