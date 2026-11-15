@@ -1,7 +1,6 @@
 # Build products never committed. Neither signing credentials nor APKs belong in Git.
 /node_modules/
 /www/
-/android/
 tests/results/
 *.apk
 *.aab

@@ -33,7 +33,7 @@ jobs:
           NODE_PATH="$RUNNER_TEMP/fitnessdex-browser-test/node_modules" node tests/export-pwa-backup.cjs tests/results/FitnessDex_PWA_migration.json
       - name: Install pinned shell dependencies
         working-directory: android-shell
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - uses: supabase/setup-cli@v1
         with:
           version: 2.79.0
@@ -47,12 +47,8 @@ jobs:
       - name: Generate experimental native shell and compile debug probe
         working-directory: android-shell
         run: |
-          npx cap add android
           npx cap sync android
           node scripts/configure-native.cjs
-          cp native/*.java android/app/src/main/java/io/github/gy8s/fitnessdex/
-          sed -i 's/^        versionCode 1$/        versionCode 2/' android/app/build.gradle
-          grep -qx '        versionCode 2' android/app/build.gradle
           cd android
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
@@ -82,6 +78,11 @@ jobs:
           sudo chmod a+rw /dev/kvm
           ls -l /dev/kvm
           test -r /dev/kvm && test -w /dev/kvm
+      - name: Build and verify both signed release test APKs
+        working-directory: android-shell
+        run: |
+          sdkmanager 'build-tools;36.0.0'
+          bash tests/sign-upgrade-builds.sh
       - name: Start on Android emulator and inspect for crashes
         uses: reactivecircus/android-emulator-runner@v2
         env:
@@ -91,7 +92,7 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: false
-          script: bash android-shell/tests/emulator-smoke.sh
+          script: bash android-shell/tests/emulator-smoke.sh && bash android-shell/tests/check-signed-upgrade.sh
       - name: Save only test evidence (no APK)
         if: always()
         uses: actions/upload-artifact@v4

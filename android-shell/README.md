@@ -4,7 +4,7 @@
 
 This directory packages the restored v0.8.7 **unchanged PWA source** in a
 Capacitor 8 Android WebView. It does not contain Health Connect, a step counter,
-movement sessions, a cloud schema migration, new notifications, or a signing key.
+movement sessions or a cloud schema migration.
 
 ## Scope and safeguards
 
@@ -24,7 +24,8 @@ movement sessions, a cloud schema migration, new notifications, or a signing key
   5. Route profile saves and recovery snapshots through app-private Android
      files. Android acknowledges each write after syncing and replacing the
      file. Earlier Android prototype saves migrate from WebView storage on read.
-- No release signing key is generated, stored, committed, or uploaded.
+- The release signing key and password belong in the owner’s protected storage.
+  CI generates a disposable proof key and publishes only test evidence.
 - Debug builds are for isolated CI/emulator testing only; they are **not** the
   permanently signed release build and must **never** be presented as an update.
 - The app package identifier is `io.github.gy8s.fitnessdex`. Treat it as
@@ -43,26 +44,30 @@ movement sessions, a cloud schema migration, new notifications, or a signing key
 
 ```sh
 cd android-shell
-npm install
+npm ci
 npm run build:web
 npm run test:bundle
-npx cap add android
 npx cap sync android
-node scripts/configure-native.cjs
-cp native/*.java android/app/src/main/java/io/github/gy8s/fitnessdex/
 cd android
 ./gradlew assembleDebug
 ```
 
-The generated Android project is intentionally disposable during the proof stage.
-Before any release, check in a reviewed stable native Android project, commit an
-npm lockfile, configure an offline-safe authentication callback, implement and
-prove native background-reminder parity, test persistent Android storage, and
-establish protected **permanent** signing credentials.
+The native project and npm lockfile are versioned. Capacitor copies the generated
+web assets during sync. CI uses an emulator and uploads screenshots and test logs.
 
-The branch's Android workflow builds an unsigned-for-release debug probe,
-installs it on an emulator, checks the activity stays alive, and captures a
-screenshot for review. It does **not** publish or attach an APK.
+## Signing a release candidate
+
+From `android-shell`, build the production bundle with `npm run build:web` and
+`npm run test:bundle`, then run `npx cap sync android`. Set an increasing
+`fitnessdexVersionCode` with `bash gradlew assembleRelease -PfitnessdexVersionCode=3`
+from the `android` directory. Use the current release history when choosing the
+actual version code.
+
+From `android-shell`, pass the Android SDK build-tools path, the unsigned APK,
+and the output APK to `bash scripts/sign-release.sh`. Supply `FITNESSDEX_KEYSTORE`,
+`FITNESSDEX_KEY_ALIAS`, `FITNESSDEX_STORE_PASSWORD`, and the independently recorded
+`FITNESSDEX_CERT_SHA256` from the maintained release keystore. Retain a protected
+backup of the keystore and keep the same certificate for subsequent APKs.
 
 ## Acceptance gate
 
