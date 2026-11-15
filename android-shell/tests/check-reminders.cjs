@@ -87,7 +87,7 @@ async function main() {
   console.log('PASS: Scheduled water and supplement notifications arrived after the Android app process exited');
 
   adb('shell', 'cmd', 'statusbar', 'expand-notifications');
-  execFileSync('python3', ['android-shell/tests/tap-android-ui.py', 'Supplement check-in'], { stdio:'inherit', timeout:30000 });
+  execFileSync('python3', ['android-shell/tests/tap-android-ui.py', 'Supplement check-in', '5', 'notification'], { stdio:'inherit', timeout:30000 });
   await waitFor(async () => {
     const reopened = pid();
     if (!reopened) return false;

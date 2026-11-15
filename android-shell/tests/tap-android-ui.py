@@ -24,11 +24,12 @@ def tap_center(node):
     return True
 
 
-def tap(pattern, attempts):
+def tap(pattern, attempts, notification=False):
     for _ in range(attempts):
         adb("shell", "uiautomator", "dump", DUMP)
         root = ET.fromstring(adb("shell", "cat", DUMP))
         nodes = list(root.iter("node"))
+        parents = {child: node for node in nodes for child in node}
         if any(node.get("text") == "Quickstep isn't responding" for node in nodes):
             close = next((node for node in nodes if node.get("text") == "Close app"), None)
             if close is not None and tap_center(close):
@@ -39,6 +40,13 @@ def tap(pattern, attempts):
             labels = (node.get("text", ""), node.get("content-desc", ""))
             if node.get("enabled") != "true" or not any(pattern.fullmatch(label) for label in labels):
                 continue
+            if notification:
+                if node.get("package") != "com.android.systemui":
+                    continue
+                while node.get("clickable") != "true" and node in parents:
+                    node = parents[node]
+                if node.get("clickable") != "true" or node.get("package") != "com.android.systemui":
+                    continue
             if tap_center(node):
                 print(f"Tapped Android UI: {next(label for label in labels if pattern.fullmatch(label))}")
                 return True
@@ -52,4 +60,5 @@ def tap(pattern, attempts):
 
 if __name__ == "__main__":
     expression = re.compile(sys.argv[1], re.IGNORECASE)
-    sys.exit(0 if tap(expression, int(sys.argv[2]) if len(sys.argv) > 2 else 5) else 1)
+    sys.exit(0 if tap(expression, int(sys.argv[2]) if len(sys.argv) > 2 else 5,
+                      notification=len(sys.argv) > 3 and sys.argv[3] == "notification") else 1)

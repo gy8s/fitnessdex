@@ -259,7 +259,10 @@ public final class ReminderScheduler extends BroadcastReceiver {
         } else {
             notification = new Notification.Builder(context);
         }
-        Intent open = new Intent(context, MainActivity.class).setAction(OPEN).putExtra("section", section);
+        Intent open = new Intent(context, MainActivity.class)
+            .setAction(OPEN)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra("section", section);
         PendingIntent tap = PendingIntent.getActivity(context, id, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         notifications.notify(id, notification.setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle(title).setContentText(body).setContentIntent(tap).setAutoCancel(true).build());
