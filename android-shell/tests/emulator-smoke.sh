@@ -21,6 +21,14 @@ capture_evidence() {
 }
 trap capture_evidence EXIT
 PACKAGE="io.github.gy8s.fitnessdex"
+restart_after_save() {
+  # A localStorage read confirms the in-process value. Give WebView's batch
+  # time to reach disk before deliberately killing the process.
+  sleep 10
+  adb forward --remove tcp:9222
+  adb shell am force-stop "$PACKAGE"
+  adb shell am start -n "$PACKAGE/.MainActivity"
+}
 APK="android-shell/android/app/build/outputs/apk/debug/app-debug.apk"
 test -s "$APK"
 adb install -r "$APK"
@@ -47,9 +55,7 @@ adb shell dumpsys activity activities | grep -F "$PACKAGE" | head -n 12 || true
 # A process alive is not enough. Inspect the actual WebView content and localStorage.
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID}"
 node android-shell/tests/check-webview.cjs first
-adb forward --remove tcp:9222
-adb shell am force-stop "$PACKAGE"
-adb shell am start -n "$PACKAGE/.MainActivity"
+restart_after_save
 PID2=""
 for attempt in $(seq 1 30); do
   PID2="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
@@ -61,9 +67,7 @@ adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID2}"
 node android-shell/tests/check-webview.cjs after-restart
 node android-shell/tests/check-webview.cjs navigation
 node android-shell/tests/check-webview.cjs activity-save
-adb forward --remove tcp:9222
-adb shell am force-stop "$PACKAGE"
-adb shell am start -n "$PACKAGE/.MainActivity"
+restart_after_save
 PID3=""
 for attempt in $(seq 1 30); do
   PID3="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
@@ -74,9 +78,7 @@ test -n "$PID3" || { echo 'ERROR: App did not restart after disposable save'; ex
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID3}"
 node android-shell/tests/check-webview.cjs activity-reopen
 node android-shell/tests/check-webview.cjs activity-edit
-adb forward --remove tcp:9222
-adb shell am force-stop "$PACKAGE"
-adb shell am start -n "$PACKAGE/.MainActivity"
+restart_after_save
 PID4=""
 for attempt in $(seq 1 30); do
   PID4="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
@@ -87,9 +89,7 @@ test -n "$PID4" || { echo 'ERROR: App did not restart after activity edit'; exit
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID4}"
 node android-shell/tests/check-webview.cjs activity-edit-reopen
 node android-shell/tests/check-webview.cjs activity-delete
-adb forward --remove tcp:9222
-adb shell am force-stop "$PACKAGE"
-adb shell am start -n "$PACKAGE/.MainActivity"
+restart_after_save
 PID5=""
 for attempt in $(seq 1 30); do
   PID5="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
@@ -100,9 +100,7 @@ test -n "$PID5" || { echo 'ERROR: App did not restart after deletion'; exit 1; }
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID5}"
 node android-shell/tests/check-webview.cjs activity-delete-reopen
 node android-shell/tests/check-webview.cjs activity-restore
-adb forward --remove tcp:9222
-adb shell am force-stop "$PACKAGE"
-adb shell am start -n "$PACKAGE/.MainActivity"
+restart_after_save
 PID6=""
 for attempt in $(seq 1 30); do
   PID6="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
@@ -147,9 +145,7 @@ fi
 python3 android-shell/tests/tap-android-ui.py 'OK'
 node android-shell/tests/check-webview.cjs backup-import-verify "$BACKUP_COPY"
 
-adb forward --remove tcp:9222
-adb shell am force-stop "$PACKAGE"
-adb shell am start -n "$PACKAGE/.MainActivity"
+restart_after_save
 PID7=""
 for attempt in $(seq 1 30); do
   PID7="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
@@ -173,9 +169,7 @@ fi
 python3 android-shell/tests/tap-android-ui.py 'OK'
 node android-shell/tests/check-webview.cjs migration-verify "$PWA_BACKUP"
 
-adb forward --remove tcp:9222
-adb shell am force-stop "$PACKAGE"
-adb shell am start -n "$PACKAGE/.MainActivity"
+restart_after_save
 PID8=""
 for attempt in $(seq 1 30); do
   PID8="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
