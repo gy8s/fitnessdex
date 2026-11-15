@@ -112,7 +112,17 @@ done
 test -n "$PID6" || { echo 'ERROR: App did not restart after recovery restore'; exit 1; }
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID6}"
 node android-shell/tests/check-webview.cjs activity-restore-reopen
+node android-shell/tests/check-webview.cjs backup-export
 adb forward --remove tcp:9222
+sleep 3
+echo 'Checking whether Android saved a physical FitnessDex backup file:'
+adb shell ls -la /sdcard/Download /sdcard/Documents 2>&1 || true
+BACKUP_FILES="$(adb shell find /sdcard/Download /sdcard/Documents -maxdepth 1 -type f -name 'FitnessDex_v04_backup_*.json' -print 2>/dev/null || true)"
+echo "Android backup files found: ${BACKUP_FILES:-none}"
+if test -z "$BACKUP_FILES"; then
+  echo 'ERROR: Export button was clicked but no physical backup was found in Android Downloads or Documents. Native export parity is unverified.'
+  exit 1
+fi
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'
   adb logcat -d -v brief | grep -A 22 'FATAL EXCEPTION' | head -n 65

@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { setTimeout: delay } = require('node:timers/promises');
 const stage = process.argv[2];
-if (!['first','after-restart','navigation','activity-save','activity-reopen','activity-edit','activity-edit-reopen','activity-delete','activity-delete-reopen','activity-restore','activity-restore-reopen'].includes(stage)) throw Error('Specify a supported Android test stage');
+if (!['first','after-restart','navigation','activity-save','activity-reopen','activity-edit','activity-edit-reopen','activity-delete','activity-delete-reopen','activity-restore','activity-restore-reopen','backup-export'].includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
 const probeKey = 'fitnessdex-stage2-ci-restart-check';
 
@@ -317,6 +317,29 @@ async function inspect(target, expression) {
     assert.equal(info?.minutes, 20);
     assert.equal(info?.historyVisible, true);
     console.log('PASS: Restored activity survives another restart and appears in History');
+    return;
+  }
+  if (stage === 'backup-export') {
+    // Test the REAL Android export button, not merely JavaScript object creation.
+    // No real user data: this is the disposable emulator with one restored fake walk.
+    const expression = String.raw`JSON.stringify((() => {
+      const data = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      if (data.logs?.length !== 1 || data.logs[0]?.id !== 'e045') return {error:'Disposable source data missing'};
+      const button = [...document.querySelectorAll('#app button')].find(b => b.textContent.trim() === 'Export complete backup');
+      if (!button) return {error:'Real export button missing from History'};
+      const valid = validBackup(snapshotForExport());
+      button.click();
+      const after = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      return {clicked:true,valid,recordCount:after.logs?.length,sameRecord:after.logs?.[0]?.at === data.logs[0].at};
+    })())`;
+    const info = JSON.parse(await inspect(await findTarget(), expression));
+    console.log('Android real backup export button:', JSON.stringify(info));
+    assert.equal(info.error, undefined, info.error || '');
+    assert.equal(info.clicked, true);
+    assert.equal(info.valid, true, 'Backup content must validate');
+    assert.equal(info.recordCount, 1, 'Export must not alter activity records');
+    assert.equal(info.sameRecord, true);
+    console.log('PASS: Android export button invoked with valid backup content; physical file checked separately');
     return;
   }
   const expr = stage === 'first'
