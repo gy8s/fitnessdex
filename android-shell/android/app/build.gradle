@@ -1,5 +1,7 @@
 apply plugin: 'com.android.application'
 
+def fitnessdexVersionCode = providers.gradleProperty('fitnessdexVersionCode').orElse('2').get().toInteger()
+
 android {
     namespace = "io.github.gy8s.fitnessdex"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,7 +9,7 @@ android {
         applicationId "io.github.gy8s.fitnessdex"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (project.findProperty('fitnessdexVersionCode') ?: '2').toInteger()
+        versionCode = fitnessdexVersionCode
         versionName "0.8.7"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
