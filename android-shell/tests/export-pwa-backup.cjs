@@ -59,7 +59,10 @@ async function main(output) {
   const server = http.createServer(async (request, response) => {
     const pathname = new URL(request.url, 'http://localhost').pathname;
     // Serve the actual web app and a minimal same-origin page for seeding browser storage.
-    if (pathname === '/test-profile') return response.end('FitnessDex test profile');
+    if (pathname === '/test-profile') {
+      response.setHeader('Content-Type', 'text/html');
+      return response.end('<!doctype html><title>FitnessDex test profile</title>');
+    }
     const filename = path.join(root, pathname === '/' ? 'index.html' : pathname);
     if (!filename.startsWith(root + path.sep)) return response.writeHead(404).end();
     try {
@@ -97,7 +100,7 @@ async function main(output) {
     const debuggerOrigin = 'http://127.0.0.1:' + port;
     const target = await waitFor(async () => {
       const response = await fetch(debuggerOrigin + '/json');
-      return (await response.json()).find(page => page.url === origin + '/test-profile');
+      return (await response.json()).find(page => page.type === 'page' && page.url === origin + '/test-profile');
     }, 'Chromium test page did not open');
 
     const profile = testProfile();
@@ -110,14 +113,15 @@ async function main(output) {
     const browserInfo = await (await fetch(debuggerOrigin + '/json/version')).json();
     await command(browserInfo.webSocketDebuggerUrl, 'Browser.setDownloadBehavior', { behavior:'allow', downloadPath:downloads });
     await command(target.webSocketDebuggerUrl, 'Page.navigate', { url:origin + '/' });
-    await waitFor(async () => inspect(target, `(() => {
-      if (!document.querySelector('.fd-landing-hero')) return false;
+    const result = await waitFor(async () => inspect(target, `(() => {
+      if (document.readyState === 'loading' || !document.querySelector('.fd-landing-hero')) return false;
       if (!validBackup(snapshotForExport())) throw Error('The loaded PWA test profile is invalid');
       document.querySelector('nav.nav button[data-tab=more]').click();
       [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data')).click();
       [...document.querySelectorAll('#app button')].find(b => b.textContent.trim() === 'Export complete backup').click();
-      return true;
+      return { url:location.href, count:S.logs.length };
     })()`, true), 'The PWA export button did not become available');
+    console.log('PWA export button invoked:', JSON.stringify(result));
     const download = await waitFor(async () => {
       const files = await fs.readdir(downloads);
       return files.find(filename => /^FitnessDex_v04_backup_.*\.json$/.test(filename));
@@ -141,7 +145,8 @@ async function main(output) {
     }
     server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));
-    await fs.rm(directory, { force:true, recursive:true });
+    await fs.rm(directory, { force:true, recursive:true, maxRetries:5 })
+      .catch(error => console.warn('Chrome test profile cleanup:', error.message));
   }
 }
 
