@@ -6,6 +6,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -26,6 +27,7 @@ import org.json.JSONObject;
 public final class ReminderScheduler extends BroadcastReceiver {
     static final String SETTINGS = "fitnessdex-reminders-v1";
     static final String OPEN = "io.github.gy8s.fitnessdex.OPEN_REMINDER";
+    static final String OPEN_SECTION = "io.github.gy8s.fitnessdex.reminder.SECTION";
     private static final String DUE = "io.github.gy8s.fitnessdex.REMINDER_DUE";
     private static final String TEST = "io.github.gy8s.fitnessdex.REMINDER_TEST";
     private static final String CHANNEL = "fitnessdex-daily-care";
@@ -259,10 +261,8 @@ public final class ReminderScheduler extends BroadcastReceiver {
         } else {
             notification = new Notification.Builder(context);
         }
-        Intent open = new Intent(context, MainActivity.class)
-            .setAction(OPEN)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            .putExtra("section", section);
+        Intent open = Intent.makeMainActivity(new ComponentName(context, MainActivity.class))
+            .putExtra(OPEN_SECTION, section);
         PendingIntent tap = PendingIntent.getActivity(context, id, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         notifications.notify(id, notification.setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle(title).setContentText(body).setContentIntent(tap).setAutoCancel(true).build());

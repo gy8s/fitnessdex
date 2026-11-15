@@ -64,10 +64,16 @@ public final class RemindersPlugin extends Plugin {
 
     @Override
     protected void handleOnNewIntent(Intent intent) {
-        if (intent == null || !ReminderScheduler.OPEN.equals(intent.getAction())) return;
-        String section = intent.getStringExtra("section");
+        if (intent == null) return;
+        String key = ReminderScheduler.OPEN_SECTION;
+        if (ReminderScheduler.OPEN.equals(intent.getAction())) {
+            key = "section"; // A notification posted by an earlier app build.
+        } else if (!Intent.ACTION_MAIN.equals(intent.getAction()) || !intent.hasCategory(Intent.CATEGORY_LAUNCHER)) {
+            return;
+        }
+        String section = intent.getStringExtra(key);
         if (!"water".equals(section) && !"supplements".equals(section)) return;
-        intent.removeExtra("section");
+        intent.removeExtra(key);
         JSObject result = new JSObject();
         result.put("section", section);
         notifyListeners("open", result, true);
