@@ -160,6 +160,32 @@ test -n "$PID7" || { echo 'ERROR: App did not restart after backup import'; exit
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID7}"
 node android-shell/tests/check-webview.cjs activity-restore-reopen
 node android-shell/tests/check-webview.cjs backup-import-verify "$BACKUP_COPY"
+
+PWA_BACKUP="android-shell/tests/results/FitnessDex_PWA_migration.json"
+test -s "$PWA_BACKUP"
+adb push "$PWA_BACKUP" "/sdcard/Download/$(basename "$PWA_BACKUP")"
+node android-shell/tests/check-webview.cjs backup-import 1
+if ! python3 android-shell/tests/tap-android-ui.py 'FitnessDex_PWA_migration\.json' 2; then
+  python3 android-shell/tests/tap-android-ui.py 'Show roots|Open navigation drawer'
+  python3 android-shell/tests/tap-android-ui.py 'Downloads'
+  python3 android-shell/tests/tap-android-ui.py 'FitnessDex_PWA_migration\.json'
+fi
+python3 android-shell/tests/tap-android-ui.py 'OK'
+node android-shell/tests/check-webview.cjs migration-verify "$PWA_BACKUP"
+
+adb forward --remove tcp:9222
+adb shell am force-stop "$PACKAGE"
+adb shell am start -n "$PACKAGE/.MainActivity"
+PID8=""
+for attempt in $(seq 1 30); do
+  PID8="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+  if test -n "$PID8"; then break; fi
+  sleep 3
+done
+test -n "$PID8" || { echo 'ERROR: App did not restart after PWA migration'; exit 1; }
+adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID8}"
+node android-shell/tests/check-webview.cjs migration-verify "$PWA_BACKUP"
+echo 'PASS: PWA migration survived an Android force-stop and relaunch'
 adb forward --remove tcp:9222
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'

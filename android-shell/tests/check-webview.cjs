@@ -1,12 +1,15 @@
 'use strict';
 // Only checks an Android emulator's debug WebView. No production user data.
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const { setTimeout: delay } = require('node:timers/promises');
+const { inspect } = require('./devtools.cjs');
 const stage = process.argv[2];
 const stages = [
   'first', 'after-restart', 'navigation', 'activity-save', 'activity-reopen', 'activity-edit',
   'activity-edit-reopen', 'activity-delete', 'activity-delete-reopen', 'activity-restore',
-  'activity-restore-reopen', 'backup-export', 'backup-import', 'backup-import-verify'
+  'activity-restore-reopen', 'backup-export', 'backup-import', 'backup-import-verify',
+  'migration-verify'
 ];
 if (!stages.includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
@@ -25,30 +28,6 @@ async function findTarget() {
     await delay(600);
   }
   throw Error('Could not inspect the FitnessDex local WebView. A running process is not adequate evidence.');
-}
-
-async function inspect(target, expression, userGesture = false) {
-  const socket = new WebSocket(target.webSocketDebuggerUrl);
-  const opened = new Promise((resolve, reject) => {
-    socket.addEventListener('open', resolve, { once: true });
-    socket.addEventListener('error', reject, { once: true });
-  });
-  await Promise.race([opened, delay(10000).then(() => { throw Error('WebView debugger timed out'); })]);
-  try {
-    const response = new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => reject(Error('WebView evaluate timed out')), 10000);
-      socket.addEventListener('message', event => {
-        const msg = JSON.parse(event.data);
-        if (msg.id !== 1) return;
-        clearTimeout(timeout);
-        if (msg.error || msg.result?.exceptionDetails) return reject(Error(JSON.stringify(msg.error || msg.result.exceptionDetails)));
-        resolve(msg.result?.result?.value);
-      });
-    });
-    socket.send(JSON.stringify({ id:1, method:'Runtime.evaluate',
-      params:{expression,returnByValue:true,awaitPromise:true,userGesture} }));
-    return await response;
-  } finally { socket.close(); }
 }
 
 (async () => {
@@ -348,11 +327,16 @@ async function inspect(target, expression, userGesture = false) {
     return;
   }
   if (stage === 'backup-import') {
+    const expectedCount = Number(process.argv[3] ?? 0);
     const expression = String.raw`JSON.stringify((() => {
+      if (!document.querySelector('#importFile')) {
+        document.querySelector('nav.nav button[data-tab=more]')?.click();
+        [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data'))?.click();
+      }
       const data = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
       const button = [...document.querySelectorAll('#app button')].find(b => b.textContent.trim() === 'Import validated backup');
       if (!button) return {error:'Import button missing from History'};
-      if (data.logs?.length !== 0) return {error:'Test must begin with empty History'};
+      if (data.logs?.length !== ${expectedCount}) return {error:'Unexpected pre-import record count'};
       button.click();
       return {clicked:true};
     })())`;
@@ -380,7 +364,7 @@ async function inspect(target, expression, userGesture = false) {
       if (info.count === 1 && info.historyVisible) break;
       await delay(500);
     }
-    const exported = JSON.parse(require('node:fs').readFileSync(process.argv[3], 'utf8'));
+    const exported = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
     console.log('Imported Android walk:', JSON.stringify(info));
     assert.equal(info.count, 1);
     assert.equal(info.exercise, 'e045');
@@ -391,6 +375,56 @@ async function inspect(target, expression, userGesture = false) {
     assert.equal(info.historyVisible, true);
     assert.equal(info.priorCount, 0, 'The pre-import state must be protected');
     console.log('PASS: Android file picker imported the saved backup; History and pre-import recovery are correct');
+    return;
+  }
+  if (stage === 'migration-verify') {
+    const expected = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+    const expression = String.raw`JSON.stringify((() => {
+      if (!document.querySelector('.fd-landing-hero') && !document.querySelector('#importFile')) return {ready:false};
+      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      if (!state.logs?.some(l => l.at === 'pwa-legacy-pushups')) return {ready:false};
+      function more(label) {
+        document.querySelector('nav.nav button[data-tab=more]').click();
+        [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes(label)).click();
+      }
+      more('History & data');
+      const history = document.querySelector('#app .stack')?.textContent || '';
+      const historySummary = document.querySelector('#app .card .row')?.textContent || '';
+      more('Daily care');
+      const care = document.querySelector('#app .fd-care-page')?.textContent || '';
+      document.querySelector('.fd-care-option[onclick="fdCareSupplements()"]')?.click();
+      const routines = document.querySelector('#app .fd-care-page')?.textContent || '';
+      const before = JSON.parse(localStorage.getItem('fitnessdex-v01-pre-import-backup') || '{}');
+      return {
+        ready:true, state, history, historySummary, care, routines,
+        before:before.logs,
+        deviceReminder:localStorage.getItem('fitnessdex-reminders-v1')
+      };
+    })())`;
+    let info;
+    for (let attempt = 0; attempt < 25; attempt++) {
+      try {
+        info = JSON.parse(await inspect(await findTarget(), expression));
+        if (info.ready) break;
+      } catch (error) {
+        if (attempt % 5 === 0) console.log('Waiting for PWA migration:', error.message);
+      }
+      await delay(500);
+    }
+    assert.equal(info?.ready, true, 'Imported PWA profile did not become ready');
+    for (const key of ['logs', 'recoveryDays', 'v5', 'v6', 'v7', 'v8', 'v9']) {
+      assert.deepEqual(info.state[key], expected[key], 'PWA backup changed ' + key);
+    }
+    assert.match(info.history, /12 total reps \(legacy, consecutive set unknown\)/);
+    assert.match(info.history, /5\.4 km · 65 min/);
+    assert.match(info.historySummary, /1 confirmed workouts/);
+    assert.match(info.care, /of 2\.75 L/);
+    assert.match(info.routines, /Migration test routine/);
+    assert.equal(info.before?.length, 1);
+    assert.equal(info.before[0].notes, 'FitnessDex disposable Android test EDITED');
+    assert.equal(info.deviceReminder, null, 'Browser notification preferences must not opt Android in');
+    console.log('PASS: PWA history, workout links, recovery days, habits, campaign, progression and daily care matched the exported backup');
+    console.log('PASS: Android retained the pre-import record and did not opt into browser reminders');
     return;
   }
   const expr = stage === 'first'
