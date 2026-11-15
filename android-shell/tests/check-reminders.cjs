@@ -86,8 +86,14 @@ async function main() {
   }, 'Water and supplement alarms did not notify with the app process closed', 145);
   console.log('PASS: Scheduled water and supplement notifications arrived after the Android app process exited');
 
-  adb('shell', 'cmd', 'statusbar', 'expand-notifications');
-  execFileSync('python3', ['android-shell/tests/tap-android-ui.py', 'Supplement check-in', '5', 'notification'], { stdio:'inherit', timeout:30000 });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    adb('shell', 'cmd', 'statusbar', 'expand-notifications');
+    execFileSync('python3', ['android-shell/tests/tap-android-ui.py', 'Your scheduled supplement is due\\.', '5', 'notification'],
+      { stdio:'inherit', timeout:40000 });
+    await delay(1500);
+    if (!active().includes('Supplement check-in')) break;
+  }
+  assert(!active().includes('Supplement check-in'), 'Tapping the notification body did not dismiss the auto-cancel notification');
   let reopenedPid;
   let port;
   try {

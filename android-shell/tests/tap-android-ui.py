@@ -49,12 +49,15 @@ def tap(pattern, attempts, notification=False):
             if node.get("enabled") != "true" or not any(pattern.fullmatch(label) for label in labels):
                 continue
             if notification:
+                label_node = node
                 if node.get("package") != "com.android.systemui":
                     continue
                 while node.get("clickable") != "true" and node in parents:
                     node = parents[node]
                 if node.get("clickable") != "true" or node.get("package") != "com.android.systemui":
                     continue
+                # Tap the message itself; a row's centre can land on a different control.
+                node = label_node
             if tap_center(node):
                 print(f"Tapped Android UI: {next(label for label in labels if pattern.fullmatch(label))}")
                 return True
