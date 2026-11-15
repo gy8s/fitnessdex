@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { setTimeout: delay } = require('node:timers/promises');
 const stage = process.argv[2];
-if (!['first','after-restart','navigation','activity-save','activity-reopen'].includes(stage)) throw Error('Specify a supported Android test stage');
+if (!['first','after-restart','navigation','activity-save','activity-reopen','activity-edit','activity-edit-reopen'].includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
 const probeKey = 'fitnessdex-stage2-ci-restart-check';
 
@@ -150,6 +150,72 @@ async function inspect(target, expression) {
     assert.equal(info?.minutes, 15);
     assert.equal(info?.historyVisible, true, 'Saved walk missing from History screen');
     console.log('PASS: Disposable activity survived force-stop and appears in History');
+    return;
+  }
+  if (stage === 'activity-edit') {
+    const expression = String.raw`JSON.stringify((() => {
+      const key = 'fitnessdex-v01';
+      const prior = JSON.parse(localStorage.getItem(key) || '{}');
+      if (prior.logs?.length !== 1 || prior.logs[0]?.id !== 'e045') return {error:'Original walking record missing'};
+      const originalId = prior.logs[0].at;
+      const edit = [...document.querySelectorAll('#app .entry button')].find(b => b.textContent.trim() === 'Edit');
+      if (!edit) return {error:'History edit button not found'};
+      edit.click();
+      const value = document.querySelector('#value');
+      const extra = document.querySelector('#extra');
+      const notes = document.querySelector('#notes');
+      const save = document.querySelector('.fd-save-actions button.primary');
+      if (![value,extra,notes,save].every(Boolean)) return {error:'Edit activity form incomplete'};
+      value.value = '1.6';
+      extra.value = '20';
+      notes.value = 'FitnessDex disposable Android test EDITED';
+      save.click();
+      const state = JSON.parse(localStorage.getItem(key) || '{}');
+      const record = state.logs?.[0];
+      return {count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,notes:record?.notes,sameId:record?.at === originalId};
+    })())`;
+    const info = JSON.parse(await inspect(await findTarget(), expression));
+    console.log('Disposable activity edit:', JSON.stringify(info));
+    assert.equal(info.error, undefined, info.error || '');
+    assert.equal(info.count, 1, 'Editing must not create a duplicate');
+    assert.equal(info.exercise, 'e045');
+    assert.equal(info.distance, 1.6);
+    assert.equal(info.minutes, 20);
+    assert.equal(info.notes, 'FitnessDex disposable Android test EDITED');
+    assert.equal(info.sameId, true, 'Editing must preserve the record identity');
+    console.log('PASS: Existing Android walking record edited without creating duplicates');
+    return;
+  }
+  if (stage === 'activity-edit-reopen') {
+    const expression = String.raw`JSON.stringify((() => {
+      if (!document.querySelector('.fd-landing-hero')) return {ready:false};
+      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const record = state.logs?.[0];
+      const more = document.querySelector('nav.nav button[data-tab=more]');
+      if (!more) return {ready:false};
+      more.click();
+      const history = [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data'));
+      if (!history) return {ready:true,error:'History option missing'};
+      history.click();
+      const description = document.querySelector('#app .entry .sub')?.textContent || '';
+      return {ready:true,count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,notes:record?.notes,historyVisible:document.querySelector('#app .entry .name')?.textContent?.includes('Walking') && description.includes('1.6 km') && description.includes('20 min')};
+    })())`;
+    let info;
+    for (let attempt = 0; attempt < 25; attempt++) {
+      try { info = JSON.parse(await inspect(await findTarget(), expression)); if (info.ready) break; }
+      catch (err) { if (attempt % 5 === 0) console.log('Waiting for Android edit reload:', err.message); }
+      await delay(500);
+    }
+    console.log('Edited walk after Android restart:', JSON.stringify(info));
+    assert.equal(info?.ready, true);
+    assert.equal(info?.error, undefined, info?.error || '');
+    assert.equal(info?.count, 1);
+    assert.equal(info?.exercise, 'e045');
+    assert.equal(info?.distance, 1.6);
+    assert.equal(info?.minutes, 20);
+    assert.equal(info?.notes, 'FitnessDex disposable Android test EDITED');
+    assert.equal(info?.historyVisible, true, 'Edited walk not shown correctly in History');
+    console.log('PASS: Android edited activity survived restart and is correct in History');
     return;
   }
   const expr = stage === 'first'

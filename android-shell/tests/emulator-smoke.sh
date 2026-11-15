@@ -73,6 +73,19 @@ done
 test -n "$PID3" || { echo 'ERROR: App did not restart after disposable save'; exit 1; }
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID3}"
 node android-shell/tests/check-webview.cjs activity-reopen
+node android-shell/tests/check-webview.cjs activity-edit
+adb forward --remove tcp:9222
+adb shell am force-stop "$PACKAGE"
+adb shell am start -n "$PACKAGE/.MainActivity"
+PID4=""
+for attempt in $(seq 1 30); do
+  PID4="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+  if test -n "$PID4"; then break; fi
+  sleep 3
+done
+test -n "$PID4" || { echo 'ERROR: App did not restart after activity edit'; exit 1; }
+adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID4}"
+node android-shell/tests/check-webview.cjs activity-edit-reopen
 adb forward --remove tcp:9222
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'
