@@ -59,6 +59,7 @@ done
 test -n "$PID2" || { echo "ERROR: FitnessDex process failed to return after restart"; exit 1; }
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID2}"
 node android-shell/tests/check-webview.cjs after-restart
+node android-shell/tests/check-webview.cjs navigation
 adb forward --remove tcp:9222
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'

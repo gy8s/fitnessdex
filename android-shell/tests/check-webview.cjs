@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { setTimeout: delay } = require('node:timers/promises');
 const stage = process.argv[2];
-if (!['first','after-restart'].includes(stage)) throw Error('Specify first or after-restart');
+if (!['first','after-restart','navigation'].includes(stage)) throw Error('Specify first, after-restart or navigation');
 const address = 'http://127.0.0.1:9222';
 const probeKey = 'fitnessdex-stage2-ci-restart-check';
 
@@ -47,6 +47,32 @@ async function inspect(target, expression) {
 }
 
 (async () => {
+  if (stage === 'navigation') {
+    // Read-only interaction test: clicks the real four tab buttons in disposable emulator storage.
+    const expected = [['log','What did you do?'],['dex','ExerciseDex'],['more','More'],['home','Make today count.']];
+    const countExpr = "(() => { const s = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}'); return Array.isArray(s.logs) ? s.logs.length : 0; })()";
+    const beforeCount = await inspect(await findTarget(), countExpr);
+    for (const [targetTab, label] of expected) {
+      const clickCode = `(() => { const b = document.querySelector('nav.nav button[data-tab="${targetTab}"]'); if(!b) return false; b.click(); return true; })()`;
+      assert.equal(await inspect(await findTarget(), clickCode), true, 'Missing main tab button: ' + targetTab);
+      const snapshot = "JSON.stringify({tab:document.body.dataset.fdTab,active:document.querySelector('nav.nav button.active')?.dataset.tab,heading:document.querySelector('#app h1')?.textContent?.trim() || '',characters:document.querySelector('#app')?.textContent?.trim().length || 0})";
+      let info;
+      for (let attempt = 0; attempt < 10; attempt++) {
+        info = JSON.parse(await inspect(await findTarget(), snapshot));
+        if (info.tab === targetTab && info.active === targetTab && info.heading.includes(label) && info.characters > 50) break;
+        await delay(300);
+      }
+      console.log('Navigation:', targetTab, JSON.stringify(info));
+      assert.equal(info.tab, targetTab, 'Wrong page opened');
+      assert.equal(info.active, targetTab, 'Wrong navigation item highlighted');
+      assert(info.heading.includes(label), 'Missing ' + targetTab + ' heading');
+      assert(info.characters > 50, 'Empty or incomplete ' + targetTab + ' screen');
+    }
+    const afterCount = await inspect(await findTarget(), countExpr);
+    assert.equal(afterCount, beforeCount, 'Navigating must not change workout records');
+    console.log('PASS: Android Home, Log, ExerciseDex and More navigation, with records unchanged');
+    return;
+  }
   const expr = stage === 'first'
     ? `JSON.stringify((() => {
        const details = {
