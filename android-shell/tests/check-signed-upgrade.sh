@@ -13,7 +13,7 @@ check_version() {
         END {exit found ? 0 : 1}'
 }
 open_history() {
-    tap 'More'
+    tap 'More' 10
     if ! tap 'History & data( Edit, export or import records.*)?' 2; then
         local size width height
         size="$(adb shell wm size | tail -1 | awk '{print $NF}' | tr -d '\r')"
@@ -50,6 +50,7 @@ cleanup() {
 trap cleanup EXIT
 
 adb install "$proof/before.apk"
+adb shell mkdir -p /sdcard/Download /sdcard/Documents
 adb shell 'find /sdcard/Download /sdcard/Documents -maxdepth 1 -name "FitnessDex_v04_backup_*.json" -type f -delete'
 check_version 2
 launch

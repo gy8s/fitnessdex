@@ -25,9 +25,17 @@ def tap_center(node):
 
 
 def tap(pattern, attempts, notification=False):
+    nodes = []
+    last_error = None
     for _ in range(attempts):
-        adb("shell", "uiautomator", "dump", DUMP)
-        root = ET.fromstring(adb("shell", "cat", DUMP))
+        try:
+            adb("shell", "rm", "-f", DUMP)
+            adb("shell", "uiautomator", "dump", DUMP)
+            root = ET.fromstring(adb("shell", "cat", DUMP))
+        except (subprocess.CalledProcessError, ET.ParseError) as error:
+            last_error = error
+            time.sleep(0.4)
+            continue
         nodes = list(root.iter("node"))
         parents = {child: node for node in nodes for child in node}
         if any(node.get("text") == "Quickstep isn't responding" for node in nodes):
@@ -51,6 +59,8 @@ def tap(pattern, attempts, notification=False):
                 print(f"Tapped Android UI: {next(label for label in labels if pattern.fullmatch(label))}")
                 return True
         time.sleep(0.4)
+    if last_error is not None:
+        print(f"Android UI dump failed: {last_error}", file=sys.stderr)
     print("Visible Android UI labels:", [
         (node.get("text"), node.get("content-desc")) for node in nodes
         if node.get("text") or node.get("content-desc")

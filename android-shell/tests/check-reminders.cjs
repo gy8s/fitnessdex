@@ -11,8 +11,8 @@ const pid = () => {
   try { return adb('shell', 'pidof', app); } catch { return ''; }
 };
 
-async function evaluate(expression) {
-  const response = await fetch('http://127.0.0.1:9222/json');
+async function evaluate(expression, port = '9222') {
+  const response = await fetch('http://127.0.0.1:' + port + '/json');
   const target = (await response.json()).find(page => page.type === 'page' && page.url.startsWith('https://localhost/'));
   return target && inspect(target, expression, true);
 }
@@ -88,12 +88,23 @@ async function main() {
 
   adb('shell', 'cmd', 'statusbar', 'expand-notifications');
   execFileSync('python3', ['android-shell/tests/tap-android-ui.py', 'Supplement check-in', '5', 'notification'], { stdio:'inherit', timeout:30000 });
-  await waitFor(async () => {
-    const reopened = pid();
-    if (!reopened) return false;
-    adb('forward', 'tcp:9222', 'localabstract:webview_devtools_remote_' + reopened);
-    return evaluate("document.querySelector('.fd-care-page h1')?.textContent === 'Your routine'");
-  }, 'Supplement notification did not open its routine screen', 45);
+  let reopenedPid;
+  let port;
+  try {
+    await waitFor(async () => {
+      const reopened = pid();
+      if (!reopened) return false;
+      if (reopened !== reopenedPid) {
+        if (port) adb('forward', '--remove', 'tcp:' + port);
+        port = adb('forward', 'tcp:0', 'localabstract:webview_devtools_remote_' + reopened);
+        reopenedPid = reopened;
+      }
+      return evaluate("document.querySelector('.fd-care-page h1')?.textContent === 'Your routine'", port);
+    }, 'Supplement notification did not open its routine screen', 45);
+    adb('forward', 'tcp:9222', 'localabstract:webview_devtools_remote_' + reopenedPid);
+  } finally {
+    if (port) adb('forward', '--remove', 'tcp:' + port);
+  }
   console.log('PASS: Tapping the supplement notification opened the routine screen');
 
   assert.equal(await evaluate(`(async () => {
