@@ -45,9 +45,10 @@ jobs:
             echo 'ERROR: GitHub runner has no Android virtualization support (/dev/kvm missing).'
             exit 1
           fi
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
+          # CI runners can reject udevadm even though /dev/kvm is present.
+          # Grant only this ephemeral runner process access to hardware acceleration.
+          sudo chmod a+rw /dev/kvm
+          ls -l /dev/kvm
           test -r /dev/kvm && test -w /dev/kvm
       - name: Start on Android emulator and inspect for crashes
         uses: reactivecircus/android-emulator-runner@v2
