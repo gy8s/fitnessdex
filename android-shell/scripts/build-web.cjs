@@ -39,6 +39,11 @@ html = replaceOnce(
 );
 html = replaceOnce(html, '<script defer src="./updates.js"></script>', '',
   'Exclude the PWA web-update checker from the Android APK');
+html = replaceOnce(html, '</script><script>\'use strict\';\n// FitnessDex v0.3',
+  '</script><script src="./native-profile-storage.js"></script><script>\'use strict\';\n// FitnessDex v0.3',
+  'Load the Android profile store before the application opens its save');
+html = html.replace(/localStorage\.(getItem|setItem)\((K|PRE_MIGRATION|PRE_IMPORT|PRE_V04|RECOVERY)(?=[,)])/g,
+  'window.fdProfileStorage.$1($2');
 html = replaceOnce(
   html,
   '<script defer src="./exercise-reference.js"></script>',
@@ -52,7 +57,9 @@ html = replaceOnce(
   'Exclude PWA service-worker registration from the Android APK'
 );
 fs.writeFileSync(indexFile, html);
-fs.copyFileSync(path.join(SHELL, 'src/native-backup.js'), path.join(OUT, 'native-backup.js'));
+for (const adapter of ['native-profile-storage.js', 'native-backup.js']) {
+  fs.copyFileSync(path.join(SHELL, 'src', adapter), path.join(OUT, adapter));
+}
 
 // Append Android-only safe-area rules to the disposable CSS copy.
 const nativeCss = fs.readFileSync(path.join(SHELL, 'src/native-safe-area.css'), 'utf8');

@@ -22,11 +22,8 @@ capture_evidence() {
 trap capture_evidence EXIT
 PACKAGE="io.github.gy8s.fitnessdex"
 restart_after_save() {
-  # A localStorage read confirms the in-process value. Give WebView's batch
-  # time to reach disk before deliberately killing the process.
-  sleep 10
-  adb forward --remove tcp:9222
   adb shell am force-stop "$PACKAGE"
+  adb forward --remove tcp:9222
   adb shell am start -n "$PACKAGE/.MainActivity"
 }
 APK="android-shell/android/app/build/outputs/apk/debug/app-debug.apk"
@@ -52,7 +49,7 @@ done
 test -n "$PID" || { echo "ERROR: FitnessDex process did not appear after launch"; exit 1; }
 echo "FitnessDex Android process is running: $PID"
 adb shell dumpsys activity activities | grep -F "$PACKAGE" | head -n 12 || true
-# A process alive is not enough. Inspect the actual WebView content and localStorage.
+# A process alive is not enough. Inspect the actual WebView content and saved profile.
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID}"
 node android-shell/tests/check-webview.cjs first
 restart_after_save
@@ -77,6 +74,13 @@ done
 test -n "$PID3" || { echo 'ERROR: App did not restart after disposable save'; exit 1; }
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID3}"
 node android-shell/tests/check-webview.cjs activity-reopen
+adb exec-out run-as "$PACKAGE" cat files/fitnessdex-v01.json | node -e '
+  const assert = require("node:assert/strict");
+  const profile = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+  assert.equal(profile.logs.length, 1);
+  assert.equal(profile.logs[0].notes, "FitnessDex disposable Android test");
+  console.log("PASS: Android native file retained the confirmed walk after immediate force-stop");
+'
 node android-shell/tests/check-webview.cjs activity-edit
 restart_after_save
 PID4=""

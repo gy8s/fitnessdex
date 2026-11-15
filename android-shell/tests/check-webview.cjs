@@ -13,7 +13,6 @@ const stages = [
 ];
 if (!stages.includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
-const probeKey = 'fitnessdex-stage2-ci-restart-check';
 
 async function findTarget() {
   for (let attempt = 0; attempt < 30; attempt++) {
@@ -34,7 +33,7 @@ async function findTarget() {
   if (stage === 'navigation') {
     // Read-only interaction test: clicks the real four tab buttons in disposable emulator storage.
     const expected = [['log','What did you do?'],['dex','ExerciseDex'],['more','More'],['home','Make today count.']];
-    const countExpr = "(() => { const s = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}'); return Array.isArray(s.logs) ? s.logs.length : 0; })()";
+    const countExpr = "(() => { const s = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}'); return Array.isArray(s.logs) ? s.logs.length : 0; })()";
     const beforeCount = await inspect(await findTarget(), countExpr);
     for (const [targetTab, label] of expected) {
       const clickCode = `(() => { const b = document.querySelector('nav.nav button[data-tab="${targetTab}"]'); if(!b) return false; b.click(); return true; })()`;
@@ -62,7 +61,7 @@ async function findTarget() {
     // It must refuse to run if there are any existing activity records.
     const expression = String.raw`JSON.stringify((() => {
       const key = 'fitnessdex-v01';
-      const existing = JSON.parse(localStorage.getItem(key) || '{"logs":[]}');
+      const existing = JSON.parse(fdProfileStorage.getItem(key) || '{"logs":[]}');
       if (!Array.isArray(existing.logs) || existing.logs.length) return {error:'Test phone not empty',count:existing.logs?.length};
       const nav = document.querySelector('nav.nav button[data-tab=log]');
       if (!nav) return {error:'Log tab not found'};
@@ -88,7 +87,7 @@ async function findTarget() {
       notes.value = 'FitnessDex disposable Android test';
       session.value = 'standalone';
       save.click();
-      const state = JSON.parse(localStorage.getItem(key) || '{}');
+      const state = JSON.parse(fdProfileStorage.getItem(key) || '{}');
       const record = state.logs?.find(l => l.notes === 'FitnessDex disposable Android test');
       return {count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,notes:record?.notes,confirmed:!!document.querySelector('.fd-logged')};
     })())`;
@@ -107,7 +106,7 @@ async function findTarget() {
     const expression = String.raw`JSON.stringify((() => {
       const page = document.querySelector('.fd-landing-hero');
       if (!page) return {ready:false};
-      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const state = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
       const record = state.logs?.find(l => l.notes === 'FitnessDex disposable Android test');
       const more = document.querySelector('nav.nav button[data-tab=more]');
       if (!more) return {ready:false};
@@ -139,7 +138,7 @@ async function findTarget() {
   if (stage === 'activity-edit') {
     const expression = String.raw`JSON.stringify((() => {
       const key = 'fitnessdex-v01';
-      const prior = JSON.parse(localStorage.getItem(key) || '{}');
+      const prior = JSON.parse(fdProfileStorage.getItem(key) || '{}');
       if (prior.logs?.length !== 1 || prior.logs[0]?.id !== 'e045') return {error:'Original walking record missing'};
       const originalId = prior.logs[0].at;
       const edit = [...document.querySelectorAll('#app .entry button')].find(b => b.textContent.trim() === 'Edit');
@@ -154,7 +153,7 @@ async function findTarget() {
       extra.value = '20';
       notes.value = 'FitnessDex disposable Android test EDITED';
       save.click();
-      const state = JSON.parse(localStorage.getItem(key) || '{}');
+      const state = JSON.parse(fdProfileStorage.getItem(key) || '{}');
       const record = state.logs?.[0];
       return {count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,notes:record?.notes,sameId:record?.at === originalId};
     })())`;
@@ -173,7 +172,7 @@ async function findTarget() {
   if (stage === 'activity-edit-reopen') {
     const expression = String.raw`JSON.stringify((() => {
       if (!document.querySelector('.fd-landing-hero')) return {ready:false};
-      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const state = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
       const record = state.logs?.[0];
       const more = document.querySelector('nav.nav button[data-tab=more]');
       if (!more) return {ready:false};
@@ -205,15 +204,15 @@ async function findTarget() {
   if (stage === 'activity-delete') {
     const expression = String.raw`JSON.stringify((() => {
       const key = 'fitnessdex-v01';
-      const before = JSON.parse(localStorage.getItem(key) || '{}');
+      const before = JSON.parse(fdProfileStorage.getItem(key) || '{}');
       if (before.logs?.length !== 1 || before.logs[0]?.value !== 1.6) return {error:'Expected edited walk missing'};
       const remove = [...document.querySelectorAll('#app .stack .entry button')].find(b => b.textContent.trim() === 'Delete');
       if (!remove) return {error:'Delete action missing from activity History'};
       const originalConfirm = window.confirm;
       window.confirm = () => true;
       try { remove.click(); } finally { window.confirm = originalConfirm; }
-      const state = JSON.parse(localStorage.getItem(key) || '{}');
-      const snapshots = JSON.parse(localStorage.getItem('fitnessdex-recovery-checkpoints-v1') || '[]');
+      const state = JSON.parse(fdProfileStorage.getItem(key) || '{}');
+      const snapshots = JSON.parse(fdProfileStorage.getItem('fitnessdex-recovery-checkpoints-v1') || '[]');
       const hasRecovery = snapshots.some(x => { try { return JSON.parse(x.data).logs?.some(l => l.id === 'e045' && l.value === 1.6); } catch { return false; } });
       return {count:state.logs?.length,hasRecovery,historyEmpty:(document.querySelector('#app .stack')?.textContent || '').includes('No matching exercise records.')};
     })())`;
@@ -229,8 +228,8 @@ async function findTarget() {
   if (stage === 'activity-delete-reopen') {
     const expression = String.raw`JSON.stringify((() => {
       if (!document.querySelector('.fd-landing-hero')) return {ready:false};
-      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
-      const snapshots = JSON.parse(localStorage.getItem('fitnessdex-recovery-checkpoints-v1') || '[]');
+      const state = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
+      const snapshots = JSON.parse(fdProfileStorage.getItem('fitnessdex-recovery-checkpoints-v1') || '[]');
       document.querySelector('nav.nav button[data-tab=more]')?.click();
       const history = [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data'));
       if (!history) return {ready:true,error:'History option missing'};
@@ -259,7 +258,7 @@ async function findTarget() {
       const originalConfirm = window.confirm;
       window.confirm = () => true;
       try { restore.click(); } finally { window.confirm = originalConfirm; }
-      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const state = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
       const record = state.logs?.[0];
       return {count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,notes:record?.notes};
     })())`;
@@ -277,7 +276,7 @@ async function findTarget() {
   if (stage === 'activity-restore-reopen') {
     const expression = String.raw`JSON.stringify((() => {
       if (!document.querySelector('.fd-landing-hero')) return {ready:false};
-      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const state = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
       const record = state.logs?.[0];
       document.querySelector('nav.nav button[data-tab=more]')?.click();
       const history = [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data'));
@@ -307,13 +306,13 @@ async function findTarget() {
     // Test the REAL Android export button, not merely JavaScript object creation.
     // No real user data: this is the disposable emulator with one restored fake walk.
     const expression = String.raw`JSON.stringify((() => {
-      const data = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const data = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
       if (data.logs?.length !== 1 || data.logs[0]?.id !== 'e045') return {error:'Disposable source data missing'};
       const button = [...document.querySelectorAll('#app button')].find(b => b.textContent.trim() === 'Export complete backup');
       if (!button) return {error:'Real export button missing from History'};
       const valid = validBackup(snapshotForExport());
       button.click();
-      const after = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const after = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
       return {clicked:true,valid,recordCount:after.logs?.length,sameRecord:after.logs?.[0]?.at === data.logs[0].at};
     })())`;
     const info = JSON.parse(await inspect(await findTarget(), expression));
@@ -333,7 +332,7 @@ async function findTarget() {
         document.querySelector('nav.nav button[data-tab=more]')?.click();
         [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data'))?.click();
       }
-      const data = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const data = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
       const button = [...document.querySelectorAll('#app button')].find(b => b.textContent.trim() === 'Import validated backup');
       if (!button) return {error:'Import button missing from History'};
       if (data.logs?.length !== ${expectedCount}) return {error:'Unexpected pre-import record count'};
@@ -347,8 +346,8 @@ async function findTarget() {
   }
   if (stage === 'backup-import-verify') {
     const expression = String.raw`JSON.stringify((() => {
-      const current = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
-      const before = JSON.parse(localStorage.getItem('fitnessdex-v01-pre-import-backup') || '{}');
+      const current = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
+      const before = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01-pre-import-backup') || '{}');
       const record = current.logs?.[0];
       const description = document.querySelector('#app .stack .entry .sub')?.textContent || '';
       return {
@@ -381,7 +380,7 @@ async function findTarget() {
     const expected = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
     const expression = String.raw`JSON.stringify((() => {
       if (!document.querySelector('.fd-landing-hero') && !document.querySelector('#importFile')) return {ready:false};
-      const state = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const state = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
       if (!state.logs?.some(l => l.at === 'pwa-legacy-pushups')) return {ready:false};
       function more(label) {
         document.querySelector('nav.nav button[data-tab=more]').click();
@@ -394,7 +393,7 @@ async function findTarget() {
       const care = document.querySelector('#app .fd-care-page')?.textContent || '';
       document.querySelector('.fd-care-option[onclick="fdCareSupplements()"]')?.click();
       const routines = document.querySelector('#app .fd-care-page')?.textContent || '';
-      const before = JSON.parse(localStorage.getItem('fitnessdex-v01-pre-import-backup') || '{}');
+      const before = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01-pre-import-backup') || '{}');
       return {
         ready:true, state, history, historySummary, care, routines,
         before:before.logs,
@@ -439,12 +438,12 @@ async function findTarget() {
          cloudClient: !!window.supabase?.createClient,
          webUpdater: !!document.querySelector('script[src="./updates.js"]')
        };
-       localStorage.setItem('${probeKey}', 'persisted');
        return details;
      })())`
     : `JSON.stringify((() => {
-       const persisted = localStorage.getItem('${probeKey}');
-       return {persisted, rendered:!!document.querySelector('.fd-landing-hero')};
+       const rendered = !!document.querySelector('.fd-landing-hero');
+       const profile = rendered ? JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}') : {};
+       return {count:profile.logs?.length, rendered};
      })())`;
   // The Android activity can launch before the local WebView finishes loading.
   // A fast single snapshot previously reported a blank page while the saved
@@ -466,7 +465,7 @@ async function findTarget() {
           info.nav === true &&
           info.cloudClient === true &&
           info.webUpdater === false
-        : info.persisted === 'persisted' && info.rendered === true;
+        : info.count === 0 && info.rendered;
       if (ready) break;
       if (attempt % 8 === 0) console.log('Waiting for FitnessDex to render:', JSON.stringify(info));
     } catch (err) {
@@ -489,9 +488,8 @@ async function findTarget() {
     assert.equal(info.cloudClient, true, 'Locally bundled cloud JS must be available');
     assert.equal(info.webUpdater, false);
   } else {
-    assert.equal(info.persisted, 'persisted', 'WebView storage must survive force-stop/restart');
+    assert.equal(info.count, 0, 'Initial Android profile must survive force-stop/restart');
     assert.equal(info.rendered, true);
-    await inspect(await findTarget(), `localStorage.removeItem('${probeKey}'); true`);
   }
   console.log('PASS: Android WebView ' + stage + ' UI/storage check');
 })().catch(err => { console.error(err); process.exitCode = 1; });

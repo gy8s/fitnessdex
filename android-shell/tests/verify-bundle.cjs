@@ -10,6 +10,10 @@ const packed = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
 const changed = original
   .replace('src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"', 'src="./vendor/supabase.js"')
   .replace('<script defer src="./updates.js"></script>', '')
+  .replace('</script><script>\'use strict\';\n// FitnessDex v0.3',
+           '</script><script src="./native-profile-storage.js"></script><script>\'use strict\';\n// FitnessDex v0.3')
+  .replace(/localStorage\.(getItem|setItem)\((K|PRE_MIGRATION|PRE_IMPORT|PRE_V04|RECOVERY)(?=[,)])/g,
+           'window.fdProfileStorage.$1($2')
   .replace('<script defer src="./exercise-reference.js"></script>',
            '<script defer src="./native-backup.js"></script><script defer src="./exercise-reference.js"></script>')
   .replace('if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("Offline installation not available:",e)));}',
@@ -17,6 +21,9 @@ const changed = original
 assert.equal(packed, changed, 'The Android interface must differ only in the reviewed script adaptations.');
 assert.deepEqual(fs.readFileSync(path.join(OUT, 'native-backup.js')),
   fs.readFileSync(path.join(ROOT, 'android-shell/src/native-backup.js')));
+assert.deepEqual(fs.readFileSync(path.join(OUT, 'native-profile-storage.js')),
+  fs.readFileSync(path.join(ROOT, 'android-shell/src/native-profile-storage.js')));
+assert.equal((packed.match(/window\.fdProfileStorage\.(getItem|setItem)\(/g) || []).length, 13);
 assert(!packed.includes('cdn.jsdelivr.net'), 'Native app must not depend on an external script CDN.');
 assert(!packed.includes('navigator.serviceWorker.register'), 'Native app must not register the PWA service worker.');
 assert(!packed.includes('src="./updates.js"'), 'Native app must not display a misleading web update dialog.');

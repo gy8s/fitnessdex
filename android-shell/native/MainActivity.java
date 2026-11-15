@@ -8,5 +8,8 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(BackupExportPlugin.class);
         super.onCreate(savedInstanceState);
+        if (getBridge() != null) {
+            getBridge().getWebView().setWebChromeClient(new FitnessDexChromeClient(getBridge()));
+        }
     }
 }

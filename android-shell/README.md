@@ -14,19 +14,22 @@ movement sessions, a cloud schema migration, new notifications, or a signing key
 - Native-only safe-area rules are appended to the generated CSS to avoid Android
   status and gesture bars covering content. Original PWA `ui.css` stays unchanged;
   an automated test strictly checks the sole additive CSS difference.
-- The generated native HTML has four adaptations:
+- The generated native HTML has five adaptations:
   1. Replace the remote Supabase CDN script with an offline local bundle.
   2. Suppress the *PWA-only* web update checker (APK releases update natively).
   3. Suppress service-worker registration (resources ship within the APK).
   4. Route backup exports through the Android Save dialog. Import uses the shared
      FitnessDex validation and the Android file picker.
+  5. Route profile saves and recovery snapshots through app-private Android
+     files. Android acknowledges each write after syncing and replacing the
+     file. Earlier Android prototype saves migrate from WebView storage on read.
 - No release signing key is generated, stored, committed, or uploaded.
 - Debug builds are for isolated CI/emulator testing only; they are **not** the
   permanently signed release build and must **never** be presented as an update.
 - The app package identifier is `io.github.gy8s.fitnessdex`. Treat it as
   provisional until the release identity/signing plan is formally verified.
-- Browser PWA and Android WebView have **separate localStorage**; migration is
-  not automatic. Do not switch to real user data until migration tests pass.
+- The browser PWA and Android app keep separate profiles. Move data between
+  them using Export complete backup and Import validated backup.
 - Cloud OTP callback/deep link behaviour is **not** adapted yet.
 - Web Push is **not** supported by this prototype. Background reminder parity
   with the existing PWA is an explicit blocker before Android replacement.
