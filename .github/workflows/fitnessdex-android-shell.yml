@@ -24,9 +24,11 @@ jobs:
       - name: Existing FitnessDex source regression checks
         run: node tests/smoke.cjs
       - name: Export a disposable profile from the unmodified PWA in Chrome
-        env:
-          FITNESSDEX_CHROME: google-chrome
-        run: node android-shell/tests/export-pwa-backup.cjs android-shell/tests/results/FitnessDex_PWA_migration.json
+        working-directory: android-shell
+        run: |
+          npm install --prefix "$RUNNER_TEMP/fitnessdex-browser-test" --no-audit --no-fund playwright@1.58.2
+          "$RUNNER_TEMP/fitnessdex-browser-test/node_modules/.bin/playwright" install --only-shell chromium
+          NODE_PATH="$RUNNER_TEMP/fitnessdex-browser-test/node_modules" node tests/export-pwa-backup.cjs tests/results/FitnessDex_PWA_migration.json
       - name: Install pinned shell dependencies
         working-directory: android-shell
         run: npm install --no-audit --no-fund
