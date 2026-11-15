@@ -80,9 +80,7 @@ jobs:
           test -r /dev/kvm && test -w /dev/kvm
       - name: Build and verify both signed release test APKs
         working-directory: android-shell
-        run: |
-          sdkmanager 'build-tools;36.0.0'
-          bash tests/sign-upgrade-builds.sh
+        run: bash tests/sign-upgrade-builds.sh
       - name: Start on Android emulator and inspect for crashes
         uses: reactivecircus/android-emulator-runner@v2
         env:

@@ -4,7 +4,11 @@ set -euo pipefail
 proof="${RUNNER_TEMP:?}/fitnessdex-signing-proof"
 mkdir -p "$proof"
 chmod 700 "$proof"
-tools="$ANDROID_HOME/build-tools/36.0.0"
+sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Android SDK path required}}"
+tools="$sdk/build-tools/36.0.0"
+if [[ ! -x "$tools/apksigner" ]]; then
+    "$sdk/cmdline-tools/latest/bin/sdkmanager" 'build-tools;36.0.0'
+fi
 test -x "$tools/apksigner"
 
 # This disposable key proves the release build/update flow in CI. A release
