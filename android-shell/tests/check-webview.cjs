@@ -47,7 +47,6 @@ async function inspect(target, expression) {
 }
 
 (async () => {
-  const target = await findTarget();
   const expr = stage === 'first'
     ? `JSON.stringify((() => {
        const details = {
@@ -75,6 +74,9 @@ async function inspect(target, expression) {
   let ready = false;
   for (let attempt = 0; attempt < 50; attempt++) {
     try {
+      // The WebView may be destroyed and replaced during a cold Android launch.
+      // Fetch a fresh debugger target every attempt instead of retrying a stale socket.
+      const target = await findTarget();
       info = JSON.parse(await inspect(target, expr));
       ready = stage === 'first'
         ? info.hostname === 'localhost' &&
@@ -109,7 +111,7 @@ async function inspect(target, expression) {
   } else {
     assert.equal(info.persisted, 'persisted', 'WebView storage must survive force-stop/restart');
     assert.equal(info.rendered, true);
-    await inspect(target, `localStorage.removeItem('${probeKey}'); true`);
+    await inspect(await findTarget(), `localStorage.removeItem('${probeKey}'); true`);
   }
   console.log('PASS: Android WebView ' + stage + ' UI/storage check');
 })().catch(err => { console.error(err); process.exitCode = 1; });
