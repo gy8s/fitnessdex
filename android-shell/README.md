@@ -12,8 +12,9 @@ movement sessions, a cloud schema migration, new notifications, or a signing key
 - `main`, GitHub Pages, existing `index.html`, local saves and Supabase stay unchanged.
 - The generated `www/` directory is **not** the PWA source of truth.
 - The Android activity handles system bar, display cutout and keyboard insets.
-  It keeps system icons light against the app's dark background. The browser
-  and Android builds use the same stylesheet.
+  It keeps status icons light against the app's dark background and uses a
+  light background for Android's three-button bar. The browser and Android
+  builds use the same stylesheet.
 - The generated native HTML has five adaptations:
   1. Replace the remote Supabase CDN script with an offline local bundle.
   2. Suppress the *PWA-only* web update checker (APK releases update natively).

@@ -263,6 +263,8 @@ for width in 411 360; do
   fi
   for screen in home log dex more history care; do
     node android-shell/tests/check-webview.cjs screen-parity "$screen" "$VISUAL_DIR/web-screen-parity.json" "$width"
+    # Allow the Android compositor to present the new WebView frame before screencap.
+    sleep 1
     adb exec-out screencap -p > "$VISUAL_DIR/android-$width-$screen.png"
   done
 done
