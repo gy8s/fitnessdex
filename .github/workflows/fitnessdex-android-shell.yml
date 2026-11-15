@@ -54,4 +54,6 @@ jobs:
           if-no-files-found: ignore
           path: |
             android-shell/tests/results/fitnessdex-shell.png
+            android-shell/tests/results/activity-dump.txt
+            android-shell/tests/results/android-logcat.txt
             android-shell/package-lock.json
