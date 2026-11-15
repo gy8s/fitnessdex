@@ -242,6 +242,13 @@ restart_after_save
 forward_upgrade_probe
 node android-shell/tests/check-webview.cjs upgrade-verify "$UPGRADE_BASELINE"
 VISUAL_DIR="android-shell/tests/results/visual"
+# Compare like-for-like clean profiles with the v0.8.7 browser screenshots.
+# The upgrade and recovery assertions are complete at this point.
+adb forward --remove tcp:9222
+adb shell pm clear "$PACKAGE"
+adb shell am start -n "$PACKAGE/.MainActivity"
+forward_upgrade_probe
+node android-shell/tests/check-webview.cjs first
 # Dismiss only the emulator's unrelated launcher ANR, if it appears.
 if adb shell dumpsys window windows | grep -F 'Application Not Responding: com.android.launcher3' > /dev/null; then
   python3 android-shell/tests/tap-android-ui.py 'Close app'
