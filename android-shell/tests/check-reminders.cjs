@@ -88,10 +88,12 @@ async function main() {
 
   adb('shell', 'cmd', 'statusbar', 'expand-notifications');
   execFileSync('python3', ['android-shell/tests/tap-android-ui.py', 'Supplement check-in'], { stdio:'inherit', timeout:30000 });
-  const reopened = await waitFor(pid, 'Notification did not reopen FitnessDex');
-  adb('forward', 'tcp:9222', 'localabstract:webview_devtools_remote_' + reopened);
-  await waitFor(() => evaluate("document.querySelector('.fd-care-page h1')?.textContent === 'Your routine'"),
-    'Supplement notification did not open its routine screen');
+  await waitFor(async () => {
+    const reopened = pid();
+    if (!reopened) return false;
+    adb('forward', 'tcp:9222', 'localabstract:webview_devtools_remote_' + reopened);
+    return evaluate("document.querySelector('.fd-care-page h1')?.textContent === 'Your routine'");
+  }, 'Supplement notification did not open its routine screen', 45);
   console.log('PASS: Tapping the supplement notification opened the routine screen');
 
   assert.equal(await evaluate(`(async () => {
