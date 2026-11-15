@@ -64,29 +64,26 @@ Disable protection-rule bypass and use the reviewer prompt to inspect the
 specific commit before a runner can use the key. If this is a one-owner
 repository, keep self-review enabled so the owner can approve that prompt.
 
-Use a trusted terminal with Java and the authenticated GitHub CLI to provision
-the secrets once. Choose a folder in protected storage, and keep a separate
-encrypted backup and the password in your password manager. Use an established
-FitnessDex release key if one already exists. To create the first key, run the
-following from the protected folder. `keytool` prompts for the password.
+Use a trusted Linux terminal with Java and the GitHub CLI authenticated as
+`gy8s`. A personal GitHub Codespace opened on the draft Android branch is one
+option. Check the spending limit before starting a Codespace. From the repository
+root, run:
 
 ```sh
-umask 077
-keytool -genkeypair -keystore fitnessdex-release.p12 -storetype PKCS12 \
-  -alias fitnessdex -dname 'CN=FitnessDex' -keyalg RSA -keysize 3072 -validity 10000
+bash android-shell/scripts/provision-signing.sh
 ```
 
-Run the next commands in Bash from the same folder. Enter the password only when
-`gh` prompts for it. Get the SHA-256 fingerprint from the `keytool` output and
-store its 64 lowercase hexadecimal characters (with colons removed) as the
-`FITNESSDEX_CERT_SHA256` **environment variable**.
+The script prompts for your keystore password without showing it. For a new key,
+choose a password of at least 16 characters and store it in your password
+manager. The script writes the certificate fingerprint and two signing secrets
+to the named GitHub environment. It refuses to replace a different certificate.
+If an established key already exists, put the original `fitnessdex-release.p12`
+in `android-shell/.signing/` first.
 
-```sh
-base64 < fitnessdex-release.p12 | tr -d '\n' | gh secret set FITNESSDEX_KEYSTORE_BASE64 \
-  --repo gy8s/fitnessdex --env fitnessdex-android-signing
-gh secret set FITNESSDEX_STORE_PASSWORD --repo gy8s/fitnessdex --env fitnessdex-android-signing
-keytool -list -v -keystore fitnessdex-release.p12 -alias fitnessdex
-```
+Download `android-shell/.signing/fitnessdex-release.p12` from the terminal's file
+browser and keep it in storage you control. The keystore is encrypted. Verify the
+backup is present before deleting a Codespace. Keep the backup out of the repo
+and keep its password separately.
 
 To enable the proof for a reviewed push to the draft branch, set the repository
 Actions variable `FITNESSDEX_VERIFY_PERMANENT_SIGNING` to `true`. After the

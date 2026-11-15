@@ -8,3 +8,4 @@ tests/results/
 *.keystore
 *.p12
 *.pem
+/.signing/
