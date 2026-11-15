@@ -9,7 +9,7 @@
     return permission;
   };
   if (reminders) {
-    const refresh = () => reminders.status().then(update).catch(() => {});
+    const refresh = () => reminders.refresh().then(update).catch(() => {});
     void refresh();
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(); });

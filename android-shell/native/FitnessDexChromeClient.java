@@ -16,6 +16,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 final class FitnessDexChromeClient extends BridgeWebChromeClient {
     private static final String READ = "FitnessDexStorage:read:";
@@ -31,13 +33,14 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
         "fitnessdex-android-auth-user",
         ReminderScheduler.SETTINGS
     ));
-    private final Bridge bridge;
+    private static final Executor STORAGE_WORKER = Executors.newSingleThreadExecutor();
+    private final android.content.Context context;
     private final File files;
 
     FitnessDexChromeClient(Bridge bridge) {
         super(bridge);
-        this.bridge = bridge;
-        this.files = bridge.getContext().getFilesDir();
+        this.context = bridge.getContext().getApplicationContext();
+        this.files = context.getFilesDir();
     }
 
     @Override
@@ -58,7 +61,7 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
 
         // The app's save() contract is synchronous. Disk I/O runs off the UI thread,
         // and the bundled page resumes only after Android acknowledges the operation.
-        bridge.execute(() -> {
+        STORAGE_WORKER.execute(() -> {
             String reply;
             try {
                 File target = new File(files, key + ".json");
@@ -67,7 +70,7 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
                 } else {
                     write(target, value);
                     if ("fitnessdex-v01".equals(key) || ReminderScheduler.SETTINGS.equals(key)) {
-                        bridge.execute(() -> ReminderScheduler.schedule(bridge.getContext()));
+                        STORAGE_WORKER.execute(() -> ReminderScheduler.schedule(context));
                     }
                     reply = "saved";
                 }

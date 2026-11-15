@@ -56,9 +56,10 @@ public final class RemindersPlugin extends Plugin {
         call.resolve();
     }
 
-    @Override
-    protected void handleOnResume() {
-        execute(() -> ReminderScheduler.schedule(getContext()));
+    @PluginMethod
+    public void refresh(PluginCall call) {
+        ReminderScheduler.schedule(getContext());
+        status(call);
     }
 
     @Override
