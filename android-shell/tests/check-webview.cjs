@@ -197,8 +197,8 @@ async function inspect(target, expression) {
       const history = [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data'));
       if (!history) return {ready:true,error:'History option missing'};
       history.click();
-      const description = document.querySelector('#app .entry .sub')?.textContent || '';
-      return {ready:true,count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,notes:record?.notes,historyVisible:document.querySelector('#app .entry .name')?.textContent?.includes('Walking') && description.includes('1.6 km') && description.includes('20 min')};
+      const description = document.querySelector('#app .stack .entry .sub')?.textContent || '';
+      return {ready:true,count:state.logs?.length,exercise:record?.id,distance:record?.value,minutes:record?.minutes,notes:record?.notes,historyVisible:document.querySelector('#app .stack .entry .name')?.textContent?.includes('Walking') && description.includes('1.6 km') && description.includes('20 min')};
     })())`;
     let info;
     for (let attempt = 0; attempt < 25; attempt++) {
