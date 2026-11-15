@@ -55,6 +55,7 @@ jobs:
           api-level: 35
           arch: x86_64
           profile: pixel_6
+          disable-animations: false
           script: bash android-shell/tests/emulator-smoke.sh
       - name: Save only test evidence (no APK)
         if: always()
