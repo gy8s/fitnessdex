@@ -36,10 +36,14 @@ async function findTarget() {
     assert(screen, 'Choose a screen to compare');
     const references = JSON.parse(fs.readFileSync(process.argv[4], 'utf8'));
     const band = Number(process.argv[5]);
-    const expression = '(' + inspectScreen.toString() + ')(' + JSON.stringify(screen) + ')';
+    const expression = `(async () => {
+      const state = (${inspectScreen})(${JSON.stringify(screen)});
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      return JSON.stringify(state);
+    })()`;
     let state;
     for (let attempt = 0; attempt < 20; attempt++) {
-      state = JSON.parse(await inspect(await findTarget(), 'JSON.stringify(' + expression + ')'));
+      state = JSON.parse(await inspect(await findTarget(), expression));
       if (state && Math.abs(state.width - band) <= 2) break;
       await delay(250);
     }

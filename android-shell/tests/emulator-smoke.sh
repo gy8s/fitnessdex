@@ -53,18 +53,6 @@ adb shell dumpsys activity activities | grep -F "$PACKAGE" | head -n 12 || true
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID}"
 node android-shell/tests/check-webview.cjs first
 
-VISUAL_DIR="android-shell/tests/results/visual"
-for width in 360 411; do
-  # 2.5 physical pixels per CSS pixel makes both viewport sizes reproducible.
-  adb shell wm density 400
-  adb shell wm size "$((width * 5 / 2))x2100"
-  for screen in home log dex more history care; do
-    node android-shell/tests/check-webview.cjs screen-parity "$screen" "$VISUAL_DIR/web-screen-parity.json" "$width"
-    adb exec-out screencap -p > "$VISUAL_DIR/android-$width-$screen.png"
-  done
-done
-adb shell wm size reset
-adb shell wm density reset
 restart_after_save
 PID2=""
 for attempt in $(seq 1 30); do
@@ -253,6 +241,24 @@ adb exec-out run-as "$PACKAGE" cat files/fitnessdex-v01.json | node -e '
 restart_after_save
 forward_upgrade_probe
 node android-shell/tests/check-webview.cjs upgrade-verify "$UPGRADE_BASELINE"
+VISUAL_DIR="android-shell/tests/results/visual"
+# Dismiss only the emulator's unrelated launcher ANR, if it appears.
+if adb shell dumpsys window windows | grep -F 'Application Not Responding: com.android.launcher3' > /dev/null; then
+  python3 android-shell/tests/tap-android-ui.py 'Close app'
+fi
+for width in 411 360; do
+  if test "$width" -eq 360; then
+    # Keep the original density. Changing it while Quickstep is active can hang the launcher.
+    adb shell wm size 945x2400
+    if adb shell dumpsys window windows | grep -F 'Application Not Responding: com.android.launcher3' > /dev/null; then
+      python3 android-shell/tests/tap-android-ui.py 'Close app'
+    fi
+  fi
+  for screen in home log dex more history care; do
+    node android-shell/tests/check-webview.cjs screen-parity "$screen" "$VISUAL_DIR/web-screen-parity.json" "$width"
+    adb exec-out screencap -p > "$VISUAL_DIR/android-$width-$screen.png"
+  done
+done
 adb forward --remove tcp:9222
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'
@@ -260,4 +266,4 @@ if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   exit 1
 fi
 echo 'PASS: Native Android activity launched, rendered FitnessDex UI, persisted storage after restart and produced screenshot.'
-echo 'NOTE: Visual parity, login and reminders still require separate acceptance tests.'
+echo 'NOTE: Login and reminders require separate acceptance tests.'
