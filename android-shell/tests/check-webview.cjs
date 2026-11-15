@@ -3,7 +3,12 @@
 const assert = require('node:assert/strict');
 const { setTimeout: delay } = require('node:timers/promises');
 const stage = process.argv[2];
-if (!['first','after-restart','navigation','activity-save','activity-reopen','activity-edit','activity-edit-reopen','activity-delete','activity-delete-reopen','activity-restore','activity-restore-reopen','backup-export'].includes(stage)) throw Error('Specify a supported Android test stage');
+const stages = [
+  'first', 'after-restart', 'navigation', 'activity-save', 'activity-reopen', 'activity-edit',
+  'activity-edit-reopen', 'activity-delete', 'activity-delete-reopen', 'activity-restore',
+  'activity-restore-reopen', 'backup-export', 'backup-import', 'backup-import-verify'
+];
+if (!stages.includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
 const probeKey = 'fitnessdex-stage2-ci-restart-check';
 
@@ -22,7 +27,7 @@ async function findTarget() {
   throw Error('Could not inspect the FitnessDex local WebView. A running process is not adequate evidence.');
 }
 
-async function inspect(target, expression) {
+async function inspect(target, expression, userGesture = false) {
   const socket = new WebSocket(target.webSocketDebuggerUrl);
   const opened = new Promise((resolve, reject) => {
     socket.addEventListener('open', resolve, { once: true });
@@ -41,7 +46,7 @@ async function inspect(target, expression) {
       });
     });
     socket.send(JSON.stringify({ id:1, method:'Runtime.evaluate',
-      params:{expression,returnByValue:true,awaitPromise:true} }));
+      params:{expression,returnByValue:true,awaitPromise:true,userGesture} }));
     return await response;
   } finally { socket.close(); }
 }
@@ -339,7 +344,53 @@ async function inspect(target, expression) {
     assert.equal(info.valid, true, 'Backup content must validate');
     assert.equal(info.recordCount, 1, 'Export must not alter activity records');
     assert.equal(info.sameRecord, true);
-    console.log('PASS: Android export button invoked with valid backup content; physical file checked separately');
+    console.log('PASS: Android export button opened with one valid record; file checked separately');
+    return;
+  }
+  if (stage === 'backup-import') {
+    const expression = String.raw`JSON.stringify((() => {
+      const data = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const button = [...document.querySelectorAll('#app button')].find(b => b.textContent.trim() === 'Import validated backup');
+      if (!button) return {error:'Import button missing from History'};
+      if (data.logs?.length !== 0) return {error:'Test must begin with empty History'};
+      button.click();
+      return {clicked:true};
+    })())`;
+    const info = JSON.parse(await inspect(await findTarget(), expression, true));
+    assert.equal(info.error, undefined, info.error || '');
+    assert.equal(info.clicked, true);
+    return;
+  }
+  if (stage === 'backup-import-verify') {
+    const expression = String.raw`JSON.stringify((() => {
+      const current = JSON.parse(localStorage.getItem('fitnessdex-v01') || '{}');
+      const before = JSON.parse(localStorage.getItem('fitnessdex-v01-pre-import-backup') || '{}');
+      const record = current.logs?.[0];
+      const description = document.querySelector('#app .stack .entry .sub')?.textContent || '';
+      return {
+        count:current.logs?.length, exercise:record?.id, distance:record?.value, minutes:record?.minutes,
+        notes:record?.notes, at:record?.at, priorCount:before.logs?.length,
+        historyVisible:document.querySelector('#app .stack .entry .name')?.textContent?.includes('Walking') &&
+          description.includes('1.6 km') && description.includes('20 min')
+      };
+    })())`;
+    let info;
+    for (let attempt = 0; attempt < 16; attempt++) {
+      info = JSON.parse(await inspect(await findTarget(), expression));
+      if (info.count === 1 && info.historyVisible) break;
+      await delay(500);
+    }
+    const exported = JSON.parse(require('node:fs').readFileSync(process.argv[3], 'utf8'));
+    console.log('Imported Android walk:', JSON.stringify(info));
+    assert.equal(info.count, 1);
+    assert.equal(info.exercise, 'e045');
+    assert.equal(info.distance, 1.6);
+    assert.equal(info.minutes, 20);
+    assert.equal(info.notes, 'FitnessDex disposable Android test EDITED');
+    assert.equal(info.at, exported.logs[0].at, 'Import must restore the exact record from the saved file');
+    assert.equal(info.historyVisible, true);
+    assert.equal(info.priorCount, 0, 'The pre-import state must be protected');
+    console.log('PASS: Android file picker imported the saved backup; History and pre-import recovery are correct');
     return;
   }
   const expr = stage === 'first'

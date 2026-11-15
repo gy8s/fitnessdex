@@ -41,11 +41,18 @@ html = replaceOnce(html, '<script defer src="./updates.js"></script>', '',
   'Exclude the PWA web-update checker from the Android APK');
 html = replaceOnce(
   html,
+  '<script defer src="./exercise-reference.js"></script>',
+  '<script defer src="./native-backup.js"></script><script defer src="./exercise-reference.js"></script>',
+  'Route Android backup exports to the native Save dialog'
+);
+html = replaceOnce(
+  html,
   'if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("Offline installation not available:",e)));}',
   '/* Android-only: bundled files update with a signed APK, not the PWA service worker. */',
   'Exclude PWA service-worker registration from the Android APK'
 );
 fs.writeFileSync(indexFile, html);
+fs.copyFileSync(path.join(SHELL, 'src/native-backup.js'), path.join(OUT, 'native-backup.js'));
 
 // Append Android-only safe-area rules to the disposable CSS copy.
 const nativeCss = fs.readFileSync(path.join(SHELL, 'src/native-safe-area.css'), 'utf8');

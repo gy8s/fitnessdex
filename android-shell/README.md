@@ -14,10 +14,12 @@ movement sessions, a cloud schema migration, new notifications, or a signing key
 - Native-only safe-area rules are appended to the generated CSS to avoid Android
   status and gesture bars covering content. Original PWA `ui.css` stays unchanged;
   an automated test strictly checks the sole additive CSS difference.
-- Exactly three adaptations are permitted in the generated native HTML:
+- The generated native HTML has four adaptations:
   1. Replace the remote Supabase CDN script with an offline local bundle.
   2. Suppress the *PWA-only* web update checker (APK releases update natively).
   3. Suppress service-worker registration (resources ship within the APK).
+  4. Route backup exports through the Android Save dialog. Import uses the shared
+     FitnessDex validation and the Android file picker.
 - No release signing key is generated, stored, committed, or uploaded.
 - Debug builds are for isolated CI/emulator testing only; they are **not** the
   permanently signed release build and must **never** be presented as an update.
@@ -38,6 +40,7 @@ npm run build:web
 npm run test:bundle
 npx cap add android
 npx cap sync android
+cp native/*.java android/app/src/main/java/io/github/gy8s/fitnessdex/
 cd android
 ./gradlew assembleDebug
 ```

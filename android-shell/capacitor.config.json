@@ -2,6 +2,7 @@
   "appId": "io.github.gy8s.fitnessdex",
   "appName": "FitnessDex",
   "webDir": "www",
+  "loggingBehavior": "none",
   "server": {
     "hostname": "localhost",
     "androidScheme": "https"

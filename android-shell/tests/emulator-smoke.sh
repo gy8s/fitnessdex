@@ -113,16 +113,54 @@ test -n "$PID6" || { echo 'ERROR: App did not restart after recovery restore'; e
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID6}"
 node android-shell/tests/check-webview.cjs activity-restore-reopen
 node android-shell/tests/check-webview.cjs backup-export
-adb forward --remove tcp:9222
-sleep 3
-echo 'Checking whether Android saved a physical FitnessDex backup file:'
-adb shell ls -la /sdcard/Download /sdcard/Documents 2>&1 || true
-BACKUP_FILES="$(adb shell find /sdcard/Download /sdcard/Documents -maxdepth 1 -type f -name 'FitnessDex_v04_backup_*.json' -print 2>/dev/null || true)"
-echo "Android backup files found: ${BACKUP_FILES:-none}"
-if test -z "$BACKUP_FILES"; then
-  echo 'ERROR: Export button was clicked but no physical backup was found in Android Downloads or Documents. Native export parity is unverified.'
-  exit 1
+python3 android-shell/tests/tap-android-ui.py 'Save'
+
+BACKUP_PATH=""
+for attempt in $(seq 1 20); do
+  BACKUP_PATH="$(adb shell 'find /sdcard/Download /sdcard/Documents -maxdepth 1 -type f -name "FitnessDex_v04_backup_*.json" -size +0c -print' | tr -d '\r' | head -n 1)"
+  if test -n "$BACKUP_PATH"; then break; fi
+  sleep 1
+done
+test -n "$BACKUP_PATH" || { echo 'ERROR: Android Save did not produce a backup file'; exit 1; }
+BACKUP_COPY="android-shell/tests/results/exported-backup.json"
+adb pull "$BACKUP_PATH" "$BACKUP_COPY"
+node - "$BACKUP_COPY" <<'NODE'
+const assert = require('node:assert/strict');
+const backup = JSON.parse(require('node:fs').readFileSync(process.argv[2], 'utf8'));
+assert.equal(backup.version, 5);
+assert.equal(backup.logs.length, 1);
+const walk = backup.logs[0];
+assert.equal(walk.id, 'e045');
+assert.equal(walk.value, 1.6);
+assert.equal(walk.minutes, 20);
+assert.equal(walk.notes, 'FitnessDex disposable Android test EDITED');
+console.log('PASS: Android Save wrote the edited walk to a real JSON backup file');
+NODE
+
+node android-shell/tests/check-webview.cjs activity-delete
+node android-shell/tests/check-webview.cjs backup-import
+if ! python3 android-shell/tests/tap-android-ui.py 'FitnessDex_v04_backup_.*\.json' 2; then
+  python3 android-shell/tests/tap-android-ui.py 'Show roots|Open navigation drawer'
+  python3 android-shell/tests/tap-android-ui.py 'Downloads'
+  python3 android-shell/tests/tap-android-ui.py 'FitnessDex_v04_backup_.*\.json'
 fi
+python3 android-shell/tests/tap-android-ui.py 'OK'
+node android-shell/tests/check-webview.cjs backup-import-verify "$BACKUP_COPY"
+
+adb forward --remove tcp:9222
+adb shell am force-stop "$PACKAGE"
+adb shell am start -n "$PACKAGE/.MainActivity"
+PID7=""
+for attempt in $(seq 1 30); do
+  PID7="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+  if test -n "$PID7"; then break; fi
+  sleep 3
+done
+test -n "$PID7" || { echo 'ERROR: App did not restart after backup import'; exit 1; }
+adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID7}"
+node android-shell/tests/check-webview.cjs activity-restore-reopen
+node android-shell/tests/check-webview.cjs backup-import-verify "$BACKUP_COPY"
+adb forward --remove tcp:9222
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'
   adb logcat -d -v brief | grep -A 22 'FATAL EXCEPTION' | head -n 65

@@ -10,9 +10,13 @@ const packed = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
 const changed = original
   .replace('src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"', 'src="./vendor/supabase.js"')
   .replace('<script defer src="./updates.js"></script>', '')
+  .replace('<script defer src="./exercise-reference.js"></script>',
+           '<script defer src="./native-backup.js"></script><script defer src="./exercise-reference.js"></script>')
   .replace('if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("Offline installation not available:",e)));}',
            '/* Android-only: bundled files update with a signed APK, not the PWA service worker. */');
-assert.equal(packed, changed, 'The Android interface must differ ONLY in the three planned script adaptations.');
+assert.equal(packed, changed, 'The Android interface must differ only in the reviewed script adaptations.');
+assert.deepEqual(fs.readFileSync(path.join(OUT, 'native-backup.js')),
+  fs.readFileSync(path.join(ROOT, 'android-shell/src/native-backup.js')));
 assert(!packed.includes('cdn.jsdelivr.net'), 'Native app must not depend on an external script CDN.');
 assert(!packed.includes('navigator.serviceWorker.register'), 'Native app must not register the PWA service worker.');
 assert(!packed.includes('src="./updates.js"'), 'Native app must not display a misleading web update dialog.');
@@ -40,6 +44,7 @@ for (const match of packed.matchAll(/(?:src|href)="\.\/([^"?#]+)"/g)) {
 const config = JSON.parse(fs.readFileSync(path.join(ROOT,'android-shell/capacitor.config.json'),'utf8'));
 assert.equal(config.appId,'io.github.gy8s.fitnessdex');
 assert.equal(config.webDir,'www');
+assert.equal(config.loggingBehavior,'none','Backup data sent through the bridge must not be logged.');
 assert.equal(config.server.url,undefined,'Android must load bundled assets, never a remote website.');
-console.log('PASS: unchanged PWA source assets, exact three HTML adaptations, Android-only safe-area CSS, pinned local Supabase bundle, local-only shell config.');
+console.log('PASS: unchanged PWA source assets, reviewed HTML adaptations, Android-only backup and safe-area code, pinned local Supabase bundle, local-only shell config.');
 console.log('NOTE: This does NOT prove visual parity, authentication, notifications, or Android runtime behaviour.');

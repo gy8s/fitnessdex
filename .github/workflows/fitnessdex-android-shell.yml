@@ -36,6 +36,7 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+          cp native/*.java android/app/src/main/java/io/github/gy8s/fitnessdex/
           cd android
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
