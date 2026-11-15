@@ -50,6 +50,9 @@ html = replaceOnce(
   '<script defer src="./native-backup.js"></script><script defer src="./exercise-reference.js"></script>',
   'Route Android backup exports to the native Save dialog'
 );
+html = replaceOnce(html, '<script defer src="./cloud.js"></script>',
+  '<script defer src="./native-cloud.js"></script><script defer src="./cloud.js"></script>',
+  'Load the Android cloud adapter before the shared cloud UI');
 html = replaceOnce(
   html,
   'if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("Offline installation not available:",e)));}',
@@ -57,9 +60,31 @@ html = replaceOnce(
   'Exclude PWA service-worker registration from the Android APK'
 );
 fs.writeFileSync(indexFile, html);
-for (const adapter of ['native-profile-storage.js', 'native-backup.js']) {
+for (const adapter of ['native-profile-storage.js', 'native-backup.js', 'native-cloud.js']) {
   fs.copyFileSync(path.join(SHELL, 'src', adapter), path.join(OUT, adapter));
 }
+
+const cloudFile = path.join(OUT, 'cloud.js');
+let cloud = fs.readFileSync(cloudFile, 'utf8');
+cloud = replaceOnce(cloud, 'emailRedirectTo:location.origin+location.pathname',
+  'emailRedirectTo:window.fdAndroidCloud.redirect,shouldCreateUser:false', 'Use the Android email link for existing accounts');
+cloud = replaceOnce(cloud, 'detectSessionInUrl:true', '...window.fdAndroidCloud.auth', 'Use Android PKCE and native session storage');
+cloud = replaceOnce(cloud, 'try{localStorage.setItem(BACKUP,JSON.stringify(S))}',
+  "try{if(!checkpoint('Before cloud restore'))return false;}", 'Create a recoverable Android snapshot before cloud restore');
+cloud = replaceOnce(cloud, 'const BACKUP = \'fitnessdex-cloud-before-restore\';\n', '', 'Remove unused browser backup key from Android');
+cloud = replaceOnce(cloud, 'window.fdCloudClient=()=>client;', 'window.fdCloudClient=()=>client;\nwindow.fdAndroidCloud.listen(client,setStatus);',
+  'Exchange the email callback in the Android app');
+
+// The CI probe uses a disposable local backend. Production builds use the existing endpoint.
+const testBackend = process.env.FITNESSDEX_TEST_SUPABASE_KEY;
+if (testBackend) {
+  if (!/^[A-Za-z0-9._-]+$/.test(testBackend)) throw Error('Invalid isolated backend key');
+  cloud = replaceOnce(cloud, cloud.match(/^const URL = .*;$/m)[0],
+    "const URL = 'http://127.0.0.1:54321';", 'Use isolated test backend URL');
+  cloud = replaceOnce(cloud, cloud.match(/^const KEY = .*;$/m)[0],
+    'const KEY = ' + JSON.stringify(testBackend) + ';', 'Use isolated test publishable key');
+}
+fs.writeFileSync(cloudFile, cloud);
 
 fs.mkdirSync(path.join(OUT, 'vendor'), { recursive: true });
 esbuild.buildSync({

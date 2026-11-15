@@ -25,7 +25,10 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
         "fitnessdex-v01-pre-v03-backup",
         "fitnessdex-v01-pre-v04-backup",
         "fitnessdex-v01-pre-import-backup",
-        "fitnessdex-recovery-checkpoints-v1"
+        "fitnessdex-recovery-checkpoints-v1",
+        "fitnessdex-android-auth",
+        "fitnessdex-android-auth-code-verifier",
+        "fitnessdex-android-auth-user"
     ));
     private final Bridge bridge;
     private final File files;

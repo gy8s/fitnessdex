@@ -10,6 +10,8 @@ const packed = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
 const changed = original
   .replace('src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"', 'src="./vendor/supabase.js"')
   .replace('<script defer src="./updates.js"></script>', '')
+  .replace('<script defer src="./cloud.js"></script>',
+           '<script defer src="./native-cloud.js"></script><script defer src="./cloud.js"></script>')
   .replace('</script><script>\'use strict\';\n// FitnessDex v0.3',
            '</script><script src="./native-profile-storage.js"></script><script>\'use strict\';\n// FitnessDex v0.3')
   .replace(/localStorage\.(getItem|setItem)\((K|PRE_MIGRATION|PRE_IMPORT|PRE_V04|RECOVERY)(?=[,)])/g,
@@ -32,13 +34,20 @@ assert(fs.statSync(path.join(OUT, 'vendor/supabase.js')).size > 10000, 'Offline 
 const sources = [
   'ui.css','manifest.json','manifest.webmanifest','version.json','exercise-reference.js',
   'workouts.js','habits.js','log-flow.js','ui-shell.js','campaigns.js','progression.js',
-  'set-ui.js','daily-care.js','quick-tools.js','notifications.js','cloud.js',
+  'set-ui.js','daily-care.js','quick-tools.js','notifications.js',
   'push-client.js','exercise-media.js','icons/icon-192.png','icons/icon-512.png'
 ];
 for (const f of sources) {
   assert.deepEqual(fs.readFileSync(path.join(OUT, f)), fs.readFileSync(path.join(ROOT, f)),
     'PWA asset changed in the generated Android bundle: '+f);
 }
+const cloud = fs.readFileSync(path.join(OUT, 'cloud.js'), 'utf8');
+assert(cloud.includes('...window.fdAndroidCloud.auth'));
+assert(cloud.includes('emailRedirectTo:window.fdAndroidCloud.redirect,shouldCreateUser:false'));
+assert(cloud.includes("checkpoint('Before cloud restore')"));
+assert(cloud.includes('window.fdAndroidCloud.listen(client,setStatus)'));
+assert.equal(cloud.includes("const URL = 'http://127.0.0.1:54321';"),
+  Boolean(process.env.FITNESSDEX_TEST_SUPABASE_KEY), 'Only the isolated CI build may target localhost');
 for (const match of packed.matchAll(/(?:src|href)="\.\/([^"?#]+)"/g)) {
   assert(fs.existsSync(path.join(OUT, match[1])), 'HTML asset is missing: '+match[1]);
 }

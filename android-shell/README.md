@@ -31,7 +31,9 @@ movement sessions, a cloud schema migration, new notifications, or a signing key
   provisional until the release identity/signing plan is formally verified.
 - The browser PWA and Android app keep separate profiles. Move data between
   them using Export complete backup and Import validated backup.
-- Cloud OTP callback/deep link behaviour is **not** adapted yet.
+- Android uses a PKCE email callback for an existing account. The Android
+  callback must be added to the hosted Auth redirect allow list before release.
+  CI uses local Supabase and a disposable mailbox for this test.
 - Web Push is **not** supported by this prototype. Background reminder parity
   with the existing PWA is an explicit blocker before Android replacement.
 
@@ -44,6 +46,7 @@ npm run build:web
 npm run test:bundle
 npx cap add android
 npx cap sync android
+node scripts/configure-native.cjs
 cp native/*.java android/app/src/main/java/io/github/gy8s/fitnessdex/
 cd android
 ./gradlew assembleDebug

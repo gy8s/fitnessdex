@@ -51,6 +51,7 @@ echo "FitnessDex Android process is running: $PID"
 adb shell dumpsys activity activities | grep -F "$PACKAGE" | head -n 12 || true
 # A process alive is not enough. Inspect the actual WebView content and saved profile.
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID}"
+adb reverse tcp:54321 tcp:54321
 node android-shell/tests/check-webview.cjs first
 
 restart_after_save
@@ -241,6 +242,7 @@ adb exec-out run-as "$PACKAGE" cat files/fitnessdex-v01.json | node -e '
 restart_after_save
 forward_upgrade_probe
 node android-shell/tests/check-webview.cjs upgrade-verify "$UPGRADE_BASELINE"
+node android-shell/tests/check-cloud.cjs
 VISUAL_DIR="android-shell/tests/results/visual"
 # Compare like-for-like clean profiles with the v0.8.7 browser screenshots.
 # The upgrade and recovery assertions are complete at this point.
@@ -275,4 +277,4 @@ if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   exit 1
 fi
 echo 'PASS: Native Android activity launched, rendered FitnessDex UI, persisted storage after restart and produced screenshot.'
-echo 'NOTE: Login and reminders require separate acceptance tests.'
+echo 'NOTE: Background reminders and release signing require separate acceptance tests.'
