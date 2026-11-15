@@ -9,8 +9,14 @@ capture_evidence() {
   set +e
   adb shell dumpsys activity activities > android-shell/tests/results/activity-dump.txt 2>&1
   adb logcat -d -v brief > android-shell/tests/results/android-logcat.txt 2>&1
-  adb shell screencap -p /sdcard/fitnessdex-shell.png
-  adb pull /sdcard/fitnessdex-shell.png android-shell/tests/results/fitnessdex-shell.png
+  # Stream image straight to the CI computer; /sdcard is restricted on some emulators.
+  adb exec-out screencap -p > android-shell/tests/results/fitnessdex-shell.png
+  if [ "$exit_code" -ne 0 ]; then
+    echo "Android probe failed (exit $exit_code). Process and activity evidence:"
+    adb shell pidof io.github.gy8s.fitnessdex || true
+    grep -E 'ResumedActivity|Resumed:|mCurrentFocus=|io.github.gy8s.fitnessdex' android-shell/tests/results/activity-dump.txt | head -n 16 || true
+    grep -E -i 'FATAL EXCEPTION|ANR in|am_crash|Process io.github.gy8s.fitnessdex|java.lang.(RuntimeException|IllegalStateException)' android-shell/tests/results/android-logcat.txt | tail -n 25 || true
+  fi
   exit "$exit_code"
 }
 trap capture_evidence EXIT
@@ -31,7 +37,7 @@ if grep -E 'Error:|Exception' <<< "$OUTPUT"; then
 fi
 PID=""
 for attempt in $(seq 1 30); do
-  PID="$(adb shell pidof "$PACKAGE" | tr -d '\r')"
+  PID="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
   if test -n "$PID"; then break; fi
   sleep 3
 done
@@ -43,10 +49,14 @@ adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID}"
 node android-shell/tests/check-webview.cjs first
 adb forward --remove tcp:9222
 adb shell am force-stop "$PACKAGE"
-adb shell am start -W -n "$PACKAGE/.MainActivity"
-sleep 8
-PID2="$(adb shell pidof "$PACKAGE" | tr -d '\r')"
-test -n "$PID2"
+adb shell am start -n "$PACKAGE/.MainActivity"
+PID2=""
+for attempt in $(seq 1 30); do
+  PID2="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+  if test -n "$PID2"; then break; fi
+  sleep 3
+done
+test -n "$PID2" || { echo "ERROR: FitnessDex process failed to return after restart"; exit 1; }
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID2}"
 node android-shell/tests/check-webview.cjs after-restart
 adb forward --remove tcp:9222
