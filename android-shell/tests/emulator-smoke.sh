@@ -53,7 +53,19 @@ adb shell dumpsys activity activities | grep -F "$PACKAGE" | head -n 12 || true
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID}"
 adb reverse tcp:54321 tcp:54321
 node android-shell/tests/check-webview.cjs first
+node android-shell/tests/check-reminders.cjs
 
+adb forward --remove tcp:9222
+adb shell pm clear "$PACKAGE"
+adb shell am start -n "$PACKAGE/.MainActivity"
+for attempt in $(seq 1 30); do
+  PID="$(adb shell pidof "$PACKAGE" 2>/dev/null | tr -d '\r' || true)"
+  if test -n "$PID"; then break; fi
+  sleep 3
+done
+test -n "$PID"
+adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID}"
+node android-shell/tests/check-webview.cjs first
 restart_after_save
 PID2=""
 for attempt in $(seq 1 30); do
@@ -270,7 +282,6 @@ for width in 411 360; do
     adb exec-out screencap -p > "$VISUAL_DIR/android-$width-$screen.png"
   done
 done
-node android-shell/tests/check-reminders.cjs
 adb forward --remove tcp:9222
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'
