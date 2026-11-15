@@ -18,8 +18,14 @@ assert(!packed.includes('navigator.serviceWorker.register'), 'Native app must no
 assert(!packed.includes('src="./updates.js"'), 'Native app must not display a misleading web update dialog.');
 assert(fs.statSync(path.join(OUT, 'vendor/supabase.js')).size > 10000, 'Offline Supabase client bundle must exist.');
 
+const nativeCss = fs.readFileSync(path.join(ROOT, 'android-shell/src/native-safe-area.css'), 'utf8');
+const originalCss = fs.readFileSync(path.join(ROOT, 'ui.css'), 'utf8');
+const androidCss = fs.readFileSync(path.join(OUT, 'ui.css'), 'utf8');
+assert.equal(androidCss, originalCss + '\n' + nativeCss,
+  'Only the reviewed Android-safe-area CSS may be added to the generated stylesheet.');
+
 const sources = [
-  'ui.css','manifest.json','manifest.webmanifest','version.json','exercise-reference.js',
+  'manifest.json','manifest.webmanifest','version.json','exercise-reference.js',
   'workouts.js','habits.js','log-flow.js','ui-shell.js','campaigns.js','progression.js',
   'set-ui.js','daily-care.js','quick-tools.js','notifications.js','cloud.js',
   'push-client.js','exercise-media.js','icons/icon-192.png','icons/icon-512.png'
@@ -35,5 +41,5 @@ const config = JSON.parse(fs.readFileSync(path.join(ROOT,'android-shell/capacito
 assert.equal(config.appId,'io.github.gy8s.fitnessdex');
 assert.equal(config.webDir,'www');
 assert.equal(config.server.url,undefined,'Android must load bundled assets, never a remote website.');
-console.log('PASS: unchanged PWA source assets, exact three HTML adaptations, pinned local Supabase bundle, local-only shell config.');
+console.log('PASS: unchanged PWA source assets, exact three HTML adaptations, Android-only safe-area CSS, pinned local Supabase bundle, local-only shell config.');
 console.log('NOTE: This does NOT prove visual parity, authentication, notifications, or Android runtime behaviour.');

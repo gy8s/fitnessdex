@@ -1,0 +1,8 @@
+/* Android-only safe-area spacing. The original PWA CSS is never changed. */
+body > header { padding-top: calc(12px + max(28px, env(safe-area-inset-top, 0px))); }
+@media (max-width: 700px) {
+  body > header { padding-top: calc(12px + max(28px, env(safe-area-inset-top, 0px))); }
+  .nav { padding-bottom: calc(9px + max(28px, env(safe-area-inset-bottom, 0px))); }
+  main { padding-bottom: calc(120px + max(28px, env(safe-area-inset-bottom, 0px))); }
+  #toast { bottom: calc(93px + max(28px, env(safe-area-inset-bottom, 0px))); }
+}

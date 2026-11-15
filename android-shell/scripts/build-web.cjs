@@ -47,6 +47,10 @@ html = replaceOnce(
 );
 fs.writeFileSync(indexFile, html);
 
+// Append Android-only safe-area rules to the disposable CSS copy.
+const nativeCss = fs.readFileSync(path.join(SHELL, 'src/native-safe-area.css'), 'utf8');
+fs.appendFileSync(path.join(OUT, 'ui.css'), '\n' + nativeCss);
+
 fs.mkdirSync(path.join(OUT, 'vendor'), { recursive: true });
 esbuild.buildSync({
   entryPoints: [path.join(SHELL, 'src/supabase-global.js')],
