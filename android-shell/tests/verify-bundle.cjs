@@ -12,6 +12,9 @@ const changed = original
   .replace('<script defer src="./updates.js"></script>', '')
   .replace('<script defer src="./cloud.js"></script>',
            '<script defer src="./native-cloud.js"></script><script defer src="./cloud.js"></script>')
+  .replace('<script defer src="./notifications.js"></script>',
+           '<script defer src="./native-reminders.js"></script><script defer src="./notifications.js"></script>')
+  .replace('<script defer src="./push-client.js"></script>', '')
   .replace('</script><script>\'use strict\';\n// FitnessDex v0.3',
            '</script><script src="./native-profile-storage.js"></script><script>\'use strict\';\n// FitnessDex v0.3')
   .replace(/localStorage\.(getItem|setItem)\((K|PRE_MIGRATION|PRE_IMPORT|PRE_V04|RECOVERY)(?=[,)])/g,
@@ -34,7 +37,7 @@ assert(fs.statSync(path.join(OUT, 'vendor/supabase.js')).size > 10000, 'Offline 
 const sources = [
   'ui.css','manifest.json','manifest.webmanifest','version.json','exercise-reference.js',
   'workouts.js','habits.js','log-flow.js','ui-shell.js','campaigns.js','progression.js',
-  'set-ui.js','daily-care.js','quick-tools.js','notifications.js',
+  'set-ui.js','daily-care.js','quick-tools.js',
   'push-client.js','exercise-media.js','icons/icon-192.png','icons/icon-512.png'
 ];
 for (const f of sources) {
@@ -42,6 +45,10 @@ for (const f of sources) {
     'PWA asset changed in the generated Android bundle: '+f);
 }
 const cloud = fs.readFileSync(path.join(OUT, 'cloud.js'), 'utf8');
+const reminders = fs.readFileSync(path.join(OUT, 'notifications.js'), 'utf8');
+assert(reminders.includes('window.fdAndroidReminders.ask()'));
+assert(reminders.includes('window.fdProfileStorage.setItem(KEY,'));
+assert(!reminders.includes('navigator.serviceWorker'));
 assert(cloud.includes('...window.fdAndroidCloud.auth'));
 assert(cloud.includes('emailRedirectTo:window.fdAndroidCloud.redirect,shouldCreateUser:false'));
 assert(cloud.includes("checkpoint('Before cloud restore')"));

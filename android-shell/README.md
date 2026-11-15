@@ -34,8 +34,10 @@ movement sessions, a cloud schema migration, new notifications, or a signing key
 - Android uses a PKCE email callback for an existing account. The Android
   callback must be added to the hosted Auth redirect allow list before release.
   CI uses local Supabase and a disposable mailbox for this test.
-- Web Push is **not** supported by this prototype. Background reminder parity
-  with the existing PWA is an explicit blocker before Android replacement.
+- Android schedules opted-in water and supplement reminders locally. A recent
+  water log, a met water goal, or a completed supplement check-in can suppress a
+  reminder. Android can delay inexact alarms under battery restrictions. An
+  explicit system force-stop suspends delivery until the app is opened again.
 
 ## Running locally (development computer with Node 22+, JDK and Android SDK)
 

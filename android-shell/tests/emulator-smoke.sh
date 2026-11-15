@@ -270,6 +270,7 @@ for width in 411 360; do
     adb exec-out screencap -p > "$VISUAL_DIR/android-$width-$screen.png"
   done
 done
+node android-shell/tests/check-reminders.cjs
 adb forward --remove tcp:9222
 if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   echo 'ERROR: Android fatal exception detected:'
@@ -277,4 +278,4 @@ if adb logcat -d -v brief | grep -q 'FATAL EXCEPTION'; then
   exit 1
 fi
 echo 'PASS: Native Android activity launched, rendered FitnessDex UI, persisted storage after restart and produced screenshot.'
-echo 'NOTE: Background reminders and release signing require separate acceptance tests.'
+echo 'NOTE: Release signing requires separate acceptance tests.'

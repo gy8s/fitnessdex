@@ -19,6 +19,17 @@ const callback = `            <intent-filter>
 assert(!manifest.includes('android:host="auth"'), 'Android callback already configured');
 manifest = manifest.replace(closingActivity, callback + closingActivity);
 manifest = manifest.replace('android:allowBackup="true"', 'android:allowBackup="false"');
+manifest = manifest.replace('    </application>', `        <receiver android:name=".ReminderScheduler" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+            </intent-filter>
+        </receiver>
+    </application>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />`);
 if (process.env.FITNESSDEX_TEST_SUPABASE_KEY) {
   const config = path.join(__dirname, '../android/app/src/main/assets/capacitor.config.json');
   const settings = JSON.parse(fs.readFileSync(config, 'utf8'));

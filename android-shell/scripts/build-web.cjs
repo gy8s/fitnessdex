@@ -53,6 +53,11 @@ html = replaceOnce(
 html = replaceOnce(html, '<script defer src="./cloud.js"></script>',
   '<script defer src="./native-cloud.js"></script><script defer src="./cloud.js"></script>',
   'Load the Android cloud adapter before the shared cloud UI');
+html = replaceOnce(html, '<script defer src="./notifications.js"></script>',
+  '<script defer src="./native-reminders.js"></script><script defer src="./notifications.js"></script>',
+  'Load Android reminders before the shared preferences UI');
+html = replaceOnce(html, '<script defer src="./push-client.js"></script>', '',
+  'Use local Android delivery for reminders');
 html = replaceOnce(
   html,
   'if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(e=>console.warn("Offline installation not available:",e)));}',
@@ -60,7 +65,7 @@ html = replaceOnce(
   'Exclude PWA service-worker registration from the Android APK'
 );
 fs.writeFileSync(indexFile, html);
-for (const adapter of ['native-profile-storage.js', 'native-backup.js', 'native-cloud.js']) {
+for (const adapter of ['native-profile-storage.js', 'native-backup.js', 'native-cloud.js', 'native-reminders.js']) {
   fs.copyFileSync(path.join(SHELL, 'src', adapter), path.join(OUT, adapter));
 }
 
@@ -88,6 +93,35 @@ if (testBackend) {
     'const KEY = ' + JSON.stringify(testBackend) + ';', 'Use isolated test publishable key');
 }
 fs.writeFileSync(cloudFile, cloud);
+
+const remindersFile = path.join(OUT, 'notifications.js');
+let reminders = fs.readFileSync(remindersFile, 'utf8');
+reminders = replaceOnce(reminders, "const supported=()=>!!(window.isSecureContext&&'Notification' in window&&'serviceWorker' in navigator);",
+  'const supported=()=>window.fdAndroidReminders.available;', 'Use Android notification support');
+reminders = reminders.replaceAll('Notification.permission', 'window.fdAndroidReminders.permission')
+  .replaceAll('localStorage.getItem(KEY)', 'window.fdProfileStorage.getItem(KEY)')
+  .replaceAll('localStorage.setItem(KEY,', 'window.fdProfileStorage.setItem(KEY,');
+reminders = replaceOnce(reminders, 'await Notification.requestPermission()', 'await window.fdAndroidReminders.ask()', 'Request Android notification permission');
+reminders = replaceOnce(reminders, "  const reg=await navigator.serviceWorker.getRegistration('./');\n  if(!reg||!reg.active||typeof reg.showNotification!=='function')return toast('Reopen FitnessDex once its offline service is ready, then try again.');\n", '',
+  'Enable Android reminders without a service worker');
+reminders = replaceOnce(reminders, "  if(write({...read(),enabled:true})){render();window.dispatchEvent(new Event('fitnessdex:reminder-settings'));toast('Notifications enabled. Connecting background push when cloud saving is signed in.');}",
+  "  if(write({...read(),enabled:true})){render();toast('Android reminders enabled.');}", 'Schedule local reminders on opt-in');
+reminders = replaceOnce(reminders, "try{await notify('FitnessDex notifications are working','You will only be reminded about the routines you enable.','water','test');toast('Test notification sent.');}",
+  "try{await window.fdAndroidReminders.test(false);toast('Test notification sent.');}", 'Show a real Android test notification');
+reminders = replaceOnce(reminders, 'On this device · while FitnessDex is running', 'On this device · works when FitnessDex is closed', 'Describe Android delivery');
+const backgroundStart = reminders.indexOf(" '<div class=\"fd-reminder-push\">");
+const renderEnd = reminders.indexOf('\n}', backgroundStart);
+if (backgroundStart < 0 || renderEnd < 0) throw Error('Reminder background UI changed');
+reminders = reminders.slice(0, backgroundStart) + ` '<div class="fd-reminder-push"><strong>Background delivery</strong><p>Android schedules reminders on this device. Battery restrictions can delay them.</p>'+(active?'<button class="fd-care-secondary" onclick="fdAndroidReminders.backgroundTest()">Queue a closed-app test</button>':'')+'</div></section>';` + reminders.slice(renderEnd);
+const foregroundStart = reminders.indexOf('function seen(');
+const foregroundEnd = reminders.indexOf('function view()');
+if (foregroundStart < 0 || foregroundEnd < foregroundStart) throw Error('Reminder scheduling source changed');
+reminders = reminders.slice(0, foregroundStart) + reminders.slice(foregroundEnd);
+reminders = reminders.replace("const SENT_KEY='fitnessdex-reminders-delivered-v1';\n", '')
+  .replace("if(write({...read(),enabled:false})){await window.fdPushDisconnect?.();", "if(write({...read(),enabled:false})){");
+const webEvents = reminders.indexOf('function openSection(');
+if (webEvents < 0) throw Error('Reminder events source changed');
+fs.writeFileSync(remindersFile, reminders.slice(0, webEvents) + '})();\n');
 
 fs.mkdirSync(path.join(OUT, 'vendor'), { recursive: true });
 esbuild.buildSync({

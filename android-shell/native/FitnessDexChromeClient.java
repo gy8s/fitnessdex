@@ -28,7 +28,8 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
         "fitnessdex-recovery-checkpoints-v1",
         "fitnessdex-android-auth",
         "fitnessdex-android-auth-code-verifier",
-        "fitnessdex-android-auth-user"
+        "fitnessdex-android-auth-user",
+        ReminderScheduler.SETTINGS
     ));
     private final Bridge bridge;
     private final File files;
@@ -65,6 +66,9 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
                     reply = read(target);
                 } else {
                     write(target, value);
+                    if ("fitnessdex-v01".equals(key) || ReminderScheduler.SETTINGS.equals(key)) {
+                        bridge.execute(() -> ReminderScheduler.schedule(bridge.getContext()));
+                    }
                     reply = "saved";
                 }
             } catch (IOException | ErrnoException | SecurityException e) {
