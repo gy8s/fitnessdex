@@ -26,14 +26,21 @@ function collectDraft(){
  const draft={id:chosen,editId:editId||null,at:new Date().toISOString(),fields,sets:rows};
  try{const value=JSON.stringify(draft);if(value.length<=40000)localStorage.setItem(KEY,value);}catch(e){}
 }
-window.fdClearQuickDraft=()=>{try{localStorage.removeItem(KEY);}catch(e){}};
+window.fdClearQuickDraft=(id,logEditId)=>{
+ if(id){
+  const saved=getDraft();
+  if(!saved||saved.id!==id||(saved.editId||null)!==(logEditId||null))return;
+ }
+ try{localStorage.removeItem(KEY);}catch(e){}
+};
 window.fdQuickDraftHome=()=>{
  const d=getDraft();if(!d)return '';
  return '<div class="fd-draft-banner"><span><strong>Unfinished activity</strong><small>'+html(ex(d.id)?.name||'Exercise')+' · Not yet saved</small></span><button onclick="fdResumeQuickDraft()">Resume</button><button class="fd-draft-discard" onclick="fdDiscardQuickDraft()" aria-label="Discard unfinished activity">×</button></div>';
 };
 window.fdResumeQuickDraft=()=>{
  const d=getDraft();if(!d){toast('No recoverable draft found.');return;}
- if(d.editId)editLog(d.editId);else{choose(d.id);if(['sets','bodysets'].includes(ex(d.id).mode))window.fdQuickLog?.();}
+ if(d.editId){if(!editLog(d.editId))return;}
+ else{if(!choose(d.id))return;if(['sets','bodysets'].includes(ex(d.id).mode))window.fdQuickLog?.();}
  for(const [id,val] of Object.entries(d.fields)){
   const el=document.getElementById(id);if(!el)continue;
   if(id==='session'&&!Array.from(el.options||[]).some(x=>x.value===val))continue;
@@ -52,7 +59,7 @@ window.fdDiscardQuickDraft=()=>{
 };
 window.fdRepeatLast=()=>{
  const last=recent();if(!last)return toast('No recent exercise to repeat.');
- choose(last.id);
+ if(!choose(last.id))return;
  if(['sets','bodysets'].includes(ex(last.id).mode)){window.fdQuickLog?.();const area=document.getElementById('setrows');if(area&&last.sets?.length)area.innerHTML=formSetRows(ex(last.id),last);}
  else{const value=document.getElementById('value');if(value)value.value=last.value??'';
   const extra=document.getElementById('extra');if(extra)extra.value=last.mode==='distance'?(last.minutes??''):(last.distance??'');

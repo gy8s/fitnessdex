@@ -72,7 +72,7 @@
     const name=document.getElementById('fd-workout-name')?.value||'';
     groupRecords(ids,name);
   };
-  window.fdAddExerciseToWorkout=function(id){if(!namedWorkout(id))return;activeSessionId=id;editId=null;tab='log';render();window.scrollTo({top:0,behavior:'instant'});};
+  window.fdAddExerciseToWorkout=function(id){if(!namedWorkout(id)||!navigate('log'))return;activeSessionId=id;};
   window.fdRenameWorkout=function(id){
     const w=namedWorkout(id);if(!w)return;
     const name=prompt('Workout name',w.name);if(name===null)return;

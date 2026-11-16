@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
 import android.view.Gravity;
+import androidx.activity.OnBackPressedCallback;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -29,6 +30,15 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(HoldTimerPlugin.class);
         super.onCreate(savedInstanceState);
         if (getBridge() != null) {
+            getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+                @Override
+                public void handleOnBackPressed() {
+                    getBridge().eval("window.fdAndroidBack?.()", result -> {
+                        // A false result means the user pressed Back on the home screen.
+                        if ("false".equals(result) && !isFinishing()) moveTaskToBack(false);
+                    });
+                }
+            });
             View webView = getBridge().getWebView();
             getBridge().getWebView().setWebChromeClient(new FitnessDexChromeClient(getBridge()));
             Window window = getWindow();

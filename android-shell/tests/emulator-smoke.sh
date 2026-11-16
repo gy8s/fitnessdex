@@ -53,6 +53,7 @@ adb shell dumpsys activity activities | grep -F "$PACKAGE" | head -n 12 || true
 adb forward tcp:9222 "localabstract:webview_devtools_remote_${PID}"
 adb reverse tcp:54321 tcp:54321
 node android-shell/tests/check-webview.cjs first
+node android-shell/tests/check-webview.cjs android-back
 node android-shell/tests/check-reminders.cjs
 
 adb forward --remove tcp:9222
@@ -238,7 +239,7 @@ adb shell run-as "$PACKAGE" test ! -e files/fitnessdex-v01.json
 adb shell am force-stop "$PACKAGE"
 adb forward --remove tcp:9222
 adb install -r "$APK"
-adb shell dumpsys package "$PACKAGE" | grep -E 'versionCode=4([[:space:]]|$)'
+adb shell dumpsys package "$PACKAGE" | grep -E 'versionCode=5([[:space:]]|$)'
 adb shell am start -n "$PACKAGE/.MainActivity"
 forward_upgrade_probe
 node android-shell/tests/check-webview.cjs upgrade-verify "$UPGRADE_BASELINE"

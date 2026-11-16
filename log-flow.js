@@ -2,8 +2,9 @@
 (() => {
 'use strict';
 let stage='type', category=null, family=null, query='', returnStage='variants';
-const baseNavigate=navigate, baseChoose=choose, baseSubmit=submitLog;
+const baseNavigate=navigate, baseChoose=choose, baseSubmit=submitLog, baseEdit=editLog, baseDexRoot=openDexRoot;
 let holdStarted=null, holdTick=null, holdResult=null;
+let logOrigin='home';
 const categoryNames={
  'Calisthenics':['◆','Bodyweight','Push-ups, pull-ups and core'],
  'Weight training':['▥','Weights','Squats, pressing and pulling'],
@@ -145,9 +146,81 @@ window.fdPickExerciseGroup=group=>{if(!DATA.some(e=>e.cat===category&&familyName
 window.fdExerciseQuery=value=>{query=value;render();const input=document.getElementById('fd-exercise-search');if(input){input.focus();input.setSelectionRange(value.length,value.length);}};
 window.fdSelectExercise=id=>{if(!ex(id))return;returnStage=stage;stage=['sets','bodysets'].includes(ex(id).mode)?'method':'record';family=familyName(ex(id));category=ex(id).cat;editId=null;baseChoose(id);};
 window.fdQuickLog=()=>{stage='record';render();top();};
-window.fdLogBack=()=>{clearHoldTimer();if(editId){editId=null;stage='variants';}else if(stage==='record'&&['sets','bodysets'].includes(ex(chosen)?.mode))stage='method';else if(stage==='method')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='record')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='variants')stage='find';else if(stage==='find')stage='type';else return navigate('home');render();top();};
-navigate=function(next){clearHoldTimer();if(next==='log'){stage='type';query='';family=null;editId=null;}baseNavigate(next);};
-choose=function(id){if(!ex(id))return;clearHoldTimer();returnStage='variants';stage=['sets','bodysets'].includes(ex(id).mode)?'method':'record';category=ex(id).cat;family=familyName(ex(id));baseChoose(id);};
+window.fdCanLeaveExercise=()=>{
+ if(tab==='progression')return window.fdCanLeaveProgression?.()??true;
+ if(tab!=='log'||!editId&&stage!=='record')return true;
+ const message=editId?'Discard changes to this exercise?':'Discard this exercise? It won’t be saved.';
+ if(!confirm(message))return false;
+ window.fdClearQuickDraft?.(chosen,editId);
+ clearHoldTimer();
+ return true;
+};
+function leaveLog(){
+ stage='type';editId=null;activeSessionId=null;
+ if(logOrigin==='dex'){tab='dex';render();top();return;}
+ navigate(logOrigin);
+}
+window.fdLogBack=()=>{
+ if(!window.fdCanLeaveExercise())return;
+ if(editId)return leaveLog();
+ if(stage==='record'&&['sets','bodysets'].includes(ex(chosen)?.mode))stage='method';
+ else if(stage==='method'||stage==='record'){
+  if(!returnStage)return leaveLog();
+  stage=returnStage;
+ }else if(stage==='variants')stage='find';
+ else if(stage==='find'||stage==='done')stage='type';
+ else return leaveLog();
+ render();top();
+};
+navigate=function(next){
+ if(!window.fdCanLeaveExercise())return false;
+ if(tab==='log')activeSessionId=null;
+ if(next==='log'){
+  if(tab!=='log')logOrigin=tab;
+  stage='type';query='';family=null;
+ }
+ baseNavigate(next);
+ return true;
+};
+choose=function(id){
+ const exercise=ex(id);
+ if(!exercise||!window.fdCanLeaveExercise())return false;
+ if(tab!=='log')logOrigin=tab;
+ returnStage=null;
+ stage=['sets','bodysets'].includes(exercise.mode)?'method':'record';
+ category=exercise.cat;family=familyName(exercise);
+ baseChoose(id);
+ return true;
+};
+editLog=function(id){
+ if(!S.logs.some(x=>logId(x)===id)||!window.fdCanLeaveExercise())return false;
+ if(tab!=='log')logOrigin=tab;
+ baseEdit(id);
+ return true;
+};
+openDexRoot=function(){
+ if(!window.fdCanLeaveExercise())return false;
+ if(tab==='log'){editId=null;activeSessionId=null;}
+ baseDexRoot();
+ return true;
+};
+window.fdAndroidBack=()=>{
+ if(tab==='home')return false;
+ if(tab==='log')window.fdLogBack();
+ else if(tab==='dex'){
+  if(dexSelected&&dexFamily)openDexFamily(cat,dexFamily);
+  else if(dexSelected)openDexRoot();
+  else if(dexFamily)openDexCategory(cat);
+  else if(cat!=='All'||search)openDexRoot();
+  else navigate('home');
+ }else if(tab==='progression'&&window.fdProgressionBack?.())return true;
+ else {
+  const backButton=$('app')?.querySelector?.('.fd-minimal-back, .fd-care-back, .fd-campaign-back');
+  if(backButton)backButton.click();
+  else navigate(tab==='more'?'home':'more');
+ }
+ return true;
+};
 logForm=function(){return editId?record():stage==='type'?categories():stage==='find'?find():stage==='variants'?variants():stage==='method'?method():stage==='done'?done():record();};
 submitLog=function(){if(holdStarted!==null)return;const before=S.logs.length,wasEdit=!!editId;baseSubmit();if(!wasEdit&&S.logs.length>before){clearHoldTimer();stage='done';tab='log';render();top();}};
 const baseRender=render;

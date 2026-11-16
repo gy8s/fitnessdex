@@ -16,7 +16,7 @@ function more(){
 }
 window.fdMoreCloud=()=>{moreView='cloud';render();window.scrollTo({top:0,behavior:'instant'});};
 window.fdMoreMenu=()=>{moreView='menu';render();window.scrollTo({top:0,behavior:'instant'});};
-navigate=function(next){if(next==='more')moreView='menu';basicNavigate(next);};
+navigate=function(next){if(next==='more')moreView='menu';return basicNavigate(next);};
 home=landing;
 render=function(){
  if(tab==='more'){

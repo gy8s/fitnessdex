@@ -174,29 +174,29 @@ jobs:
           trap 'rm -f "$cert"' EXIT
           cat > "$cert" <<'CERTIFICATE'
           -----BEGIN CERTIFICATE-----
-          MIIEMzCCApugAwIBAgIUZ27nq95nUzn5GVry3DH9cDBWZXUwDQYJKoZIhvcNAQEL
-          BQAwKTEnMCUGA1UEAwweRml0bmVzc0RleCBob2xkIHRpbWVyIGRlbGl2ZXJ5MB4X
-          DTI2MTExNjEzNDE1OVoXDTI2MTExOTEzNDE1OVowKTEnMCUGA1UEAwweRml0bmVz
-          c0RleCBob2xkIHRpbWVyIGRlbGl2ZXJ5MIIBojANBgkqhkiG9w0BAQEFAAOCAY8A
-          MIIBigKCAYEAminwjez84LoU/hL/J8g6GS9trMvIHVi7A2IOGSAx5IRJXW4hJUFc
-          atKj2X9veqNcGeN/mP/7nSDMi9BNs11IIfUl6UzRgGjO6KxPtuH2Ao68JJigeXO/
-          uyKHV/dqgVRMTsCpAtg6kmTXq1MGiM2epR7bhbzR18wXmZ4Bq5C7O0TpYhX2IUEa
-          ybn/lblyvqh+iXvD516cEtP5dR5q+DHjQDlMFJ3JM3eq/z5gq54jbsTQu93i5/WJ
-          YnHK/VYO1j899YV3WIo0oqummTLcwv5kfI81hInOT5X1xpbjTJJCl1sXo3KnnYxF
-          FiuqjAHqYuG5uwDjt0CkvOgbLUrcfUv6kzwNsPWDGl/ROlBbf2VM/zr4m/0MovXP
-          v9dhba0TIuM/0BvnfYBl9dsEWZp44GYAMU3bILfTwJnxJC+usqY6/H+Z4m5sSe1a
-          iQVGpNsJoPBK3JM/Dj2UebnDK5fsJd9+2ywgVfYzJrcLTYWQWf7KEVhA7FzilJyi
-          LmGIszZCbtGLAgMBAAGjUzBRMB0GA1UdDgQWBBQxjT5c4wVZNNuVXaUuE0IkpI1D
-          1jAfBgNVHSMEGDAWgBQxjT5c4wVZNNuVXaUuE0IkpI1D1jAPBgNVHRMBAf8EBTAD
-          AQH/MA0GCSqGSIb3DQEBCwUAA4IBgQA501p8S0FAiKujOQzft6lPA+/XYFOMNhLJ
-          yz3RueynwOceJbIIbG0+OFvNLnEkrDO+OdptimdFIa9vMtDnaq8/Q9j/WgFq7ivd
-          6Swg2jhuxhAcY90uLKJyQUFfBeIPF67MHpWlUhtwfJoPpqEN4eaP2Tm3l8ZQCjng
-          aHNHy5MwYO4wQiZOu7po4+zyhITzY9jmKlGOjQYeLWoQtm5gFRs/vrUzUnUenopf
-          Dg9k0Mlf6413Pp9WNTPNYEY1gxm9fvhyNyS5GnBK/2f7hu2J5auLT2CdUGojtav/
-          WcIu4PmYzxJ9bYhm3Gn2SbgLWWZDx5OXgbSYbDK/rapQFCvwe87gj5CpRhXWbehu
-          C3lirXcwaiYcQItaOWJ8k+/XHmOp7cwpYrHCignd49Ken8lP5tIL8lumkuSh7yUz
-          DK9QQ/BXcwlqBO7eQOFcTYyUcX9Td76PGPTD6v9ansSqiYPvUqBLJM9pHNj7ex1n
-          8sKt6wsciILtWGnHjQAoUlbUV4R1Vfg=
+          MIIENzCCAp+gAwIBAgIULHYxUGAv74wIS3659JoLjlSg0jkwDQYJKoZIhvcNAQEL
+          BQAwKzEpMCcGA1UEAwwgRml0bmVzc0RleCBBbmRyb2lkIEJhY2sgZGVsaXZlcnkw
+          HhcNMjYxMTE2MTQxMTMyWhcNMjYxMTE5MTQxMTMyWjArMSkwJwYDVQQDDCBGaXRu
+          ZXNzRGV4IEFuZHJvaWQgQmFjayBkZWxpdmVyeTCCAaIwDQYJKoZIhvcNAQEBBQAD
+          ggGPADCCAYoCggGBAMfTeqvB7xhIdyQsDKTG6+swc7VXhxtic9maMwxjPfw61raw
+          nYC/UK72t0LBEXVAUnunrVWAgAUlZbR6jtopHUOSLwz6ZLa3yVOum/vIqw8xtr6b
+          IdZitu8ia6sl2dE7B8vuTpxC2ncOboXY4rneS0xfU49pfSqEN4HIr26hAW3b7U01
+          ejand6RE1b/UDDm64akVbvlrMG52sPYv6DJ4pqEcTNKfLQGuD9yOeF4ebL3xeLmR
+          IPWM9tRkH7cKInjV1orMLqMHJnf6xelutgshvbJdXN/eNqbF8dl8eUKxloOmey01
+          48CpAunv/fWYxs6PCGB22rj189jIBQ0Lgv5LxMw4oXCPk/bVHX50tlpuO3En5b2v
+          +7mZDsNkTi9RNEFNdXVDIauVJQsWAnpxJHxuP54Y+Z7MsFeR6kKx2u1VCzb6SD9c
+          YuHRSV4yrE8QQ8r5A+qjOIeE7yCvM3Ig/4/liPYZpHtBXg6meMvK5K5MaFyYcqYU
+          6BorG312GaIeh+YujQIDAQABo1MwUTAdBgNVHQ4EFgQUPqfU/+NpLIJzQ1DQXSew
+          aN8TMOAwHwYDVR0jBBgwFoAUPqfU/+NpLIJzQ1DQXSewaN8TMOAwDwYDVR0TAQH/
+          BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAYEAK7+jCzSJ9527la7ZT1L7P2FkpqXZ
+          76Tk/OO7d1HFbomk1hdx6Lgqb59XKcRc4xUKwu7iXhjlERq7WqMW1Jvou1MZEUlh
+          R0UzHBwgqC+5OhMHam3XUd/WX4YTjYqgsBAXrbfn7L+pbGq0VYifPii4Cgo0HAvW
+          wsDy7zaAbdG+lJ9sLm7mrp2XB6epw90vYdfg52QRoOt6g9AWnt37uo6TeHB0R4a9
+          Fm/0hoEbSfCbtDBgjYg7R2twUQ1QnI+Hx09dG0gkC88ZLNzhVgQafKSBuaR5jul5
+          OfwZJOj9A2Mmr/oC+rvnajvL7NQ9AIOa5iyeyTMaxC5ZTNF4w6zbbvcz6F57+0F1
+          AaN2rm5TJCfgM6CrY0HspROaE7BWyB53Lvb/cB/MEk6XLk9dSbB5G5S51Raej5FN
+          r3G3YsdyhOvydvRR8/Cv4IxkgoS+VYkdTBTMz2zRVPJGnWEGrjMSisVySXg3Wa6C
+          7KEEzlWno4zNmE5geEeO4bK5xJpSJK5ihl7u
           -----END CERTIFICATE-----
           CERTIFICATE
           openssl cms -encrypt -binary -aes-256-cbc -stream -outform DER \

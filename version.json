@@ -1,5 +1,5 @@
 {
-  "version": "0.8.8",
+  "version": "0.8.9",
   "released": "2026-11-16",
-  "notes": "Count-up timer for timed exercises. Edit the seconds before saving, then repeat, choose the next exercise, or finish."
+  "notes": "Android Back navigates within FitnessDex. Leaving an unsaved exercise asks before discarding it."
 }

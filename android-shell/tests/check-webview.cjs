@@ -2,6 +2,7 @@
 // Only checks an Android emulator's debug WebView. No production user data.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const { execFileSync } = require('node:child_process');
 const { setTimeout: delay } = require('node:timers/promises');
 const { inspect } = require('./devtools.cjs');
 const { screens, inspectScreen, verifyScreen } = require('./screen-parity.cjs');
@@ -10,7 +11,7 @@ const stages = [
   'first', 'after-restart', 'navigation', 'activity-save', 'activity-reopen', 'activity-edit',
   'activity-edit-reopen', 'activity-delete', 'activity-delete-reopen', 'activity-restore',
   'activity-restore-reopen', 'backup-export', 'backup-import', 'backup-import-verify',
-  'migration-verify', 'upgrade-baseline', 'upgrade-verify', 'screen-parity'
+  'migration-verify', 'upgrade-baseline', 'upgrade-verify', 'screen-parity', 'android-back'
 ];
 if (!stages.includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
@@ -31,6 +32,38 @@ async function findTarget() {
 }
 
 (async () => {
+  if (stage === 'android-back') {
+    const evaluate = async expression => inspect(await findTarget(), expression);
+    const back = () => execFileSync('adb', ['shell', 'input', 'keyevent', '4']);
+    const tapDialog = label => execFileSync('python3', ['android-shell/tests/tap-android-ui.py', label], {stdio:'inherit'});
+    const logStage = async expected => {
+      for (let attempt = 0; attempt < 15; attempt++) {
+        if (await evaluate('window.fdLogStage()') === expected) return;
+        await delay(200);
+      }
+      assert.equal(await evaluate('window.fdLogStage()'), expected);
+    };
+    await evaluate(`navigate('log'); fdPickActivityType('Flexibility & mobility'); fdSelectExercise('e036');
+      document.getElementById('value').value = '26';
+      document.getElementById('value').dispatchEvent(new Event('input', {bubbles:true}));`);
+    const before = await evaluate('S.logs.length');
+    back();
+    tapDialog('Cancel');
+    await logStage('record');
+    assert.equal(await evaluate("document.getElementById('value').value"), '26');
+    back();
+    tapDialog('OK');
+    await logStage('find');
+    assert.equal(await evaluate('S.logs.length'), before);
+    assert.equal(await evaluate('Boolean(window.fdQuickDraftHome())'), false);
+    back();
+    await logStage('type');
+    back();
+    for (let attempt = 0; attempt < 15 && await evaluate('tab') !== 'home'; attempt++) await delay(200);
+    assert.equal(await evaluate('tab'), 'home');
+    console.log('PASS: Android Back keeps the form on Cancel and discards without saving on OK');
+    return;
+  }
   if (stage === 'screen-parity') {
     const screen = screens.find(item => item.name === process.argv[3]);
     assert(screen, 'Choose a screen to compare');
@@ -52,7 +85,7 @@ async function findTarget() {
     const reference = references[band + '-' + screen.name];
     assert.equal(state.heading, reference.heading);
     assert.deepEqual(state.tabs, reference.tabs);
-    console.log('PASS: Android ' + screen.name + ' matches v0.8.8 screen and navigation at ' + state.width + 'px');
+    console.log('PASS: Android ' + screen.name + ' matches v0.8.9 screen and navigation at ' + state.width + 'px');
     return;
   }
   if (stage === 'upgrade-baseline' || stage === 'upgrade-verify') {
@@ -533,7 +566,7 @@ async function findTarget() {
       info = JSON.parse(await inspect(target, expr));
       ready = stage === 'first'
         ? info.hostname === 'localhost' &&
-          info.version === '0.8.8' &&
+          info.version === '0.8.9' &&
           info.rendered === true &&
           info.homeText === true &&
           info.nav === true &&
@@ -555,7 +588,7 @@ async function findTarget() {
   }
   if (stage === 'first') {
     assert.equal(info.hostname, 'localhost');
-    assert.equal(info.version, '0.8.8');
+    assert.equal(info.version, '0.8.9');
     assert.equal(info.rendered, true, 'The FitnessDex home UI must actually render');
     assert.equal(info.homeText, true);
     assert.equal(info.nav, true);

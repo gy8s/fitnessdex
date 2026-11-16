@@ -148,7 +148,10 @@ function careAchievements(){
 }
 window.fdCareIsEditing=()=>carePage==='editor';
 window.fdCareView=()=>carePage==='water'?careWaterPage():carePage==='supplements'?careSuppPage():carePage==='editor'?careEditPage():careHomePage();
-const careShow=next=>{carePage=next;tab='care';render();window.scrollTo({top:0,behavior:'instant'});};
+const careShow=next=>{
+ if(tab!=='care'&&!window.fdCanLeaveExercise?.())return;
+ carePage=next;tab='care';editId=null;activeSessionId=null;render();window.scrollTo({top:0,behavior:'instant'});
+};
 window.fdCareHome=()=>careShow('home');
 window.fdCareWater=()=>careShow('water');
 window.fdCareSupplements=()=>careShow('supplements');

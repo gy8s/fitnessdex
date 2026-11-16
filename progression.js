@@ -328,6 +328,23 @@ window.fdProgContinue=()=>{if(!draft)return;stopTick();draft.restUntil=null;view
 window.fdProgAddRest=()=>{if(!draft)return;draft.restUntil=Math.max(Date.now(),draft.restUntil||0)+30000;draftSave();render();};
 window.fdProgFinishEarly=()=>{if(!draft)return;stopTick();view.kind='review';render();};
 window.fdProgPause=()=>{if(!draft)return;stopTick();draftSave();view={kind:'hub',id:draft.trackId,exercise:byTrack(draft.trackId)?.baseId};tab='progression';render();scrollTop();};
+window.fdCanLeaveProgression=()=>{
+ if(!draft||!['session','rest','variants','review'].includes(view.kind))return true;
+ if(!confirm('Discard this progression session? Your sets won’t be saved.'))return false;
+ const track=byTrack(draft.trackId);
+ draftClear();
+ view=track?{kind:'hub',id:track.id,exercise:track.baseId}:{kind:'list',id:null,exercise:null};
+ return true;
+};
+window.fdProgressionBack=()=>{
+ if(view.kind==='list')return false;
+ if(view.kind==='variants'){window.fdProgReturnSet();return true;}
+ const previousView=view;
+ if(!window.fdCanLeaveProgression())return true;
+ if(view===previousView)window.fdProgBack();
+ else{render();scrollTop();}
+ return true;
+};
 window.fdProgSupport=id=>{
  const t=byTrack(view.id);if(!t||!support(t).some(s=>s.id===id))return;
  // A supporting exercise remains optional and is logged as a standalone record.
@@ -377,6 +394,10 @@ const priorAchievements=achievements;
 achievements=function(){return priorAchievements()+'<section class="fd-p-award-collection"><h2>Progression persistence</h2><p class="hint">These awards recognise real sessions and returning after breaks, not perfect completion of every target.</p>'+awardRows()+'</section>';};
 // If navigation leaves the programme, retain an unfinished session locally but stop its timer.
 const oldNavigate=navigate;
-navigate=function(next){if(next!=='progression'){stopTick();if(draft)draftSave();}oldNavigate(next);};
+navigate=function(next){
+ const moved=oldNavigate(next);
+ if(moved&&next!=='progression'){stopTick();if(draft)draftSave();}
+ return moved;
+};
 draftLoad();
 })();

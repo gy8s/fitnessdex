@@ -285,6 +285,6 @@ window.fdCampaignStart=id=>{
 };
 window.fdCampaignLog=id=>{if(!ex(id))return;choose(id);};
 const oldNavigate=navigate;
-navigate=function(next){if(next==='campaigns')selected=null;oldNavigate(next);};
+navigate=function(next){if(next==='campaigns')selected=null;return oldNavigate(next);};
 window.fdCampaignDefinitions=()=>DEFINITIONS.map(x=>({id:x.id,name:x.name,weeks:x.weeks,slots:x.slots.map(s=>s.id)}));
 })();
