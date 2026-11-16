@@ -109,8 +109,7 @@ jobs:
             android-shell/package-lock.json
 
   permanent-signing-proof:
-    if: github.repository == 'gy8s/fitnessdex' && github.ref == 'refs/heads/stage2/android-shell-20261114' && (vars.FITNESSDEX_VERIFY_PERMANENT_SIGNING == 'true' || (github.event_name == 'push' && github.event.head_commit.message == 'Run the first permanent-key Android verification'))
-    needs: android-shell
+    if: github.repository == 'gy8s/fitnessdex' && github.ref == 'refs/heads/stage2/android-shell-20261114' && (vars.FITNESSDEX_VERIFY_PERMANENT_SIGNING == 'true' || (github.event_name == 'push' && github.event.head_commit.message == 'Build the signed FitnessDex phone copy'))
     environment: fitnessdex-android-signing
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -165,3 +164,47 @@ jobs:
           profile: pixel_6
           disable-animations: false
           script: bash android-shell/tests/check-signed-upgrade.sh
+
+      - name: Encrypt the verified phone APK for private delivery
+        run: |
+          set -euo pipefail
+          umask 077
+          proof="$RUNNER_TEMP/fitnessdex-signing-proof"
+          cert="$(mktemp)"
+          trap 'rm -f "$cert"' EXIT
+          cat > "$cert" <<'CERTIFICATE'
+          -----BEGIN CERTIFICATE-----
+          MIIEQzCCAqugAwIBAgIUcLqVBPwPdY8DM/iMzI+zKQ9xTLMwDQYJKoZIhvcNAQEL
+          BQAwMTEvMC0GA1UEAwwmRml0bmVzc0RleCBwcml2YXRlIGFjY2VwdGFuY2UgZGVs
+          aXZlcnkwHhcNMjYxMTE2MTExODE2WhcNMjYxMTE4MTExODE2WjAxMS8wLQYDVQQD
+          DCZGaXRuZXNzRGV4IHByaXZhdGUgYWNjZXB0YW5jZSBkZWxpdmVyeTCCAaIwDQYJ
+          KoZIhvcNAQEBBQADggGPADCCAYoCggGBALVxR5UnIjCLyFkPdPJOmLWjOJJyJg/S
+          Aw7B5uWIcLADAgfPL7ClxDOV6B8rG2ydN+SEU6ubHTisocjSpX/d0ncSxOuk8xzy
+          3gkh6MOtsRSxhIen5q6WxKmRFXeithCTrQwJXJOrYdjI/E6aRZfZRADoD+RgbVZu
+          wzfINz1BBV3VtQitcA7TuUTpdTrYRVs/0cmbIKnX+crdFIA+2Zs87hGSL4nL6aV+
+          RyFrKOuZfQACbb1AFTwFA7/Q3HUShSCGB9M+eMiXdNGZDeapgmG2Jvjy4GUqVwRe
+          l+yFcrJ9BHh4WqM1EIA4ehK+8/qdFb5LP7otY7KimC5hKeqKGVUsgCIb7n92MnSY
+          NJthfaXZSSd1QgbTk/HvZUiIYNEiE9GrX9InW61Nmk6wid+Gujn+78EOYNE5pir+
+          qCkzmCOxjyLM5eo7aAdbiCyH26IbbmNdnfrqywmcnaLGKwbytm8FMF9dXEDXWwV6
+          sktgm2pA8wQJ8TZlUZfeB8rb+GCovEMO9QIDAQABo1MwUTAdBgNVHQ4EFgQUcC6p
+          px2xGw8V0tMYyILnC5eAAOYwHwYDVR0jBBgwFoAUcC6ppx2xGw8V0tMYyILnC5eA
+          AOYwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAYEANwrLBjuauHcm
+          gxJJ8Eu/VL1AhqYk6Xcs8CW3hFpN1kQ3Ygvw2wc8DsKKEn07PiSvzxqTtJnmc7/0
+          bcBMzMSF4H1G3ULXv4s2tjjMUlcKnxRJbi9e4XLhADMXtNZ96o3DEQ9oKcgza6Tu
+          Yeu6IFBcQVbqbt50QJOA7hFV2qcnsM9bEjLA/eBHhWwKv5TYrIT8rHfCQgEzsGeM
+          MpENgWbBZCEDd1/LON1WdEr2H1mIjbIef8Ovj/04AdOmljH0GCZmB6njf75d01rQ
+          KrTPA2P2ex5g/qpkmSwxA7IkqUJir8mWykeRv2mdckNjrvitCz5Sv7Kz4XYp0qFP
+          NSkBzgt4ndBd8n3QSYFHYSi5hjQUPQyEuusLlOxaiIBxovIe6ovW7dXx1tPWLzwU
+          xO6Sgwon0K6072i1UuzdSQu7EuGxmN7ifoEtY6KRx51PyqeY+K8G5Eolydmci9f0
+          OMZooGCdnaRWFaExco0u833ZXkqY9ODCdClg5jSOC2xfKoASqPrP
+          -----END CERTIFICATE-----
+          CERTIFICATE
+          openssl cms -encrypt -binary -aes-256-cbc -stream -outform DER \
+            -in "$proof/after.apk" -out "$proof/FitnessDex-Android.apk.cms" "$cert"
+      - name: Store the encrypted phone APK for delivery
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fitnessdex-private-phone-copy
+          path: ${{ runner.temp }}/fitnessdex-signing-proof/FitnessDex-Android.apk.cms
+          if-no-files-found: error
+          retention-days: 1
