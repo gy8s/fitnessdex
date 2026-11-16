@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-def fitnessdexVersionCode = providers.gradleProperty('fitnessdexVersionCode').orElse('2').get().toInteger()
+def fitnessdexVersionCode = providers.gradleProperty('fitnessdexVersionCode').orElse('4').get().toInteger()
 
 android {
     namespace = "io.github.gy8s.fitnessdex"
@@ -10,7 +10,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode = fitnessdexVersionCode
-        versionName "0.8.7"
+        versionName "0.8.8"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

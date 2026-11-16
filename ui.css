@@ -509,3 +509,8 @@ main{padding-top:21px}
 .fd-reminder-push strong{font-size:14px;color:#e2f5ec}
 .fd-reminder-push p{font-size:12px;color:#aecaD9;line-height:1.5;margin:0}
 .fd-reminder-push .fd-care-secondary{margin:2px 0 0;min-height:43px}
+
+.fd-hold-timer{display:grid;justify-items:center;gap:12px;margin-bottom:22px}
+#fd-hold-clock{font-size:clamp(3rem,15vw,5rem);font-weight:750;font-variant-numeric:tabular-nums;line-height:1}
+.fd-hold-timer button{width:100%;padding:14px;font-size:1rem}
+.fd-save-actions #fd-hold-save:disabled{opacity:.5;cursor:default}

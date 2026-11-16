@@ -52,7 +52,7 @@ trap cleanup EXIT
 adb install "$proof/before.apk"
 adb shell mkdir -p /sdcard/Download /sdcard/Documents
 adb shell 'find /sdcard/Download /sdcard/Documents -maxdepth 1 -name "FitnessDex_v04_backup_*.json" -type f -delete'
-check_version 2
+check_version 3
 launch
 open_history
 adb push "$fixture" /sdcard/Download/FitnessDex_Signed_Update_Test.json
@@ -66,7 +66,7 @@ tap 'OK'
 export_backup "$proof/before.json"
 adb shell am force-stop "$package"
 adb install -r "$proof/after.apk"
-check_version 3
+check_version 4
 launch
 open_history
 export_backup "$proof/after.json"

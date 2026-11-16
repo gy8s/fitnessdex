@@ -3,6 +3,7 @@
 'use strict';
 let stage='type', category=null, family=null, query='', returnStage='variants';
 const baseNavigate=navigate, baseChoose=choose, baseSubmit=submitLog;
+let holdStarted=null, holdTick=null, holdResult=null;
 const categoryNames={
  'Calisthenics':['◆','Bodyweight','Push-ups, pull-ups and core'],
  'Weight training':['▥','Weights','Squats, pressing and pulling'],
@@ -52,12 +53,57 @@ function variants(){const exercises=DATA.filter(e=>e.cat===category&&familyName(
  return '<div class="fd-step-screen">'+back('Choose variation',3)+'<header class="fd-step-hero"><small>'+esc(category)+'</small><h1>'+esc(family)+'</h1><p>Which variation did you do?</p></header><div class="fd-option-list">'+exercises.map(e=>item(e,'Select to record')).join('')+'</div></div>';
 }
 function method(){const e=ex(chosen);return '<div class="fd-step-screen fd-method-screen">'+back('Training method',4)+'<header class="fd-step-hero"><small>'+esc(e.cat)+'</small><h1>'+esc(e.name)+'</h1><p>How do you want to train?</p></header><div class="fd-option-list"><button class="fd-option fd-method-choice" onclick="fdQuickLog()"><span><strong>Just log sets and reps</strong><small>Record what you actually complete, without targets</small></span><span class="fd-arrow">›</span></button><button class="fd-option fd-method-choice" onclick="fdStartProgression(\''+e.id+'\')"><span><strong>Follow a progression</strong><small>Suggested sets, variations, recovery and persistence awards</small></span><span class="fd-arrow">›</span></button></div></div>';}
+function holdSeconds(){return Math.max(0,Math.floor((performance.now()-holdStarted)/1000));}
+function holdClock(seconds){return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');}
+function holdTimer(){
+ const running=holdStarted!==null;
+ return `<div class="fd-hold-timer">
+   <div id="fd-hold-clock" role="timer" aria-label="Elapsed time">${holdClock(running?holdSeconds():holdResult??0)}</div>
+   <button id="fd-hold-toggle" class="primary" type="button" onclick="fdToggleHold()">${running?'Stop timer':holdResult===null?'Start timer':'Restart timer'}</button>
+ </div>`;
+}
+function keepHoldScreenOn(enabled){
+ window.Capacitor?.Plugins?.HoldTimer?.setScreenOn({enabled}).catch(()=>{});
+}
+function stopHoldTimer(){
+ if(holdStarted===null)return;
+ clearInterval(holdTick);
+ holdStarted=null;
+ holdTick=null;
+ keepHoldScreenOn(false);
+}
+function clearHoldTimer(){stopHoldTimer();holdResult=null;}
+window.fdToggleHold=()=>{
+ const display=$('fd-hold-clock'),button=$('fd-hold-toggle'),value=$('value'),saveButton=$('fd-hold-save');
+ if(!display||!button||!value||!saveButton)return;
+ if(holdStarted===null){
+  holdStarted=performance.now();
+  display.textContent='00:00';
+  button.textContent='Stop timer';
+  value.disabled=saveButton.disabled=true;
+  holdTick=setInterval(()=>{
+   const clock=$('fd-hold-clock');
+   if(clock)clock.textContent=holdClock(holdSeconds());
+  },200);
+  keepHoldScreenOn(true);
+  return;
+ }
+ holdResult=holdSeconds();
+ stopHoldTimer();
+ display.textContent=holdClock(holdResult);
+ button.textContent='Restart timer';
+ value.disabled=saveButton.disabled=false;
+ value.value=holdResult||'';
+ value.dispatchEvent(new Event('input',{bubbles:true}));
+};
 function record(){
  const e=ex(chosen)||DATA[0], l=editId?S.logs.find(x=>logId(x)===editId):null,m=e.mode;
  const setMode=m==='sets'||m==='bodysets';
+ const timedHold=m==='time'&&!l;
+ const running=timedHold&&holdStarted!==null;
  const defaultSets=l||null;
  const valueTitle=m==='time'?'Seconds':m==='range'?'Gap from floor (cm)':m==='duration'?'Minutes':'Distance (km)';
- const metrics=setMode?'<label class="fd-record-label">'+(m==='sets'?'Weight and repetitions':'Repetitions per set')+'</label><div id="setrows">'+formSetRows(e,defaultSets)+'</div><div class="fd-set-actions"><button class="small" type="button" onclick="addSet()">+ Add set</button>'+(logsFor(e.id).some(x=>x.sets?.length)?'<button class="small" type="button" onclick="prefillSets()">Use last session</button>':'')+'</div>':'<div class="field"><label for="value">'+valueTitle+'</label><input id="value" type="number" '+(m==='range'?'':'min="0"')+' step="any" value="'+esc(l?.value??'')+'" placeholder="'+esc(e.unit)+'"></div>';
+ const metrics=setMode?'<label class="fd-record-label">'+(m==='sets'?'Weight and repetitions':'Repetitions per set')+'</label><div id="setrows">'+formSetRows(e,defaultSets)+'</div><div class="fd-set-actions"><button class="small" type="button" onclick="addSet()">+ Add set</button>'+(logsFor(e.id).some(x=>x.sets?.length)?'<button class="small" type="button" onclick="prefillSets()">Use last session</button>':'')+'</div>':(timedHold?holdTimer():'')+'<div class="field"><label for="value">'+valueTitle+'</label><input id="value" type="number" '+(m==='range'?'':'min="0"')+' step="any" value="'+esc(l?.value??(timedHold?holdResult||'':''))+'" placeholder="'+esc(e.unit)+'"'+(running?' disabled':'')+'></div>';
  const extra=m==='distance'||m==='duration'?'<div class="field"><label for="extra">'+(m==='distance'?'Minutes':'Distance (km)')+' (optional)</label><input id="extra" type="number" min="0" step="any" value="'+esc(m==='distance'?l?.minutes??'':l?.distance??'')+'"></div>':'';
  const isSwim=m==='duration'&&(e.id==='e051'||['e121','e122','e123','e124'].includes(e.id));
  const swim=isSwim?'<div class="two"><div class="field"><label for="stroke">Stroke</label><select id="stroke">'+['','Front crawl','Breaststroke','Backstroke','Butterfly','Mixed'].map(x=>'<option '+(x===(l?.stroke||'')?'selected':'')+'>'+esc(x)+'</option>').join('')+'</select></div><div class="field"><label for="lengths">Lengths</label><input id="lengths" type="number" min="0" step="1" value="'+esc(l?.lengths??'')+'"></div></div>':'';
@@ -65,20 +111,48 @@ function record(){
  const mobility=e.cat==='Flexibility & mobility'?'<div class="field"><label for="mobilityType">Movement type (optional)</label><select id="mobilityType">'+['','Passive stretch','Active mobility','Controlled end range'].map(x=>'<option '+(x===(l?.mobilityType||'')?'selected':'')+'>'+esc(x)+'</option>').join('')+'</select></div>':'';
  const groupPicker=window.fdWorkoutSelector?window.fdWorkoutSelector(l):'<div class="field"><label>How to save</label><select id="session"><option value="standalone">Standalone</option></select></div>';
  const details='<details class="fd-log-details"><summary>More details <small>Time, notes, workout</small></summary><div class="fd-log-details-inner"><div class="two"><div class="field"><label for="date">Date</label><input id="date" type="date" value="'+esc(l?.date||today())+'"></div><div class="field"><label for="clock">Time</label><input id="clock" type="time" value="'+timeText(l)+'"></div></div>'+mobility+groupPicker+'<div class="field"><label for="notes">Notes (optional)</label><input id="notes" maxlength="500" value="'+esc(l?.notes||'')+'" placeholder="Technique, route, how it felt…"></div></div></details>';
- return '<div class="fd-step-screen fd-log-record">'+back('Record activity',4)+'<header class="fd-step-hero"><small>'+esc(e.cat)+'</small><h1>'+esc(e.name)+'</h1></header><section class="fd-entry-card"><h2>What did you complete?</h2>'+metrics+extra+swim+side+'</section>'+details+'<details class="fd-log-details"><summary>How to do this exercise</summary><p>'+esc(EXERCISE_GUIDES[e.id]||'')+'</p></details><div class="fd-save-actions"><button class="primary" onclick="submitLog()">'+(l?'Save corrections':'Save activity')+'</button></div></div>';
+ return '<div class="fd-step-screen fd-log-record">'+back('Record activity',4)+'<header class="fd-step-hero"><small>'+esc(e.cat)+'</small><h1>'+esc(e.name)+'</h1></header><section class="fd-entry-card"><h2>'+(timedHold?'Time your hold':'What did you complete?')+'</h2>'+metrics+extra+swim+side+'</section>'+details+'<details class="fd-log-details"><summary>How to do this exercise</summary><p>'+esc(EXERCISE_GUIDES[e.id]||'')+'</p></details><div class="fd-save-actions"><button class="primary" onclick="submitLog()"'+(timedHold?' id="fd-hold-save"':'')+(running?' disabled':'')+'>'+(l?'Save corrections':'Save activity')+'</button></div></div>';
 }
 function done(){const last=S.v4?.lastResult||{},xp=last.xpGain||0;
- return '<div class="fd-step-screen fd-logged"><div class="fd-logged-symbol">✓</div><small>Activity saved</small><h1>'+esc(last.exercise||'Exercise')+' logged</h1><p>'+esc(last.summary||'')+'</p>'+(xp?'<div class="fd-logged-xp">+'+Math.round(xp)+' XP</div>':'')+(last.milestones?.length?'<p>New milestone: '+esc(last.milestones.slice(0,2).join(' · '))+'</p>':'')+(last.challengeNames?.length?'<p>Challenge complete: '+esc(last.challengeNames.slice(0,2).join(' · '))+'</p>':'')+'<div class="fd-logged-actions"><button class="primary" onclick="navigate(\'log\')">Log another</button><button onclick="navigate(\'home\')">Done for now</button>'+(S.v4?.lastResult?.logId&&S.logs.some(x=>logId(x)===S.v4.lastResult.logId)?'<button class="fd-undo-last" onclick="fdUndoLastLog()">Undo this log</button>':'')+'</div></div>';
+ const saved=last.logId&&S.logs.find(x=>logId(x)===last.logId);
+ const actions=saved?.mode==='time'
+  ? '<button class="primary" onclick="fdRepeatHold()">Repeat</button><button onclick="fdNextAfterHold()">Next exercise</button><button onclick="navigate(\'home\')">Finish</button>'
+  : '<button class="primary" onclick="navigate(\'log\')">Log another</button><button onclick="navigate(\'home\')">Done for now</button>';
+ return '<div class="fd-step-screen fd-logged"><div class="fd-logged-symbol">✓</div><small>Activity saved</small><h1>'+esc(last.exercise||'Exercise')+' logged</h1><p>'+esc(last.summary||'')+'</p>'+(xp?'<div class="fd-logged-xp">+'+Math.round(xp)+' XP</div>':'')+(last.milestones?.length?'<p>New milestone: '+esc(last.milestones.slice(0,2).join(' · '))+'</p>':'')+(last.challengeNames?.length?'<p>Challenge complete: '+esc(last.challengeNames.slice(0,2).join(' · '))+'</p>':'')+'<div class="fd-logged-actions">'+actions+(saved?'<button class="fd-undo-last" onclick="fdUndoLastLog()">Undo this log</button>':'')+'</div></div>';
 }
+window.fdRepeatHold=()=>{
+ const saved=S.logs.find(x=>logId(x)===S.v4?.lastResult?.logId);
+ if(saved?.mode!=='time')return;
+ activeSessionId=saved.sessionId||null;
+ choose(saved.id);
+ if(saved.side&&$('side'))$('side').value=saved.side;
+ if(saved.mobilityType&&$('mobilityType'))$('mobilityType').value=saved.mobilityType;
+};
+window.fdNextAfterHold=()=>{
+ const saved=S.logs.find(x=>logId(x)===S.v4?.lastResult?.logId);
+ const exercise=saved&&ex(saved.id);
+ if(!exercise)return;
+ activeSessionId=saved.sessionId||null;
+ category=exercise.cat;
+ family=null;
+ query='';
+ stage='find';
+ render();top();
+};
 window.fdLogStage=()=>stage;
 window.fdPickActivityType=cat=>{if(!CATS.includes(cat))return;category=cat;family=null;query='';stage='find';render();top();};
 window.fdPickExerciseGroup=group=>{if(!DATA.some(e=>e.cat===category&&familyName(e)===group))return;family=group;stage='variants';render();top();};
 window.fdExerciseQuery=value=>{query=value;render();const input=document.getElementById('fd-exercise-search');if(input){input.focus();input.setSelectionRange(value.length,value.length);}};
 window.fdSelectExercise=id=>{if(!ex(id))return;returnStage=stage;stage=['sets','bodysets'].includes(ex(id).mode)?'method':'record';family=familyName(ex(id));category=ex(id).cat;editId=null;baseChoose(id);};
 window.fdQuickLog=()=>{stage='record';render();top();};
-window.fdLogBack=()=>{if(editId){editId=null;stage='variants';}else if(stage==='record'&&['sets','bodysets'].includes(ex(chosen)?.mode))stage='method';else if(stage==='method')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='record')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='variants')stage='find';else if(stage==='find')stage='type';else return navigate('home');render();top();};
-navigate=function(next){if(next==='log'){stage='type';query='';family=null;editId=null;}baseNavigate(next);};
-choose=function(id){if(!ex(id))return;returnStage='variants';stage=['sets','bodysets'].includes(ex(id).mode)?'method':'record';category=ex(id).cat;family=familyName(ex(id));baseChoose(id);};
+window.fdLogBack=()=>{clearHoldTimer();if(editId){editId=null;stage='variants';}else if(stage==='record'&&['sets','bodysets'].includes(ex(chosen)?.mode))stage='method';else if(stage==='method')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='record')stage=['type','find','variants'].includes(returnStage)?returnStage:'variants';else if(stage==='variants')stage='find';else if(stage==='find')stage='type';else return navigate('home');render();top();};
+navigate=function(next){clearHoldTimer();if(next==='log'){stage='type';query='';family=null;editId=null;}baseNavigate(next);};
+choose=function(id){if(!ex(id))return;clearHoldTimer();returnStage='variants';stage=['sets','bodysets'].includes(ex(id).mode)?'method':'record';category=ex(id).cat;family=familyName(ex(id));baseChoose(id);};
 logForm=function(){return editId?record():stage==='type'?categories():stage==='find'?find():stage==='variants'?variants():stage==='method'?method():stage==='done'?done():record();};
-submitLog=function(){const before=S.logs.length,wasEdit=!!editId;baseSubmit();if(!wasEdit&&S.logs.length>before){stage='done';tab='log';render();top();}};
+submitLog=function(){if(holdStarted!==null)return;const before=S.logs.length,wasEdit=!!editId;baseSubmit();if(!wasEdit&&S.logs.length>before){clearHoldTimer();stage='done';tab='log';render();top();}};
+const baseRender=render;
+render=function(){
+ if(tab!=='log'||stage!=='record'||editId||migrationError)clearHoldTimer();
+ baseRender();
+};
 })();

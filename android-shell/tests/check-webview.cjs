@@ -52,7 +52,7 @@ async function findTarget() {
     const reference = references[band + '-' + screen.name];
     assert.equal(state.heading, reference.heading);
     assert.deepEqual(state.tabs, reference.tabs);
-    console.log('PASS: Android ' + screen.name + ' matches v0.8.7 screen and navigation at ' + state.width + 'px');
+    console.log('PASS: Android ' + screen.name + ' matches v0.8.8 screen and navigation at ' + state.width + 'px');
     return;
   }
   if (stage === 'upgrade-baseline' || stage === 'upgrade-verify') {
@@ -533,7 +533,7 @@ async function findTarget() {
       info = JSON.parse(await inspect(target, expr));
       ready = stage === 'first'
         ? info.hostname === 'localhost' &&
-          info.version === '0.8.7' &&
+          info.version === '0.8.8' &&
           info.rendered === true &&
           info.homeText === true &&
           info.nav === true &&
@@ -555,7 +555,7 @@ async function findTarget() {
   }
   if (stage === 'first') {
     assert.equal(info.hostname, 'localhost');
-    assert.equal(info.version, '0.8.7');
+    assert.equal(info.version, '0.8.8');
     assert.equal(info.rendered, true, 'The FitnessDex home UI must actually render');
     assert.equal(info.homeText, true);
     assert.equal(info.nav, true);

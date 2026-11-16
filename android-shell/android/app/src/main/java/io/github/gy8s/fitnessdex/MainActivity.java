@@ -26,6 +26,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BackupExportPlugin.class);
         registerPlugin(EmailSignInPlugin.class);
         registerPlugin(RemindersPlugin.class);
+        registerPlugin(HoldTimerPlugin.class);
         super.onCreate(savedInstanceState);
         if (getBridge() != null) {
             View webView = getBridge().getWebView();
