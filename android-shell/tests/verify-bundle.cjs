@@ -14,6 +14,12 @@ const changed = original
            '<script defer src="./native-cloud.js"></script><script defer src="./cloud.js"></script>')
   .replace('<script defer src="./notifications.js"></script>',
            '<script defer src="./native-reminders.js"></script><script defer src="./notifications.js"></script>')
+  .replace('<script defer src="./notifications.js"></script>',
+           '<script defer src="./native-steps.js"></script><script defer src="./notifications.js"></script>')
+  .replace('<div id="app"></div>', '<section id="fd-native-steps" class="card" aria-label="Step tracking" hidden>' +
+           '<div class="row"><div><div class="muted">Steps today</div><output class="metric">0</output></div>' +
+           '<button type="button" disabled>Enable steps</button></div><div class="hint"></div></section><div id="app"></div>')
+  .replace('<span class="pill">v0.8.9</span>', '<span class="pill">v0.8.10</span>')
   .replace('<script defer src="./push-client.js"></script>', '')
   .replace('</script><script>\'use strict\';\n// FitnessDex v0.3',
            '</script><script src="./native-profile-storage.js"></script><script>\'use strict\';\n// FitnessDex v0.3')

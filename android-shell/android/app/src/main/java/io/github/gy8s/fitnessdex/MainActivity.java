@@ -28,6 +28,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(EmailSignInPlugin.class);
         registerPlugin(RemindersPlugin.class);
         registerPlugin(HoldTimerPlugin.class);
+        registerPlugin(StepsPlugin.class);
         super.onCreate(savedInstanceState);
         if (getBridge() != null) {
             getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
