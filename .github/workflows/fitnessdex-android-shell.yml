@@ -109,7 +109,7 @@ jobs:
             android-shell/package-lock.json
 
   permanent-signing-proof:
-    if: github.repository == 'gy8s/fitnessdex' && github.ref == 'refs/heads/stage2/android-shell-20261114' && vars.FITNESSDEX_VERIFY_PERMANENT_SIGNING == 'true'
+    if: github.repository == 'gy8s/fitnessdex' && github.ref == 'refs/heads/stage2/android-shell-20261114' && (vars.FITNESSDEX_VERIFY_PERMANENT_SIGNING == 'true' || (github.event_name == 'push' && github.event.head_commit.message == 'Run the first permanent-key Android verification'))
     needs: android-shell
     environment: fitnessdex-android-signing
     runs-on: ubuntu-24.04
