@@ -932,6 +932,12 @@ function dexDifficulty(e){
  if(e.advanced||DEX_ADVANCED.has(e.id))return 'Advanced';
  return DEX_FOUNDATIONS.has(e.id)?'Foundation':'Intermediate';
 }
+function dexPathPositions(id){
+ return VISUAL_PATHS.flatMap(route=>{
+  const index=route.stages.findIndex(stage=>stage.includes(id));
+  return index<0?[]:[{name:route.name,category:route.cat,family:route.family,step:index+1,total:route.stages.length}];
+ });
+}
 function dexDifficultyTag(e){
  const label=dexDifficulty(e);
  return label?`<span class="dex-difficulty ${label.toLowerCase()}">${label}</span>`:'';
@@ -995,7 +1001,7 @@ function exerciseReferenceInfo(id){
  +'<p class="fd-reference-source">Exercise information: <a href="https://github.com/hasaneyldrm/exercises-dataset" target="_blank" rel="noopener noreferrer">Exercises Dataset</a> (MIT). Existing FitnessDex guidance is retained. Media not included.</p></div>';
 }
 function exerciseInfo(id){const e=ex(id),r=readiness(id),st=seenStats(id),note=e.notes||'';
- const matched=VISUAL_PATHS.flatMap(route=>{const step=route.stages.findIndex(stage=>stage.includes(id));return step<0?[]:[route.name+' · Step '+(step+1)];});
+ const matched=dexPathPositions(id).map(p=>p.name+' · Step '+p.step+' of '+p.total);
  const variantParent=e.variantOf?ex(e.variantOf):null;
  const relatedVariants=DATA.filter(v=>v.variantOf===e.id);
  return `<section id="movement-details" class="dex-detail" aria-label="Exercise details for ${esc(e.name)}"><span class="dex-cardlabel">Movement guide · ${esc(e.cat)} / ${esc(familyOf(e))}</span><h3>${esc(e.name)} ${isSeen(id)?'✓':''}</h3>${dexDifficultyTag(e)}<div class="dex-guide"><b>What to do</b><div style="margin-top:6px">${esc(EXERCISE_GUIDES[id])}</div></div>${exerciseReferenceInfo(id)}${note?`<p class="dex-safety">${esc(note)}</p>`:''}${e.advanced?'<p class="dex-safety">Advanced movement. The suggested preparation is not a safety clearance; use suitable training and supervision where appropriate.</p>':''}${variantParent?`<p class="hint">Variation of <button class="small" onclick="openDexEntry('${variantParent.id}')">${esc(variantParent.name)} →</button> · Independently logged and rewarded</p>`:''}${relatedVariants.length?`<p class="hint">Linked variations: ${relatedVariants.map(v=>`<button class="small" onclick="openDexEntry('${v.id}')">${esc(v.name)}</button>`).join(' ')}</p>`:''}${readinessPanel(id)}<div class="two"><div class="card"><span class="dex-cardlabel">Recorded performance</span><p class="muted">${esc(st)}</p></div><div class="card"><span class="dex-cardlabel">Next achievement</span><p class="muted">${esc(nextTarget(id))}</p></div></div>${matched.length?`<p class="hint" style="margin-top:10px">Appears in: ${matched.map(esc).join(' · ')}</p>`:''}<p class="hint">Trains: ${e.attrs.map(esc).join(' · ')}</p><div class="dex-detail-actions"><button class="primary" onclick="choose('${id}')">Log ${esc(e.name)} →</button><button onclick="toggleHunt('${id}')">${S.v4?.hunts?.includes(id)?'✓ On hunting list':'Pin to hunting list'}</button></div></section>`;

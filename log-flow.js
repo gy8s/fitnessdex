@@ -28,7 +28,57 @@ function familiar(cat=null){
  }
  return [...records.values()].sort((a,b)=>b.uses-a.uses||b.last-a.last).slice(0,5).map(x=>x.e);
 }
-function item(e,subtitle){return '<button class="fd-option" type="button" onclick="fdSelectExercise(\''+e.id+'\')"><span><strong>'+esc(e.name)+'</strong><small>'+esc(subtitle||familyName(e))+'</small></span><span class="fd-arrow">›</span></button>';}
+function stepLabel(position){return 'Step '+position.step+' of '+position.total;}
+function item(e,subtitle){
+ const paths=dexPathPositions(e.id);
+ const skill=[dexDifficulty(e),paths.length===1?stepLabel(paths[0]):''].filter(Boolean).join(' · ');
+ return '<button class="fd-option" type="button" onclick="fdSelectExercise(\''+e.id+'\')"><span><strong>'+esc(e.name)+'</strong><small>'+esc(skill||subtitle||familyName(e))+'</small></span><span class="fd-arrow">›</span></button>';
+}
+function exerciseHeading(e){
+ const paths=dexPathPositions(e.id),difficulty=dexDifficultyTag(e);
+ return '<header class="fd-step-hero"><small>'+esc(e.cat)+'</small><h1>'+esc(e.name)+'</h1>'
+  +(difficulty?'<div class="fd-log-skill">'+difficulty
+   +(paths.length===1?'<span>'+stepLabel(paths[0])+'</span>':'')
+   +(paths.length>1?'<details><summary>View skill tree</summary><ul>'+paths.map((path,index)=>'<li><button type="button" onclick="fdOpenLogSkillTree('+index+')">'
+    +esc(path.name)+' · '+stepLabel(path)+'</button></li>').join('')+'</ul></details>':'')+'</div>':'')+'</header>';
+}
+function comparableResult(e,entry){
+ const result=logMetrics(entry);
+ let value,unit,descending=true;
+ switch(e.mode){
+  case 'sets': {
+   const heaviest=(entry.sets||[]).reduce((best,set)=>
+    !best||set.weight>best.weight||set.weight===best.weight&&set.reps>best.reps?set:best,null);
+   if(!heaviest)return null;
+   return {score:heaviest.weight,tie:heaviest.reps,label:heaviest.weight+' kg × '+heaviest.reps};
+  }
+  case 'bodysets':
+   value=entry.mode==='reps'?result.reps:result.bestReps;
+   unit=entry.mode==='reps'?'total reps':'reps in one set';
+   break;
+  case 'time': value=result.seconds;unit='s';break;
+  case 'duration': value=result.minutes;unit='min';break;
+  case 'distance': value=result.distance;unit='km';break;
+  case 'range': value=result.range;unit='cm gap';descending=false;break;
+  default: return null;
+ }
+ if(!Number.isFinite(value)||(descending&&value<=0))return null;
+ return {score:descending?value:-value,tie:0,label:round(value,2)+' '+unit};
+}
+function exerciseComparison(e){
+ const results=logsFor(e.id).map(entry=>({entry,result:comparableResult(e,entry)})).filter(row=>row.result);
+ if(!results.length)return '';
+ const latest=results.reduce((last,row)=>logWhen(row.entry)>=logWhen(last.entry)?row:last);
+ const lastSide=latest.entry.side||'both';
+ const best=results.filter(row=>row.entry.mode===latest.entry.mode&&(!e.side||(row.entry.side||'both')===lastSide))
+  .reduce((leading,row)=>{
+   const a=row.result,b=leading.result;
+   return a.score>b.score||a.score===b.score&&a.tie>b.tie?row:leading;
+  },latest);
+ const side=e.side?' ('+(lastSide==='both'?'both sides':lastSide)+')':'';
+ return '<dl class="fd-log-comparison"><div><dt>Last time'+esc(side)+'</dt><dd>'+esc(latest.result.label)
+  +'</dd></div><div><dt>Best'+esc(side)+'</dt><dd>'+esc(best.result.label)+'</dd></div></dl>';
+}
 function back(label,number){return '<div class="fd-stepback"><button onclick="fdLogBack()">‹ Back</button><span>'+esc(label)+' · '+number+'/4</span></div>';}
 function frequent(cat){const r=familiar(cat);return r.length?'<section class="fd-step-section"><div class="fd-section-label"><h2>Recent & frequent</h2><small>Up to 5</small></div><div class="fd-option-list">'+r.map(e=>item(e)).join('')+'</div></section>':'';}
 function categories(){return '<div class="fd-step-screen"><header class="fd-step-hero"><small>Log activity</small><h1>What did you do?</h1></header><div class="fd-category-list">'+CATS.map(cat=>{
@@ -53,7 +103,7 @@ function find(){
 function variants(){const exercises=DATA.filter(e=>e.cat===category&&familyName(e)===family);
  return '<div class="fd-step-screen">'+back('Choose variation',3)+'<header class="fd-step-hero"><small>'+esc(category)+'</small><h1>'+esc(family)+'</h1><p>Which variation did you do?</p></header><div class="fd-option-list">'+exercises.map(e=>item(e,'Select to record')).join('')+'</div></div>';
 }
-function method(){const e=ex(chosen);return '<div class="fd-step-screen fd-method-screen">'+back('Training method',4)+'<header class="fd-step-hero"><small>'+esc(e.cat)+'</small><h1>'+esc(e.name)+'</h1><p>How do you want to train?</p></header><div class="fd-option-list"><button class="fd-option fd-method-choice" onclick="fdQuickLog()"><span><strong>Just log sets and reps</strong><small>Record what you actually complete, without targets</small></span><span class="fd-arrow">›</span></button><button class="fd-option fd-method-choice" onclick="fdStartProgression(\''+e.id+'\')"><span><strong>Follow a progression</strong><small>Suggested sets, variations, recovery and persistence awards</small></span><span class="fd-arrow">›</span></button></div></div>';}
+function method(){const e=ex(chosen);return '<div class="fd-step-screen fd-method-screen">'+back('Training method',4)+exerciseHeading(e)+'<div class="fd-option-list"><button class="fd-option fd-method-choice" onclick="fdQuickLog()"><span><strong>Just log sets and reps</strong><small>Record what you actually complete, without targets</small></span><span class="fd-arrow">›</span></button><button class="fd-option fd-method-choice" onclick="fdStartProgression(\''+e.id+'\')"><span><strong>Follow a progression</strong><small>Suggested sets, variations, recovery and persistence awards</small></span><span class="fd-arrow">›</span></button></div></div>';}
 function holdSeconds(){return Math.max(0,Math.floor((performance.now()-holdStarted)/1000));}
 function holdClock(seconds){return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');}
 function holdTimer(){
@@ -116,7 +166,7 @@ function record(){
  const groupPicker=window.fdWorkoutSelector?window.fdWorkoutSelector(l):'<div class="field"><label>How to save</label><select id="session"><option value="standalone">Standalone</option></select></div>';
  const timedFinish=cardioSession?.finished?new Date(cardioSession.finishedAt):null;
  const details='<details class="fd-log-details"><summary>More details <small>Time, notes, workout</small></summary><div class="fd-log-details-inner"><div class="two"><div class="field"><label for="date">Date</label><input id="date" type="date" value="'+esc(l?.date||(timedFinish?stamp(timedFinish):today()))+'"></div><div class="field"><label for="clock">Time</label><input id="clock" type="time" value="'+(timedFinish?localTime(timedFinish):timeText(l))+'"></div></div>'+mobility+groupPicker+'<div class="field"><label for="notes">Notes (optional)</label><input id="notes" maxlength="500" value="'+esc(l?.notes||'')+'" placeholder="Technique, route, how it felt…"></div></div></details>';
- return '<div class="fd-step-screen fd-log-record">'+back('Record activity',4)+'<header class="fd-step-hero"><small>'+esc(e.cat)+'</small><h1>'+esc(e.name)+'</h1></header><section class="fd-entry-card"><h2>'+(timedHold?'Time your hold':'What did you complete?')+'</h2>'+metrics+extra+swim+side+'</section>'+details+'<details class="fd-log-details"><summary>How to do this exercise</summary><p>'+esc(EXERCISE_GUIDES[e.id]||'')+'</p></details><div class="fd-save-actions"><button class="primary" onclick="submitLog()"'+(timedHold?' id="fd-hold-save"':cardio?' id="fd-cardio-save"':'')+((running||activeCardio)?' disabled':'')+'>'+(l?'Save corrections':'Save activity')+'</button></div></div>';
+ return '<div class="fd-step-screen fd-log-record">'+back('Record activity',4)+exerciseHeading(e)+'<section class="fd-entry-card"><h2>'+(timedHold?'Time your hold':'What did you complete?')+'</h2>'+(!l?exerciseComparison(e):'')+metrics+extra+swim+side+'</section>'+details+'<details class="fd-log-details"><summary>How to do this exercise</summary><p>'+esc(EXERCISE_GUIDES[e.id]||'')+'</p></details><div class="fd-save-actions"><button class="primary" onclick="submitLog()"'+(timedHold?' id="fd-hold-save"':cardio?' id="fd-cardio-save"':'')+((running||activeCardio)?' disabled':'')+'>'+(l?'Save corrections':'Save activity')+'</button></div></div>';
 }
 function done(){const last=S.v4?.lastResult||{},xp=last.xpGain||0;
  const saved=last.logId&&S.logs.find(x=>logId(x)===last.logId);
@@ -159,6 +209,13 @@ window.fdCanLeaveExercise=()=>{
  window.fdClearQuickDraft?.(chosen,editId);
  clearHoldTimer();
  return true;
+};
+window.fdOpenLogSkillTree=index=>{
+ const path=dexPathPositions(chosen)[index];
+ if(!path||tab!=='log'||!window.fdCanLeaveExercise())return;
+ activeSessionId=null;
+ editId=null;
+ openDexFamily(path.category,path.family);
 };
 function leaveLog(){
  stage='type';editId=null;activeSessionId=null;
