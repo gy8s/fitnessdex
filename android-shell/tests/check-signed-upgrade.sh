@@ -6,26 +6,33 @@ proof="${RUNNER_TEMP:?}/fitnessdex-signing-proof"
 fixture=android-shell/tests/results/FitnessDex_PWA_migration.json
 
 tap() { python3 android-shell/tests/tap-android-ui.py "$@"; }
-launch() { adb shell am start -n "$package/.MainActivity"; }
+launch() { adb shell am start -W -n "$package/.MainActivity"; }
 check_version() {
     adb shell dumpsys package "$package" | awk -v expected="$1" '
         $1 == "versionCode=" expected {found=1}
         END {exit found ? 0 : 1}'
 }
+swipe_vertical() {
+    local size width height
+    size="$(adb shell wm size | tail -1 | awk '{print $NF}' | tr -d '\r')"
+    width="${size%x*}"
+    height="${size#*x}"
+    adb shell input swipe "$((width / 2))" "$((height * $1 / 100))" \
+        "$((width / 2))" "$((height * $2 / 100))" 500
+}
 open_history() {
-    tap 'More' 10
+    tap 'More' 20
     if ! tap 'History & data( Edit, export or import records.*)?' 2; then
-        local size width height
-        size="$(adb shell wm size | tail -1 | awk '{print $NF}' | tr -d '\r')"
-        width="${size%x*}"
-        height="${size#*x}"
-        adb shell input swipe "$((width / 2))" "$((height * 3 / 4))" \
-            "$((width / 2))" "$((height / 3))" 500
+        swipe_vertical 75 33
         tap 'History & data( Edit, export or import records.*)?'
     fi
 }
 export_backup() {
-    tap 'Data tools'
+    if ! tap 'Data tools' 2; then
+        # The Android file picker can return to History with its header scrolled offscreen.
+        swipe_vertical 25 80
+        tap 'Data tools'
+    fi
     tap 'Export complete backup'
     tap 'Save'
     local path=""
