@@ -25,6 +25,7 @@ open_history() {
     fi
 }
 export_backup() {
+    tap 'Data tools'
     tap 'Export complete backup'
     tap 'Save'
     local path=""
@@ -52,10 +53,11 @@ trap cleanup EXIT
 adb install "$proof/before.apk"
 adb shell mkdir -p /sdcard/Download /sdcard/Documents
 adb shell 'find /sdcard/Download /sdcard/Documents -maxdepth 1 -name "FitnessDex_v04_backup_*.json" -type f -delete'
-check_version 12
+check_version 13
 launch
 open_history
 adb push "$fixture" /sdcard/Download/FitnessDex_Signed_Update_Test.json
+tap 'Data tools'
 tap 'Import validated backup'
 if ! tap 'FitnessDex_Signed_Update_Test\.json' 2; then
     tap 'Show roots|Open navigation drawer'
@@ -66,11 +68,10 @@ tap 'OK'
 export_backup "$proof/before.json"
 adb shell am force-stop "$package"
 adb install -r "$proof/after.apk"
-check_version 13
+check_version 14
 launch
-tap 'Steps today' 10
+tap 'Steps today( [0-9,]+)?' 10
 open_history
-tap 'Data tools'
 export_backup "$proof/after.json"
 
 node - "$fixture" "$proof/before.json" "$proof/after.json" <<'NODE'

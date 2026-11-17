@@ -17,10 +17,13 @@ const changed = original
   .replace('<script defer src="./notifications.js"></script>',
            '<script defer src="./native-cardio.js"></script><script defer src="./native-steps.js"></script><script defer src="./notifications.js"></script>')
   .replace('<div id="app"></div>', '<section id="fd-native-steps" class="card" aria-label="Step tracking" hidden>' +
-           '<div class="row"><div><div class="muted">Steps today</div><output class="metric">0</output></div>' +
-           '<button id="fd-toggle-steps" type="button" disabled>Enable steps</button></div><div class="hint"></div>' +
-           '<p class="hint" id="fd-step-breakdown"></p><button id="fd-cardio-resume" type="button" hidden>Open current session</button></section><div id="app"></div>')
-  .replace('<span class="pill">v0.8.9</span>', '<span class="pill">v0.8.17</span>')
+           '<details class="fd-step-details"><summary><span class="fd-step-label">Steps today</span>' +
+           '<span class="fd-step-total"><output>0</output><span class="fd-step-chevron" aria-hidden="true">⌄</span></span></summary>' +
+           '<p id="fd-step-breakdown">No steps yet</p></details>' +
+           '<button id="fd-toggle-steps" type="button" disabled>Enable steps</button>' +
+           '<p id="fd-step-status" role="status" hidden></p>' +
+           '<button id="fd-cardio-resume" type="button" hidden>Open current session</button></section><div id="app"></div>')
+  .replace('<span class="pill">v0.8.9</span>', '<span class="pill">v0.8.18</span>')
   .replace('<script defer src="./push-client.js"></script>', '')
   .replace('</script><script>\'use strict\';\n// FitnessDex v0.3',
            '</script><script src="./native-profile-storage.js"></script><script>\'use strict\';\n// FitnessDex v0.3')

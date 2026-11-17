@@ -6,7 +6,7 @@
   if (!steps || !card) return;
 
   const output = card.querySelector('output');
-  const status = card.querySelector('.hint');
+  const status = card.querySelector('#fd-step-status');
   const toggle = card.querySelector('#fd-toggle-steps');
   const breakdown = card.querySelector('#fd-step-breakdown');
   const resume = card.querySelector('#fd-cardio-resume');
@@ -14,15 +14,19 @@
   let busy = false;
   let running = false;
 
+  function showStatus(message) {
+    status.textContent = message;
+    status.hidden = !message;
+  }
+
   function display(state) {
     const enabled = state.enabled;
     running = enabled && state.running;
     output.textContent = state.today.toLocaleString();
+    breakdown.textContent = '';
     window.fdCardioHome?.(state, breakdown, resume);
-    status.textContent = !state.available ? 'This device has no step counter.'
-      : state.running && enabled ? 'Counting throughout the day'
-      : enabled ? 'Tracking is stopped. Tap Resume to count steps.'
-      : 'Count steps even when the screen is locked.';
+    if (!breakdown.textContent) breakdown.textContent = state.available ? 'No steps yet' : 'No step sensor';
+    showStatus(state.available ? '' : 'No step sensor');
     toggle.disabled = busy || !state.available;
     toggle.textContent = enabled && state.running ? 'Turn off' : enabled ? 'Resume' : 'Enable steps';
   }
@@ -34,7 +38,7 @@
       const state = await steps.status();
       if (!busy) display(state);
     } catch {
-      status.textContent = 'Could not read step tracking status.';
+      showStatus('Steps unavailable');
     }
   }
 

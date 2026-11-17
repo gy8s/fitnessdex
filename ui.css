@@ -553,6 +553,18 @@ main{padding-top:21px}
 .fd-log-comparison button,#fd-undo-log-copy{min-height:44px}
 .fd-log-record .fd-save-actions{margin-top:12px}
 
+#fd-native-steps:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:4px 12px;padding:8px 13px;margin:0 0 12px}
+.fd-step-details summary{display:grid;align-content:center;min-height:44px;list-style:none;cursor:pointer}
+.fd-step-details summary::-webkit-details-marker{display:none}
+.fd-step-label{font-size:12px;color:var(--muted)}
+.fd-step-total{display:flex;align-items:center;gap:7px;font-size:22px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.fd-step-chevron{font-size:13px;font-weight:500;color:var(--muted)}
+.fd-step-details[open] .fd-step-chevron{transform:rotate(180deg)}
+#fd-step-status,#fd-step-breakdown{margin:2px 0;font-size:12px;color:var(--muted)}
+#fd-step-status,#fd-cardio-resume{grid-column:1/-1}
+#fd-toggle-steps,#fd-cardio-resume{min-height:44px;padding:6px 11px;font-size:13px}
+#fd-cardio-resume{justify-self:start}
+
 .fd-logged-progress{display:grid;gap:5px;justify-items:center;color:var(--muted);font-size:14px}
 .fd-logged-progress strong{color:var(--a)}
 .fd-habits{gap:12px}

@@ -66,14 +66,17 @@ html = replaceOnce(
 );
 html = replaceOnce(html, '<div id="app"></div>',
   '<section id="fd-native-steps" class="card" aria-label="Step tracking" hidden>' +
-  '<div class="row"><div><div class="muted">Steps today</div><output class="metric">0</output></div>' +
-  '<button id="fd-toggle-steps" type="button" disabled>Enable steps</button></div><div class="hint"></div>' +
-  '<p class="hint" id="fd-step-breakdown"></p><button id="fd-cardio-resume" type="button" hidden>Open current session</button></section><div id="app"></div>',
+  '<details class="fd-step-details"><summary><span class="fd-step-label">Steps today</span>' +
+  '<span class="fd-step-total"><output>0</output><span class="fd-step-chevron" aria-hidden="true">⌄</span></span></summary>' +
+  '<p id="fd-step-breakdown">No steps yet</p></details>' +
+  '<button id="fd-toggle-steps" type="button" disabled>Enable steps</button>' +
+  '<p id="fd-step-status" role="status" hidden></p>' +
+  '<button id="fd-cardio-resume" type="button" hidden>Open current session</button></section><div id="app"></div>',
   'Show step tracking on the Android home screen');
 html = replaceOnce(html, '<script defer src="./notifications.js"></script>',
   '<script defer src="./native-cardio.js"></script><script defer src="./native-steps.js"></script><script defer src="./notifications.js"></script>',
   'Load the Android steps adapter');
-html = replaceOnce(html, '<span class="pill">v0.8.9</span>', '<span class="pill">v0.8.17</span>',
+html = replaceOnce(html, '<span class="pill">v0.8.9</span>', '<span class="pill">v0.8.18</span>',
   'Show the Android release version');
 fs.writeFileSync(indexFile, html);
 for (const adapter of ['native-profile-storage.js', 'native-backup.js', 'native-cloud.js', 'native-reminders.js', 'native-cardio.js', 'native-steps.js']) {
