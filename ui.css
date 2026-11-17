@@ -514,3 +514,25 @@ main{padding-top:21px}
 #fd-hold-clock{font-size:clamp(3rem,15vw,5rem);font-weight:750;font-variant-numeric:tabular-nums;line-height:1}
 .fd-hold-timer button{width:100%;padding:14px;font-size:1rem}
 .fd-save-actions #fd-hold-save:disabled{opacity:.5;cursor:default}
+
+.dex-tree{position:relative;display:grid;gap:22px;list-style:none;margin:14px 0 0;padding:0}
+.dex-tree-wires{position:absolute;inset:0;pointer-events:none}
+.dex-tree-wires i{position:absolute;background:#517e91}
+.dex-tier{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:start;position:relative}
+.dex-tier-number{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;border:1px solid #49677b;background:#1a2c42;color:#cae4f2;font-size:12px;font-weight:750;font-variant-numeric:tabular-nums}
+.dex-tier-nodes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-width:590px;width:100%;margin-inline:auto}
+.dex-tier-nodes.single{grid-template-columns:minmax(0,1fr);max-width:335px}
+.dex-tree .dex-node{min-width:0;min-height:80px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start}
+.dex-tree .node-name{font-size:14px;overflow-wrap:anywhere}
+.dex-tree .node-prep{font-size:11px;color:#b6c7d8;overflow-wrap:anywhere}
+.dex-tree .node-foot{font-size:11px;margin-top:auto}
+.dex-difficulty{display:inline-flex;align-self:flex-start;border-radius:5px;padding:2px 5px;font-size:10px;line-height:1.4;font-weight:750;letter-spacing:.01em;color:#d1e6fb;background:#243f5a}
+.dex-difficulty.foundation{color:#adf1dc;background:#214646}
+.dex-difficulty.advanced{color:#ffd9a9;background:#523822}
+.dex-detail>.dex-difficulty{margin-bottom:9px}
+@media(max-width:400px){
+ .dex-path{padding:12px}
+ .dex-tier{grid-template-columns:25px minmax(0,1fr);gap:7px}
+ .dex-tier-number{width:25px;height:28px}
+ .dex-tree .dex-node{padding:8px}
+}

@@ -38,7 +38,7 @@ function boot(initial,cardioForSave){
   setItem:(key,val)=>{if(failWrites&&key==='fitnessdex-v01')throw new Error('Simulated device quota error');keys.set(key,String(val));},
   removeItem:key=>keys.delete(key)
  };
- function node(){return {value:'',innerHTML:'',style:{},dataset:{},classList:{toggle(){}},addEventListener(){},focus(){},setAttribute(){},textContent:''};}
+ function node(){return {value:'',innerHTML:'',style:{},dataset:{},classList:{toggle(){}},addEventListener(){},focus(){},scrollIntoView(){},setAttribute(){},textContent:''};}
  const nodes=new Map(),nav=['home','log','dex','more'].map(tab=>({dataset:{tab},classList:{toggle(){}},addEventListener(){}}));
  const doc={
   body:{dataset:{}},getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);},
@@ -52,7 +52,7 @@ function boot(initial,cardioForSave){
  const window={scrollTo(){},dispatchEvent(e){emitted.push(e.type)},fdCardioForSave:cardioForSave};
  const fn=new Function('window','document','localStorage','Event','alert','confirm','console',
   codeScripts[0]+'\n'+codeScripts[1]+
-  '\nreturn {state:()=>S,save,choose,submitLog,deleteLog,checkpoint,recoveryRows,restoreCheckpoint,validBackup,editLog,today,localTime};');
+  '\nreturn {state:()=>S,save,choose,openDexFamily,openPathNode,submitLog,deleteLog,checkpoint,recoveryRows,restoreCheckpoint,validBackup,editLog,today,localTime};');
  const app=fn(window,doc,storage,function Event(type){this.type=type;},m=>alerts.push(m),()=>true,console);
  const now=new Date();
  for(const [id,val] of [['date',app.today()],['clock',app.localTime(now)],['notes',''],['session','standalone']])doc.getElementById(id).value=val;
@@ -105,6 +105,19 @@ assert.equal(savedHike.minutes,21);
 assert.equal(savedHike.value,1.4);
 assert(hike.app.validBackup(hike.app.state()),'Saved hike failed the backup validator');
 assert.match(hike.app.state().v4.lastResult.summary,/240 steps.*15:00\/km/);
+const dexTree=boot(null);
+dexTree.app.openDexFamily('Calisthenics','Push-ups');
+const dexSource=dexTree.doc.getElementById('app').innerHTML;
+assert.match(dexSource,/aria-label="Step 3">03/);
+assert.match(dexSource,/data-skill="e004" data-stage="2" data-parents="e002 e003"/);
+assert.match(dexSource,/Incline push-up or Knee push-up/);
+dexTree.app.openPathNode('e004');
+assert.match(dexTree.doc.getElementById('app').innerHTML,/Build your push-up · Step 3/);
+dexTree.app.openDexFamily('Flexibility & mobility','General mobility');
+const squatTree=dexTree.doc.getElementById('app').innerHTML;
+assert.match(squatTree,/data-skill="e148" data-stage="1" data-parents="e147"/);
+assert(squatTree.indexOf('Supported deep squat hold')<squatTree.indexOf('Unsupported deep squat hold'));
+
 
 console.log('FitnessDex smoke checks passed: version, PWA assets, JS syntax, old saves, failed/successful activity saves, deletion rollback, recovery.');
 
