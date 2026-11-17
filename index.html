@@ -1142,6 +1142,7 @@ function validHabitState(v){
  const uniqueDays=new Set();
  for(const row of v.days){
   if(!row||!keys.includes(row.category)||!validDate(row.date)||row.date>today()||!Number.isFinite(row.quantity)||row.quantity<0||row.quantity>(row.category==='alcohol'?100:row.category==='smoking'?500:30)||(row.category!=='alcohol'&&!Number.isInteger(row.quantity)))return false;
+  if(row.amountUnspecified!==undefined&&(row.amountUnspecified!==true||row.quantity!==1))return false;
   const key=row.category+':'+row.date;if(uniqueDays.has(key))return false;uniqueDays.add(key);
  }
  const ids=new Set();

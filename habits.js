@@ -1,16 +1,16 @@
-/* FitnessDex v0.5.9 — cutting-back tracker; separate from exercise XP */
+/* FitnessDex habit check-ins and chains */
 (()=>{
 'use strict';
 const CATEGORIES=[
- {id:'alcohol',name:'Alcohol',unit:'UK units',note:'A pint at 4% ABV is about 2.3 UK units.',zero:'No alcohol',dailyMax:100,weeklyMax:500,icon:'◉'},
- {id:'smoking',name:'Smoking',unit:'cigarettes',single:'cigarette',zero:'No cigarettes',dailyMax:500,weeklyMax:500,icon:'◎'},
- {id:'takeaway',name:'Unhealthy takeaway',unit:'meals',single:'meal',note:'For example, fried chicken, burger and chips, or greasy pizza.',zero:'No unhealthy takeaway',dailyMax:30,weeklyMax:100,icon:'◇'}
+ {id:'alcohol',name:'Alcohol-free',question:'Drank alcohol?',unit:'UK units',single:'UK unit'},
+ {id:'smoking',name:'Smoke-free',question:'Smoked?',unit:'cigarettes',single:'cigarette'},
+ {id:'takeaway',name:'Takeaway-free',question:'Had a takeaway?',unit:'takeaways',single:'takeaway'}
 ];
 const STREAK=[3,7,14,30,60,90];
 const REDUCTION=[25,50,75,90,95];
 const STREAK_POINTS=[15,35,75,150,300,500];
 const REDUCTION_POINTS=[20,45,80,130,200];
-let selectedDate=null,selectedHabit=null,origin='home';
+let selectedDate=null,origin='home',newLinks=new Set(),celebrations=new Map();
 const habitDate=()=>selectedDate||today();
 const html=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const show=n=>(Math.round(n*10)/10).toLocaleString('en-GB',{maximumFractionDigits:1});
@@ -26,12 +26,12 @@ function parseDate(s){return new Date(s+'T12:00:00');}
 function move(s,days){const d=parseDate(s);d.setDate(d.getDate()+days);return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');}
 function rowFor(id,date){return model().days.find(x=>x.category===id&&x.date===date);}
 function last28(id){
- const days=[];for(let i=0;i<28;i++)days.push(move(today(),-i));
- const lookup=new Map(model().days.filter(x=>x.category===id).map(x=>[x.date,x.quantity]));
- const known=days.filter(d=>lookup.has(d));
- const qty=known.reduce((sum,d)=>sum+lookup.get(d),0);
- const used=known.filter(d=>lookup.get(d)>0).length;
- return {tracked:known.length,quantity:qty,used,perWeek:known.length?qty*7/known.length:null};
+ const end=today(),start=move(end,-27);
+ const rows=model().days.filter(row=>row.category===id&&row.date>=start&&row.date<=end);
+ const known=rows.filter(row=>!row.amountUnspecified);
+ const quantity=known.reduce((sum,row)=>sum+row.quantity,0);
+ // Amount-based awards need an actual amount for every logged day in the period.
+ return {tracked:known.length,perWeek:known.length&&known.length===rows.length?quantity*7/known.length:null};
 }
 function longestStreak(id){
  const rows=model().days.filter(x=>x.category===id&&x.quantity===0).map(x=>x.date).sort();
@@ -39,18 +39,18 @@ function longestStreak(id){
  for(const date of rows){run=previous!==null&&date===move(previous,1)?run+1:1;best=Math.max(best,run);previous=date;}
  return best;
 }
-function currentStreak(id){
- const m=model();let day=today();
- if(!m.days.some(x=>x.category===id&&x.date===day)){day=move(day,-1);}
+function currentStreak(days){
+ let day=today();
+ if(!days.has(day))day=move(day,-1);
  let count=0;
- while(m.days.some(x=>x.category===id&&x.date===day&&x.quantity===0)){
-  count++;day=move(day,-1);if(count>100000)break;
+ while(days.get(day)?.quantity===0){
+  count++;day=move(day,-1);
  }
  return count;
 }
 function reduction(id){
  const baseline=model().baselineWeek[id],period=last28(id);
- const percent=baseline>0&&period.tracked>=7?Math.max(-999,Math.min(100,(1-period.perWeek/baseline)*100)):null;
+ const percent=baseline>0&&period.tracked>=7&&period.perWeek!==null?Math.max(-999,Math.min(100,(1-period.perWeek/baseline)*100)):null;
  return {...period,baseline,percent,eligible:period.tracked>=21};
 }
 function awardDetails(aid){
@@ -59,125 +59,147 @@ function awardDetails(aid){
  const cat=category(match[1]);if(!cat)return null;
  const value=Number(match[3]),i=match[2]==='streak'?STREAK.indexOf(value):REDUCTION.indexOf(value);
  if(i<0)return null;
- return {label:match[2]==='streak'?value+' verified days without '+cat.name.toLowerCase():value+'% reduction in '+cat.name.toLowerCase(),points:(match[2]==='streak'?STREAK_POINTS:REDUCTION_POINTS)[i]};
+ return {
+  label:match[2]==='streak'?cat.name+' for '+value+' days':cat.name+' · '+value+'% reduction',
+  points:(match[2]==='streak'?STREAK_POINTS:REDUCTION_POINTS)[i]
+ };
 }
 function checkAwards(){
- const m=model(),known=new Set(m.awards.map(a=>a.id));let gained=0;
+ const m=model(),known=new Set(m.awards.map(a=>a.id));
  for(const cat of CATEGORIES){
   const longest=longestStreak(cat.id),trend=reduction(cat.id);
   for(const milestone of STREAK){
    const id=cat.id+'-streak-'+milestone;
-   if(longest>=milestone&&!known.has(id)){m.awards.push({id,at:today()});known.add(id);gained++;}
+   if(longest>=milestone&&!known.has(id))m.awards.push({id,at:today()});
   }
   if(trend.eligible&&trend.percent!==null){
    for(const milestone of REDUCTION){
     const id=cat.id+'-reduction-'+milestone;
-    if(trend.percent>=milestone&&!known.has(id)){m.awards.push({id,at:today()});known.add(id);gained++;}
+    if(trend.percent>=milestone&&!known.has(id))m.awards.push({id,at:today()});
    }
   }
  }
- return gained;
 }
-function persist(message,before){
- const gained=checkAwards();if(!save()){if(before){S=JSON.parse(before);resetDerived();}return;}
- render();toast(message+(gained?' · '+gained+' new reward'+(gained===1?'':'s')+'!':''));
-}
-function record(id,quantity){
- const cat=category(id),date=habitDate();
- if(!cat||!validDate(date)||date>today())return toast('Choose a valid date (not in the future).');
- if(!Number.isFinite(quantity)||quantity<0||quantity>cat.dailyMax||(id!=='alcohol'&&!Number.isInteger(quantity)))return toast('Enter a valid amount of '+cat.unit+'.');
- const m=model(),previous=rowFor(id,date);
- if(previous&&previous.quantity>0&&quantity===0&&!confirm('Replace the saved total with zero?'))return;
+function persist(date,updates){
  const before=JSON.stringify(S);
- if(previous)previous.quantity=quantity;else m.days.push({category:id,date,quantity});
+ const m=model();
+ const saved=new Set();
+ const milestones=new Map();
+ for(const [id,used] of updates){
+  const previous=rowFor(id,date);
+  const days=daysFor(id);
+  const streak=currentStreak(days);
+  // A positive placeholder keeps older clients able to read the daily record.
+  const row=used?{category:id,date,quantity:1,amountUnspecified:true}:{category:id,date,quantity:0};
+  if(previous)m.days[m.days.indexOf(previous)]=row;else m.days.push(row);
+  if(!used){
+   saved.add(id);
+   days.set(date,row);
+   const after=currentStreak(days);
+   if(after>streak&&(after===7||after===30))milestones.set(id,after);
+  }
+ }
  m.days.sort((a,b)=>a.date.localeCompare(b.date)||a.category.localeCompare(b.category));
- persist('Daily total saved',before);
+ checkAwards();
+ if(!save()){S=JSON.parse(before);resetDerived();return false;}
+ newLinks=saved;
+ celebrations=milestones;
+ return true;
 }
-window.fdHabitsZero=id=>record(id,0);
-window.fdHabitsQuantity=id=>{
- const el=document.getElementById('fd-habit-quantity-'+id);if(!el||el.value.trim()==='')return toast('Enter the amount, or use the no-use button.');
- record(id,Number(el.value));
+function daysFor(id){return new Map(model().days.filter(row=>row.category===id).map(row=>[row.date,row]));}
+function paint(focusId){
+ render();
+ newLinks.clear();
+ celebrations.clear();
+ if(focusId)document.getElementById(focusId)?.focus({preventScroll:true});
+}
+window.fdHabitsAnswer=(id,used)=>{
+ const date=habitDate();
+ if(!category(id)||!validDate(date)||date>today())return;
+ const existing=rowFor(id,date);
+ if(existing&&(existing.quantity>0)===used)return;
+ if(persist(date,[[id,used]]))paint('fd-habit-'+id+'-'+(used?'yes':'no'));
 };
-window.fdHabitsDateChange=value=>{
- if(!validDate(value)||value>today())return toast('Choose a valid date (not in the future).');
- selectedDate=value===today()?null:value;render();
+window.fdHabitsNoneToday=()=>{
+ const date=today();
+ if(habitDate()!==date||CATEGORIES.some(cat=>rowFor(cat.id,date)?.quantity>0))return;
+ const updates=CATEGORIES.filter(cat=>!rowFor(cat.id,date)).map(cat=>[cat.id,false]);
+ if(updates.length&&persist(date,updates))paint('fd-habit-alcohol-no');
+};
+window.fdHabitsDateChange=(value,focusId)=>{
+ if(!validDate(value)||value>today())return toast('Choose today or an earlier date.');
+ selectedDate=value===today()?null:value;
+ paint(focusId);
 };
 window.fdHabitsRemove=id=>{
  const m=model(),existing=rowFor(id,habitDate());
- if(!existing||!confirm('Remove this daily entry?'))return;
- const before=JSON.stringify(S);m.days.splice(m.days.indexOf(existing),1);
- persist('Daily record removed',before);
+ if(!existing||!confirm('Clear this check-in?'))return;
+ const before=JSON.stringify(S);
+ m.days.splice(m.days.indexOf(existing),1);
+ if(!save()){S=JSON.parse(before);resetDerived();return;}
+ paint('fd-habit-'+id+'-no');
 };
-window.fdHabitsBaseline=id=>{
- const cat=category(id),el=document.getElementById('fd-habit-baseline-'+id);
- if(!cat||!el||el.value.trim()==='')return toast('Enter your previous weekly average.');
- const val=Number(el.value),old=model().baselineWeek[id];
- if(!Number.isFinite(val)||val<=0||val>cat.weeklyMax||(id!=='alcohol'&&!Number.isInteger(val)))return toast('Enter a positive, realistic weekly baseline.');
- if(old>0&&old!==val&&!confirm('Change the baseline? Existing reward badges will remain earned, and future comparisons will use the new amount.'))return;
- const before=JSON.stringify(S);model().baselineWeek[id]=val;
- persist('Weekly baseline saved',before);
-};
-function savedAmount(cat,row){
- return !row?'Not logged':row.quantity===0?cat.zero:show(row.quantity)+' '+(row.quantity===1&&cat.single?cat.single:cat.unit);
+const longDate=date=>parseDate(date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+function dateField(date){
+ const isToday=date===today();
+ return '<div class="fd-habit-date"><label for="fd-habits-date">'+(isToday?'Today':html(longDate(date)))+'</label>'
+  +'<input id="fd-habits-date" aria-label="Check-in date" type="date" max="'+today()+'" value="'+date+'" onchange="fdHabitsDateChange(this.value,this.id)">'
+  +(isToday?'':'<button type="button" onclick="fdHabitsDateChange(\''+today()+'\',\'fd-habits-date\')">Back to today</button>')+'</div>';
 }
-function dateField(){
- return '<div class="field fd-habit-date"><label for="fd-habits-date">Date</label><input id="fd-habits-date" type="date" max="'+today()
-  +'" value="'+html(habitDate())+'" onchange="fdHabitsDateChange(this.value)"></div>';
+function chain(cat,days,date){
+ const now=today(),end=date>=move(now,-6)?now:date;
+ const visible=Array.from({length:7},(_,i)=>move(end,i-6));
+ return '<div class="fd-habit-chain" role="group" aria-label="'+cat.name+' chain">'+visible.map(day=>{
+  const row=days.get(day);
+  const status=!row?'unlogged':row.quantity===0?'kept':'break';
+  const label=status==='break'?cat.question.slice(0,-1):status==='kept'?'Habit avoided':'Unlogged';
+  const joined=status==='kept'&&day!==visible[0]&&days.get(move(day,-1))?.quantity===0;
+  const fresh=day===date&&status==='kept'&&newLinks.has(cat.id);
+  const id='fd-habit-day-'+cat.id+'-'+day;
+  return '<button type="button" id="'+id+'" class="fd-habit-day '+status+(joined?' joined':'')+(fresh?' new-link':'')+'"'
+   +' aria-label="'+html(cat.name+', '+longDate(day)+', '+label)+'" aria-pressed="'+(day===date)+'"'
+   +(day===now?' aria-current="date"':'')+' onclick="fdHabitsDateChange(\''+day+'\',\''+id+'\')">'
+   +'<span aria-hidden="true">'+parseDate(day).toLocaleDateString('en-GB',{weekday:'short'})+'</span>'
+   +'<b aria-hidden="true">'+(status==='kept'?'✓':status==='break'?'•':'')+'</b></button>';
+ }).join('')+'</div>';
 }
-function pageHeading(title,back){
- return '<div class="fd-care-top"><button class="fd-care-back" onclick="fdHabitsBack()">‹ '+back+'</button><h1>'+html(title)+'</h1></div>';
-}
-function overview(){
- const awards=model().awards.map(a=>awardDetails(a.id)).filter(Boolean);
- const points=awards.reduce((total,award)=>total+award.points,0);
- return pageHeading('Habits',origin==='more'?'More':'Home')+dateField()+CATEGORIES.map(cat=>
-  '<button type="button" class="fd-care-option" onclick="fdHabitsSelect(\''+cat.id+'\')"><span class="fd-care-icon" aria-hidden="true">'+cat.icon+'</span>'
-  +'<span><strong>'+html(cat.name)+'</strong><small>'+html(savedAmount(cat,rowFor(cat.id,habitDate())))+'</small></span><b aria-hidden="true">›</b></button>'
- ).join('')+(awards.length?'<p class="fd-care-note">'+awards.length+' '+(awards.length===1?'badge':'badges')+' · '+points+' habit points</p>':'');
-}
-function trendDetails(cat){
- const id=cat.id,trend=reduction(id),earned=model().awards.filter(a=>a.id.startsWith(id+'-')).map(a=>awardDetails(a.id)).filter(Boolean);
- const change=trend.percent===null?'':show(Math.abs(trend.percent))+'% '+(trend.percent>=0?'below':'above')+' your previous average';
- return '<details class="fd-care-details"><summary>Progress and rewards</summary>'
-  +'<dl class="fd-habit-progress"><div><dt>Current streak</dt><dd>'+currentStreak(id)+' days</dd></div><div><dt>Longest streak</dt><dd>'+longestStreak(id)
-  +' days</dd></div><div><dt>Days logged</dt><dd>'+trend.tracked+' / 28</dd></div></dl>'
-  +(change?'<p><strong>'+html(change)+'</strong> · '+show(trend.perWeek)+' '+html(cat.unit)+'/week</p>':'')
-  +'<form onsubmit="fdHabitsBaseline(\''+id+'\');return false"><label for="fd-habit-baseline-'+id+'">Previous weekly average ('+html(cat.unit)+')</label>'
-  +'<input id="fd-habit-baseline-'+id+'" type="number" inputmode="'+(id==='alcohol'?'decimal':'numeric')+'" min="'+(id==='alcohol'?'0.01':'1')+'" max="'
-  +cat.weeklyMax+'" step="'+(id==='alcohol'?'any':'1')+'" value="'+(trend.baseline??'')+'"><button class="fd-care-secondary">Save baseline</button></form>'
-  +'<p>Streaks count consecutive days logged as zero. Reduction estimates start at 7 logged days and rewards start at 21 of the last 28 days.</p>'
-  +earned.map(a=>'<p>✓ '+html(a.label)+' · +'+a.points+' points</p>').join('')+'</details>';
-}
-function detail(cat){
- const id=cat.id,current=rowFor(id,habitDate()),recent=model().days.filter(row=>row.category===id)
-  .sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7);
- return pageHeading(cat.name,'Habits')+dateField()
-  +'<section class="fd-entry-card fd-habit-entry"><h2>'+html(savedAmount(cat,current))+'</h2>'
-  +'<button type="button" class="fd-care-secondary" onclick="fdHabitsZero(\''+id+'\')">Log none</button>'
-  +'<form onsubmit="fdHabitsQuantity(\''+id+'\');return false"><div class="field"><label for="fd-habit-quantity-'+id+'">Daily total ('+html(cat.unit)+')</label>'
-  +'<input id="fd-habit-quantity-'+id+'" type="number" inputmode="'+(id==='alcohol'?'decimal':'numeric')+'" min="0" max="'+cat.dailyMax
-  +'" step="'+(id==='alcohol'?'any':'1')+'" value="'+(current?.quantity??'')+'" required>'+(cat.note?'<p class="hint">'+html(cat.note)+'</p>':'')+'</div><button class="primary">Save total</button></form>'
-  +(current?'<button type="button" class="fd-habit-remove" onclick="fdHabitsRemove(\''+id+'\')">Remove entry</button>':'')+'</section>'
-  +(recent.length?'<h2 class="fd-care-section-title">Recent entries</h2><div class="fd-habit-history">'
-   +recent.map(row=>'<button type="button" onclick="fdHabitsDateChange(\''+html(row.date)+'\')"><span>'+html(parseDate(row.date)
-    .toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}))+'</span><strong>'+html(savedAmount(cat,row))+'</strong></button>').join('')+'</div>':'')
-  +trendDetails(cat);
+function checkIn(cat,date){
+ const id=cat.id,days=daysFor(id),current=days.get(date),streak=currentStreak(days),milestone=celebrations.get(id);
+ const since=move(today(),-29);
+ const kept=[...days.values()].filter(row=>row.quantity===0&&row.date>=since&&row.date<=today()).length;
+ const restart=date===today()&&!current&&days.get(move(date,-1))?.quantity>0;
+ const amount=current?.quantity>0&&!current.amountUnspecified
+  ?show(current.quantity)+' '+(current.quantity===1?cat.single:cat.unit):'';
+ const action=(used,label)=>'<button type="button" id="fd-habit-'+id+'-'+label.toLowerCase()+'" aria-pressed="'
+  +Boolean(current&&(current.quantity>0)===used)+'" onclick="fdHabitsAnswer(\''+id+'\','+used+')">'+label+'</button>';
+ return '<section class="fd-habit-card" aria-labelledby="fd-habit-title-'+id+'"><div class="fd-habit-card-heading">'
+  +'<h2 id="fd-habit-title-'+id+'">'+cat.name+'</h2><span class="fd-habit-streak"><strong>'+streak+'</strong> '+(streak===1?'day':'days')+'</span></div>'
+  +chain(cat,days,date)+'<p class="fd-habit-month">'+kept+' '+cat.name.toLowerCase()+' '+(kept===1?'day':'days')+' in the last 30</p>'
+  +(milestone?'<p class="fd-habit-milestone" role="status">✦ '+milestone+'-day milestone</p>':'')
+  +(restart?'<p class="fd-habit-restart">Start a new chain today</p>':'')
+  +'<div class="fd-habit-check-in"><span id="fd-habit-question-'+id+'">'+cat.question+(amount?'<small>'+html(amount)+'</small>':'')+'</span>'
+  +'<div class="fd-habit-answers" role="group" aria-labelledby="fd-habit-question-'+id+'">'+action(false,'No')+action(true,'Yes')+'</div>'
+  +(current?'<button type="button" class="fd-habit-clear" aria-label="Clear '+cat.name.toLowerCase()+' check-in" onclick="fdHabitsRemove(\''+id+'\')">Clear</button>':'')+'</div></section>';
 }
 window.fdHabitsOpen=()=>{
  origin=tab==='more'?'more':'home';
- selectedDate=null;selectedHabit=null;
+ selectedDate=null;
  navigate('habits');
 };
-window.fdHabitsSelect=id=>{
- if(!category(id))return;
- selectedHabit=id;render();window.scrollTo({top:0,behavior:'instant'});
-};
-window.fdHabitsBack=()=>{
- if(!selectedHabit)return navigate(origin);
- selectedHabit=null;render();window.scrollTo({top:0,behavior:'instant'});
-};
+window.fdHabitsBack=()=>navigate(origin);
 window.fdHabitsView=()=>{
- const cat=category(selectedHabit);
- return '<section class="fd-care-page">'+(cat?detail(cat):overview())+'</section>';
+ const date=habitDate();
+ const alreadyUsed=CATEGORIES.some(cat=>rowFor(cat.id,date)?.quantity>0);
+ const missing=CATEGORIES.some(cat=>!rowFor(cat.id,date));
+ const awards=model().awards.map(a=>awardDetails(a.id)).filter(Boolean);
+ return '<section class="fd-care-page fd-habits"><div class="fd-care-top">'
+  +'<button type="button" class="fd-care-back" onclick="fdHabitsBack()">‹ '+(origin==='more'?'More':'Home')+'</button>'
+  +'<h1>Habits</h1><p>Don’t break the chain</p></div>'
+  +dateField(date)
+  +(date===today()&&missing&&!alreadyUsed?'<button type="button" class="primary fd-habit-none" onclick="fdHabitsNoneToday()">None today</button>':'')
+  +CATEGORIES.map(cat=>checkIn(cat,date)).join('')
+  +(awards.length?'<details class="fd-care-details"><summary>Earned rewards ('+awards.length+')</summary>'
+   +awards.map(award=>'<p>✓ '+award.label+' · +'+award.points+' points</p>').join('')+'</details>':'')
+  +'</section>';
 };
 })();
