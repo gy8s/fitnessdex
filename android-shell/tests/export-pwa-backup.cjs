@@ -97,6 +97,7 @@ async function main(output) {
     assert(await page.evaluate(() => validBackup(snapshotForExport())), 'The loaded PWA test profile is invalid');
     await page.locator('nav.nav button[data-tab=more]').click();
     await page.getByRole('button', { name:/History & data/ }).click();
+    await page.getByRole('button', { name:'Data tools', exact:true }).click();
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page.getByRole('button', { name:'Export complete backup', exact:true }).click()

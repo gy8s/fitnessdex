@@ -96,12 +96,19 @@ async function findTarget() {
       document.getElementById('fd-copy-last-hold').click();
       const right = Number(input.value);
       select('left');
+      const clearedOnSideChange = input.value === '';
+      input.value = '25';
       const toggle = document.getElementById('fd-hold-toggle');
       toggle.click();
-      const disabledWhileTiming = document.getElementById('fd-copy-last-hold').disabled && input.disabled;
+      const disabledWhileTiming = document.getElementById('fd-copy-last-hold').disabled && input.disabled && document.getElementById('side').disabled;
+      select('right');
+      const heldSide = document.getElementById('side').value;
       toggle.click();
+      const quickStopPreserved = input.value === '25';
       document.getElementById('fd-copy-last-hold').click();
       const left = Number(input.value);
+      document.getElementById('fd-undo-log-copy').click();
+      const undoneHoldCopy = input.value;
       const draftOnly = S.logs.length === 3;
       input.value = '21';
       document.getElementById('fd-hold-save').click();
@@ -111,18 +118,34 @@ async function findTarget() {
       document.querySelector('#fd-log-previous button[onclick="prefillSets()"]').click();
       const weights = [...document.querySelectorAll('#setrows input.weight')].map(field => Number(field.value));
       document.querySelector('#setrows input.reps').value = '7';
+      document.querySelector('.fd-set-actions button[onclick="addSet()"]').click();
+      document.querySelector('#fd-log-previous button[onclick="prefillSets()"]').click();
+      const copyUndo = document.getElementById('fd-undo-log-copy');
+      const undoOffered = !copyUndo.hidden;
+      copyUndo.click();
+      const restoredRows = [...document.querySelectorAll('#setrows input.reps')].map(field => field.value);
       document.querySelector('.fd-save-actions button.primary').click();
       const second = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01')).logs.find(log => logId(log) === S.v4.lastResult.logId);
+      document.querySelector('nav.nav button[data-tab=more]').click();
+      [...document.querySelectorAll('#app button.fd-option')].find(button=>button.textContent.includes('History & data')).click();
+      const tools = document.getElementById('fd-history-tools');
+      const toolsInitiallyCollapsed = !tools.open;
+      const recordsFirst = !!(document.querySelector('#app .stack').compareDocumentPosition(tools) & Node.DOCUMENT_POSITION_FOLLOWING);
+      document.querySelector('.fd-history-tools-link').click();
+      const toolsReachable = tools.open && !!tools.querySelector('button[onclick="exportData()"]');
       navigate('home');
-      return {absentForBoth,right,left,disabledWhileTiming,draftOnly,hold:[first.id,first.side,first.value],weights,
-        sets:second.sets,logCount:S.logs.length};
+      return {absentForBoth,right,left,clearedOnSideChange,disabledWhileTiming,heldSide,quickStopPreserved,undoneHoldCopy,
+        draftOnly,hold:[first.id,first.side,first.value],weights,undoOffered,restoredRows,sets:second.sets,logCount:S.logs.length,
+        toolsInitiallyCollapsed,recordsFirst,toolsReachable};
     })())`;
     const info = JSON.parse(await inspect(await findTarget(), expression));
     assert.deepEqual(info, {
-      absentForBoth:true,right:45,left:18,disabledWhileTiming:true,draftOnly:true,hold:['e084','left',21],
-      weights:[42.5,40],sets:[{weight:42.5,reps:7},{weight:40,reps:6}],logCount:5
+      absentForBoth:true,right:45,left:18,clearedOnSideChange:true,disabledWhileTiming:true,heldSide:'left',
+      quickStopPreserved:true,undoneHoldCopy:'25',draftOnly:true,hold:['e084','left',21],
+      weights:[42.5,40],undoOffered:true,restoredRows:['7','6',''],sets:[{weight:42.5,reps:7},{weight:40,reps:6}],
+      logCount:5,toolsInitiallyCollapsed:true,recordsFirst:true,toolsReachable:true
     });
-    console.log('PASS: Android previous-performance copy, timer guard and normal save of edited values');
+    console.log('PASS: Android logging side safety, short timer, copy undo, saved results and history tools');
     return;
   }
   if (stage === 'screen-parity') {

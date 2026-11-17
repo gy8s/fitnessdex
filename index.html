@@ -1022,8 +1022,20 @@ function logForm(){
  ${stats(e.id).bestPace?`<p class="muted">Best recorded pace: ${round(stats(e.id).bestPace,2)} min/km (when both distance and time were logged).</p>`:''}
  </div></div>`;
 }
-function renumberSets(){document.querySelectorAll('#setrows .setrow').forEach((r,i)=>r.firstElementChild.textContent=i+1);}
-function addSet(){const e=ex(chosen),a=$('setrows');if(!a||a.children.length>=100)return;const i=a.children.length+1;const div=document.createElement('div');div.className='setrow';div.innerHTML=`<span class="muted">${i}</span>${e.mode==='sets'?`<input class="weight" aria-label="Set ${i} weight" type="number" min="0" step="0.5" placeholder="kg">`:'<span class="muted">Bodyweight</span>'}<input class="reps" aria-label="Set ${i} reps" type="number" min="0" step="1" placeholder="reps"><button class="small" onclick="this.closest('.setrow').remove();renumberSets()">×</button>`;a.appendChild(div);}
+function renumberSets(){
+ document.querySelectorAll('#setrows .setrow').forEach((row,i)=>{
+  row.firstElementChild.textContent=i+1;
+  row.querySelector('.weight')?.setAttribute('aria-label','Set '+(i+1)+' weight in kilograms');
+  row.querySelector('.reps')?.setAttribute('aria-label','Set '+(i+1)+' repetitions');
+ });
+ $('setrows')?.dispatchEvent(new Event('input',{bubbles:true}));
+}
+function readSetRows(){
+ return [...document.querySelectorAll('#setrows .setrow')].map(row=>({
+  weight:row.querySelector('.weight')?.value??'',reps:row.querySelector('.reps')?.value??''
+ }));
+}
+function addSet(){const e=ex(chosen),a=$('setrows');if(!a||a.children.length>=100)return;const i=a.children.length+1;const div=document.createElement('div');div.className='setrow';div.innerHTML=`<span class="muted">${i}</span>${e.mode==='sets'?`<input class="weight" aria-label="Set ${i} weight" type="number" min="0" step="0.5" placeholder="kg">`:'<span class="muted">Bodyweight</span>'}<input class="reps" aria-label="Set ${i} reps" type="number" min="0" step="1" placeholder="reps"><button class="small" onclick="this.closest('.setrow').remove();renumberSets()">×</button>`;a.appendChild(div);a.dispatchEvent(new Event('input',{bubbles:true}));}
 function previousSetLog(e,side){
  return logsFor(e.id).reduce((last,row)=>{
   if(row.id!==e.id||row.mode!==e.mode||!row.sets?.length)return last;
@@ -1036,7 +1048,9 @@ function prefillSets(){
  if(!e||!area)return;
  const previous=previousSetLog(e,$('side')?.value||'both');
  if(!previous){toast('No previous sets for this exercise.');return;}
+ const before=readSetRows(),previousSide=window.fdCopiedLogSide?.();
  area.innerHTML=formSetRows(e,previous);
+ window.fdMarkLogCopy?.(area,before,previousSide);
  area.dispatchEvent(new Event('input',{bubbles:true}));
 }
 function cancelEdit(){editId=null;render();}
@@ -1100,13 +1114,21 @@ function logDescription(l){const e=ex(l.id);if(!e)return 'Unknown exercise';cons
  return `${round(x.distance,2)} km${x.minutes?` · ${round(x.minutes,1)} min`:''}${recorded?` · ${recorded.total.toLocaleString()} steps`:''}${pace!==null?` · ${Math.floor(pace/60)}:${String(pace%60).padStart(2,'0')}/km`:''}`;
 }
 function history(){
- const count=countSessions(completedLogs());
  const q=String(window.fdHistoryQuery||'').toLocaleLowerCase().trim(),date=String(window.fdHistoryDate||'');
  const all=S.logs.slice().sort((a,b)=>logWhen(b)-logWhen(a));
  const matching=all.filter(l=>(!date||l.date===date)&&(!q||[ex(l.id)?.name||'',l.id,l.notes||''].some(v=>String(v).toLocaleLowerCase().includes(q))));
  const logs=matching.slice(0,Math.min(2000,window.fdHistoryLimit||200));
- return `<div class="card"><div class="row"><h2>History & data</h2><span class="pill">${S.logs.length} exercise records · ${(S.v5?.workouts||[]).filter(w=>S.logs.some(l=>l.sessionId===w.id)).length} confirmed workouts</span></div><p class="hint">Existing v0.2 data is kept under the same local storage key. A copy of the pre-migration data is stored locally when available. Export regularly—browser storage is device-specific and may vary by file location.</p><div class="row" style="justify-content:flex-start;flex-wrap:wrap"><button onclick="exportData()">Export complete backup</button><button onclick="exportPreMigration()">Download pre-migration backup</button><button onclick="exportPreV04()">Download pre-v0.4 backup</button><button onclick="restoreBeforeImport()">Restore pre-import save</button><button onclick="$('importFile').click()">Import validated backup</button><button onclick="addRecovery()">Record recovery day</button>${(S.recoveryDays||[]).includes(today())?`<button onclick="removeRecovery()">Remove today’s recovery mark</button>`:''}</div>${recoveryPanel()}<input id="importFile" type="file" accept="application/json,.json" hidden><p class="hint">Editing or deleting a log recalculates milestone XP and challenge credit. Historical legacy v0.2 claims remain archived and are not silently deleted.</p>
- <div class="fd-history-filters"><label>Search exercises<input id="fd-history-query" type="search" placeholder="Exercise name or notes" value="${esc(window.fdHistoryQuery||'')}" oninput="fdHistoryApply()"></label><label>Date<input id="fd-history-date" type="date" value="${esc(window.fdHistoryDate||'')}" onchange="fdHistoryApply()"></label><button onclick="fdHistoryReset()">Clear filters</button></div><p class="hint">${matching.length} matching records · showing ${logs.length}${matching.length>logs.length?' (load more below)':''}</p><div class="stack" style="margin-top:17px">${logs.map(l=>`<div class="entry"><div><div class="name">${esc(ex(l.id)?.name||l.id)} <span class="pill">${esc(l.date)}</span></div><div class="sub">${esc(logDescription(l))}${ms(l.performedAt)>Date.now()?' · FUTURE':''}</div></div><div class="row"><button class="small" onclick="editLog('${esc(logId(l))}')">Edit</button><button class="small" onclick="deleteLog('${esc(logId(l))}')">Delete</button></div></div>`).join('')||'<p class="muted">No matching exercise records.</p>'}</div>${matching.length>logs.length?'<button class="small fd-history-more" onclick="fdHistoryMore()">Show next 200 records</button>':''}</div>`;
+ return `<div class="card"><div class="row"><h2>History & data</h2><span class="pill">${S.logs.length} exercise records · ${(S.v5?.workouts||[]).filter(w=>S.logs.some(l=>l.sessionId===w.id)).length} confirmed workouts</span></div><button type="button" class="small fd-history-tools-link" onclick="openHistoryTools()">Data tools</button>
+ <div class="fd-history-filters"><label>Search exercises<input id="fd-history-query" type="search" placeholder="Exercise name or notes" value="${esc(window.fdHistoryQuery||'')}" oninput="fdHistoryApply()"></label><label>Date<input id="fd-history-date" type="date" value="${esc(window.fdHistoryDate||'')}" onchange="fdHistoryApply()"></label><button onclick="fdHistoryReset()">Clear filters</button></div><p class="hint">${matching.length} matching records · showing ${logs.length}${matching.length>logs.length?' (load more below)':''}</p><div class="stack" style="margin-top:17px">${logs.map(l=>`<div class="entry"><div><div class="name">${esc(ex(l.id)?.name||l.id)} <span class="pill">${esc(l.date)}</span></div><div class="sub">${esc(logDescription(l))}${ms(l.performedAt)>Date.now()?' · FUTURE':''}</div></div><div class="row"><button class="small" onclick="editLog('${esc(logId(l))}')">Edit</button><button class="small" onclick="deleteLog('${esc(logId(l))}')">Delete</button></div></div>`).join('')||'<p class="muted">No matching exercise records.</p>'}</div>${matching.length>logs.length?'<button class="small fd-history-more" onclick="fdHistoryMore()">Show next 200 records</button>':''}
+ <details id="fd-history-tools" class="fd-log-details fd-history-tools"><summary>Data &amp; backups</summary>
+ <div class="row" style="justify-content:flex-start;flex-wrap:wrap"><button onclick="exportData()">Export complete backup</button><button onclick="exportPreMigration()">Download pre-migration backup</button><button onclick="exportPreV04()">Download pre-v0.4 backup</button><button onclick="restoreBeforeImport()">Restore pre-import save</button><button onclick="$('importFile').click()">Import validated backup</button><button onclick="addRecovery()">Record recovery day</button>${(S.recoveryDays||[]).includes(today())?`<button onclick="removeRecovery()">Remove today’s recovery mark</button>`:''}</div>${recoveryPanel()}<input id="importFile" type="file" accept="application/json,.json" hidden></details></div>`;
+}
+function openHistoryTools(){
+ const tools=$('fd-history-tools');
+ if(!tools)return;
+ tools.open=true;
+ tools.querySelector('summary')?.focus({preventScroll:true});
+ tools.scrollIntoView({block:'start'});
 }
 function editLog(id){const l=S.logs.find(x=>logId(x)===id);if(!l)return;if(l.mode==='reps')alert('This older record contains total repetitions only, not set-by-set counts. To edit it, enter the real sets rather than treating the total as a consecutive set.');chosen=l.id;editId=id;tab='log';render();}
 function deleteLog(id){if(!confirm('Delete this record? Progress, milestones and associated challenge rewards will be recalculated.'))return;

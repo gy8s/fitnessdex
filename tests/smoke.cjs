@@ -124,6 +124,7 @@ console.log('FitnessDex smoke checks passed: version, PWA assets, JS syntax, old
 
 /* 0.8.2: exercise-copy, quick draft, undo and old-history regression. */
 function bootConvenience(extraLogs=[]){
+ let elapsed=0;
  const now=new Date(),date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
  const entries=Array.from({length:210},(_,i)=>({at:'older-walk-'+i,id:'e045',mode:'distance',date,performedAt:new Date(Date.now()-(i+60)*60000).toISOString(),value:0.5,notes:'older walking record '+i}));
  entries.push({at:'recent-pushups',id:'e004',mode:'bodysets',date,performedAt:new Date(Date.now()-15000).toISOString(),sets:[{reps:7},{reps:6}],notes:'unique newest push-ups'});
@@ -147,9 +148,9 @@ function bootConvenience(extraLogs=[]){
  const modules=['workouts.js','habits.js','log-flow.js','ui-shell.js','campaigns.js','progression.js','set-ui.js','daily-care.js','quick-tools.js'];
  const code='const queueMicrotask=fn=>{};\n'+codeScripts[0]+'\n'+codeScripts[1]+'\n'+modules.map(read).join('\n')+
   '\nreturn {state:()=>S,tab:()=>tab,history,navigate,choose,submitLog,validBackup,prefillSets};';
- const app=new Function('window','document','localStorage','alert','confirm','Event','console',code)(win,doc,localStorage,
-  msg=>{throw Error('Unexpected alert: '+msg)},()=>true,function Event(type){this.type=type},console);
- return {app,win,doc,keys,date};
+ const app=new Function('window','document','localStorage','alert','confirm','Event','console','performance',code)(win,doc,localStorage,
+  msg=>{throw Error('Unexpected alert: '+msg)},()=>true,function Event(type){this.type=type},console,{now:()=>elapsed});
+ return {app,win,doc,keys,date,advance:ms=>{elapsed+=ms}};
 }
 const convenience=bootConvenience(),cv=convenience,cvApp=cv.app,cvWin=cv.win;
 assert.equal(cvApp.state().logs.length,211,'Existing activity records lost on boot');
@@ -198,29 +199,49 @@ const input=id=>overview.doc.getElementById(id);
 const beforeCopy=overview.app.state().logs.length;
 overview.app.choose('e036');
 assert.match(overviewPage(),/Foundation<\/span><span>Step 2 of 2/);
-assert.match(overviewPage(),/<dt>Last time<\/dt><dd>28 s.*Copy seconds.*<dt>Best<\/dt><dd>35 s<\/dd>/);
+assert.match(overviewPage(),/<dt>Last<\/dt><dd>28 s.*<dt>Best<\/dt><dd>35 s<\/dd>.*Copy 28 s/);
+assert(overviewPage().indexOf('Save activity')<overviewPage().indexOf('How to do this exercise'));
 overview.win.fdCopyLastHold();
 assert.equal(input('value').value,'28');
 assert.equal(JSON.parse(overview.keys.get('fitnessdex-quick-log-draft-v1')).fields.value,'28');
 assert.equal(overview.app.state().logs.length,beforeCopy);
 overview.app.choose('e084');
 assert.match(overviewPage(),/View skill tree.*Front split preparation · Step 1 of 3.*Forward fold preparation · Step 1 of 2/);
-assert.doesNotMatch(overviewPage(),/Copy seconds/);
+assert.doesNotMatch(overviewPage(),/fd-copy-last-hold/);
 input('side').value='left';
 overview.win.fdRefreshLogComparison();
-assert.match(input('fd-log-previous').innerHTML,/<dt>Last time \(left\)<\/dt><dd>18 s.*<dt>Best \(left\)<\/dt><dd>24 s<\/dd>/);
+assert.match(input('fd-log-previous').innerHTML,/<dt>Last \(left\)<\/dt><dd>18 s.*<dt>Best<\/dt><dd>24 s<\/dd>/);
 overview.win.fdCopyLastHold();
 assert.equal(input('value').value,'18');
+assert.equal(JSON.parse(overview.keys.get('fitnessdex-quick-log-draft-v1')).copiedSide,'left');
 input('side').value='right';
-overview.win.fdRefreshLogComparison();
-assert.match(input('fd-log-previous').innerHTML,/<dt>Last time \(right\)<\/dt><dd>45 s/);
+overview.win.fdChangeLogSide();
+assert.match(input('fd-log-previous').innerHTML,/<dt>Last \(right\)<\/dt><dd>45 s/);
+assert.equal(input('value').value,'');
 overview.win.fdCopyLastHold();
 assert.equal(input('value').value,'45');
 input('side').value='both';
-overview.win.fdRefreshLogComparison();
+overview.win.fdChangeLogSide();
 assert.equal(input('fd-log-previous').innerHTML,'');
 overview.win.fdCopyLastHold();
-assert.equal(input('value').value,'45','A side with no history must not copy another side');
+assert.equal(input('value').value,'','A side with no history must not retain another side’s copied result');
+input('value').value='25';
+overview.win.fdToggleHold();
+assert.equal(input('side').disabled,true);
+input('side').value='right';
+overview.win.fdChangeLogSide();
+assert.equal(input('side').value,'both');
+overview.advance(150);
+overview.win.fdToggleHold();
+assert.equal(input('value').value,'25');
+assert.equal(input('side').disabled,false);
+overview.win.fdToggleHold();
+overview.advance(1800);
+overview.win.fdToggleHold();
+assert.equal(input('value').value,'1');
+input('side').value='right';
+overview.win.fdChangeLogSide();
+assert.equal(input('value').value,'');
 overview.win.fdOpenLogSkillTree(0);
 assert.equal(overview.app.tab(),'dex');
 assert.match(overviewPage(),/Front splits.*Front split preparation/);
@@ -229,26 +250,33 @@ assert.match(overviewPage(),/<dt>Best<\/dt><dd>-2 cm gap<\/dd>/);
 overview.app.choose('e004');
 assert.match(overviewPage(),/Build your push-up · Step 3 of 5.*One-arm and leverage · Step 1 of 4/);
 overview.win.fdQuickLog();
-assert.match(overviewPage(),/<dt>Last time<\/dt><dd>7 reps in one set.*Use last session/);
+assert.match(overviewPage(),/<dt>Last<\/dt><dd>7 reps in one set.*Copy 2 sets/);
 overview.app.prefillSets();
 assert.match(input('setrows').innerHTML,/value="7".*value="6"/);
 overview.app.choose('e025');
 overview.win.fdQuickLog();
-assert.match(overviewPage(),/<dt>Last time<\/dt><dd>42\.5 kg × 5.*Use last session/);
-assert.equal((overviewPage().match(/Use last session/g)||[]).length,1);
+assert.match(overviewPage(),/<dt>Last<\/dt><dd>42\.5 kg × 5.*Copy 2 sets/);
+assert.equal((overviewPage().match(/Copy 2 sets/g)||[]).length,1);
 overview.app.prefillSets();
 assert.match(input('setrows').innerHTML,/value="42\.5".*value="40"/);
 overview.app.choose('e075');
 overview.win.fdQuickLog();
-assert.doesNotMatch(overviewPage(),/Use last session/);
+assert.doesNotMatch(overviewPage(),/Copy \d+ sets?/);
 input('side').value='left';
 overview.win.fdRefreshLogComparison();
-assert.match(input('fd-log-previous').innerHTML,/<dt>Last time \(left\)<\/dt><dd>4 reps in one set.*Use last session/);
+assert.match(input('fd-log-previous').innerHTML,/<dt>Last \(left\)<\/dt><dd>4 reps in one set.*Copy 1 set/);
 overview.app.prefillSets();
 assert.match(input('setrows').innerHTML,/value="4"/);
+input('side').value='right';
+overview.win.fdChangeLogSide();
+assert.doesNotMatch(input('setrows').innerHTML,/value="4"/);
 assert.equal(overview.app.state().logs.length,beforeCopy);
 overview.app.choose('e085');
-assert.doesNotMatch(overviewPage(),/Copy seconds/);
+assert.doesNotMatch(overviewPage(),/fd-copy-last-hold/);
+const historyMarkup=overview.app.history();
+assert(historyMarkup.indexOf('fd-history-query')<historyMarkup.indexOf('class="stack"'));
+assert(historyMarkup.indexOf('class="stack"')<historyMarkup.indexOf('id="fd-history-tools"'));
+assert.match(historyMarkup,/<details id="fd-history-tools" class="fd-log-details fd-history-tools">/);
 console.log('Exercise selection checks passed: skill paths, last and best, exact-side timed copies, and strength/bodyweight copies.');
 
 function finishHold(seconds){

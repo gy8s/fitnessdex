@@ -350,6 +350,9 @@ footer{display:none}body[data-fd-tab="history"] footer{display:block}
 .fd-history-filters input{background:#101e30;color:#fff;border:1px solid #4b667c;border-radius:9px;padding:10px 9px;width:100%;min-width:0}
 .fd-history-filters button{background:#27384b;color:#dcebf4;border:1px solid #4c6377;border-radius:9px;padding:10px 12px;font-size:12px}
 .fd-history-more{margin-top:13px}
+.fd-history-tools-link{margin-top:8px}
+.fd-history-tools{margin-top:18px;scroll-margin-top:16px}
+.fd-history-tools>.row{gap:8px;margin-bottom:12px}
 @media(max-width:520px){.fd-history-filters{grid-template-columns:1fr 1fr}.fd-history-filters>label:first-child{grid-column:1/-1}.fd-history-filters button{align-self:end}}
 
 
@@ -543,11 +546,12 @@ main{padding-top:21px}
 .fd-log-skill summary{cursor:pointer;color:var(--a)}
 .fd-log-skill ul{list-style:none;margin:7px 0 0;padding:0;display:grid;gap:6px}
 .fd-log-skill button{font-size:12px;text-align:left}
-.fd-log-comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 14px}
-.fd-log-comparison>div{padding:9px 11px;border:1px solid var(--line);background:#102034;border-radius:10px}
+.fd-log-comparison{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 10px;margin:0 0 12px;padding:8px 10px;border:1px solid var(--line);background:#102034;border-radius:10px}
+.fd-log-comparison dl{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0}
 .fd-log-comparison dt{color:var(--muted);font-size:11px}
 .fd-log-comparison dd{margin:3px 0 0;font-weight:700;font-size:14px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
-.fd-log-comparison button{display:block;margin-top:7px;min-height:44px;text-align:left}
+.fd-log-comparison button,#fd-undo-log-copy{min-height:44px}
+.fd-log-record .fd-save-actions{margin-top:12px}
 
 .fd-logged-progress{display:grid;gap:5px;justify-items:center;color:var(--muted);font-size:14px}
 .fd-logged-progress strong{color:var(--a)}

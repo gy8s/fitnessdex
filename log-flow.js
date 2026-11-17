@@ -3,7 +3,8 @@
 'use strict';
 let stage='type', category=null, family=null, query='', returnStage='variants';
 const baseNavigate=navigate, baseChoose=choose, baseSubmit=submitLog, baseEdit=editLog, baseDexRoot=openDexRoot;
-let holdStarted=null, holdTick=null, holdResult=null;
+let holdStarted=null, holdTick=null, holdResult=null, holdSide=null;
+let undoCopy=null;
 let logOrigin='home';
 const categoryNames={
  'Calisthenics':['◆','Bodyweight','Push-ups, pull-ups and core'],
@@ -93,22 +94,96 @@ function exerciseComparison(e,side,running){
  const best=bestResult(results.filter(row=>sameResultType(e,row.entry,latest.entry)));
  const lastSide=latest.entry.side||'both';
  const sideLabel=e.side?' ('+(lastSide==='both'?'both sides':lastSide)+')':'';
- const copy=previousSets?'<button class="small" type="button" onclick="prefillSets()">Use last session</button>'
+ const copy=previousSets?'<button class="small" type="button" onclick="prefillSets()">Copy '+previousSets.sets.length+' '+(previousSets.sets.length===1?'set':'sets')+'</button>'
   :e.mode==='time'?'<button id="fd-copy-last-hold" class="small" type="button" onclick="fdCopyLastHold()"'
-   +(running?' disabled':'')+'>Copy seconds</button>':'';
- return '<dl class="fd-log-comparison"><div><dt>Last time'+esc(sideLabel)+'</dt><dd>'+esc(latest.result.label)
-  +copy+'</dd></div><div><dt>Best'+esc(sideLabel)+'</dt><dd>'+esc(best.result.label)+'</dd></div></dl>';
+   +(running?' disabled':'')+'>Copy '+esc(latest.result.label)+'</button>':'';
+ return '<div class="fd-log-comparison"><dl><div><dt>Last'+esc(sideLabel)+'</dt><dd>'+esc(latest.result.label)
+  +'</dd></div><div><dt>Best</dt><dd>'+esc(best.result.label)+'</dd></div></dl>'+copy+'</div>';
 }
+function logCopyTarget(){
+ const mode=ex(chosen)?.mode;
+ return mode==='time'?$('value'):['sets','bodysets'].includes(mode)?$('setrows'):null;
+}
+const performanceValue=target=>target.id==='setrows'?readSetRows():target.value;
+const signature=target=>JSON.stringify(performanceValue(target));
+window.fdCopiedLogSide=()=>{
+ const target=logCopyTarget();
+ return target?.dataset.copySide&&target.dataset.copyValue===signature(target)?target.dataset.copySide:null;
+};
+function markCopiedSide(target,side){
+ if(side){
+  target.dataset.copySide=side;
+  target.dataset.copyValue=signature(target);
+ }else{
+  delete target.dataset.copySide;
+  delete target.dataset.copyValue;
+ }
+}
+window.fdUpdateLogCopyUndo=()=>{
+ const button=$('fd-undo-log-copy');
+ if(!button)return;
+ const target=logCopyTarget();
+ button.hidden=holdStarted!==null||!target||undoCopy?.target!==target||undoCopy.after!==signature(target);
+};
+window.fdMarkLogCopy=(target,before,beforeSide)=>{
+ const side=ex(chosen)?.side?$('side')?.value:null;
+ markCopiedSide(target,side);
+ const after=signature(target);
+ const entered=Array.isArray(before)?before.some(row=>row.reps!==''||row.weight!==''):Boolean(before);
+ if(entered&&JSON.stringify(before)!==after)undoCopy={target,before,beforeSide,after};
+ window.fdUpdateLogCopyUndo();
+};
+window.fdRestoreCopiedLogSide=side=>{
+ const target=logCopyTarget();
+ if(target&&ex(chosen)?.side&&side&&side===$('side')?.value)markCopiedSide(target,side);
+};
+window.fdUndoLogCopy=()=>{
+ const target=logCopyTarget();
+ if(!target||undoCopy?.target!==target||undoCopy.after!==signature(target)||holdStarted!==null)return;
+ const {before,beforeSide}=undoCopy;
+ undoCopy=null;
+ if(target.id==='setrows')target.innerHTML=formSetRows(ex(chosen),{sets:before});
+ else target.value=before;
+ markCopiedSide(target,beforeSide);
+ window.fdUpdateLogCopyUndo();
+ target.dispatchEvent(new Event('input',{bubbles:true}));
+};
 window.fdRefreshLogComparison=()=>{
  const panel=$('fd-log-previous'),e=ex(chosen);
  if(panel&&e)panel.innerHTML=exerciseComparison(e,$('side')?.value||'both',holdStarted!==null);
+};
+window.fdChangeLogSide=()=>{
+ const side=$('side');
+ if(!side)return;
+ if(holdStarted!==null&&holdSide){
+  side.value=holdSide;
+  return;
+ }
+ const target=logCopyTarget(),copiedSide=window.fdCopiedLogSide();
+ undoCopy=null;
+ if(target&&copiedSide&&copiedSide!==side.value){
+  if(target.id==='setrows')target.innerHTML=formSetRows(ex(chosen),null);
+  else{
+   target.value='';
+   holdResult=null;
+   const clock=$('fd-hold-clock'),toggle=$('fd-hold-toggle');
+   if(clock&&toggle){clock.textContent='00:00';toggle.textContent='Start timer';}
+  }
+  markCopiedSide(target,null);
+  toast('Previous value cleared for '+side.value+'.');
+ }
+ if(target&&target.dataset.copySide!==side.value)markCopiedSide(target,null);
+ window.fdRefreshLogComparison();
+ window.fdUpdateLogCopyUndo();
 };
 window.fdCopyLastHold=()=>{
  const e=ex(chosen),input=$('value');
  if(tab!=='log'||stage!=='record'||editId||e?.mode!=='time'||!input||input.disabled||holdStarted!==null)return;
  const latest=latestResult(matchingResults(e,$('side')?.value||'both'));
  if(!latest)return;
+ const before=input.value,beforeSide=window.fdCopiedLogSide();
  input.value=String(latest.result.value);
+ window.fdMarkLogCopy(input,before,beforeSide);
  input.dispatchEvent(new Event('input',{bubbles:true}));
 };
 function savedComparison(saved){
@@ -170,16 +245,20 @@ function stopHoldTimer(){
  holdTick=null;
  keepHoldScreenOn(false);
 }
-function clearHoldTimer(){stopHoldTimer();holdResult=null;}
+function clearHoldTimer(){stopHoldTimer();holdResult=null;holdSide=null;}
 window.fdToggleHold=()=>{
  const display=$('fd-hold-clock'),button=$('fd-hold-toggle'),value=$('value'),saveButton=$('fd-hold-save'),copyButton=$('fd-copy-last-hold');
+ const side=ex(chosen)?.side?$('side'):null;
  if(!display||!button||!value||!saveButton)return;
  if(holdStarted===null){
   holdStarted=performance.now();
+  holdSide=side?.value||null;
   display.textContent='00:00';
   button.textContent='Stop timer';
   value.disabled=saveButton.disabled=true;
+  if(side)side.disabled=true;
   if(copyButton)copyButton.disabled=true;
+  window.fdUpdateLogCopyUndo();
   holdTick=setInterval(()=>{
    const clock=$('fd-hold-clock');
    if(clock)clock.textContent=holdClock(holdSeconds());
@@ -187,14 +266,22 @@ window.fdToggleHold=()=>{
   keepHoldScreenOn(true);
   return;
  }
- holdResult=holdSeconds();
+ const elapsed=holdSeconds();
  stopHoldTimer();
- display.textContent=holdClock(holdResult);
- button.textContent='Restart timer';
+ if(elapsed>0){
+  holdResult=elapsed;
+  value.value=String(elapsed);
+  markCopiedSide(value,holdSide);
+  undoCopy=null;
+ }
+ if(side){side.value=holdSide;side.disabled=false;}
+ holdSide=null;
+ display.textContent=holdClock(holdResult??0);
+ button.textContent=holdResult===null?'Start timer':'Restart timer';
  value.disabled=saveButton.disabled=false;
  if(copyButton)copyButton.disabled=false;
- value.value=holdResult||'';
- value.dispatchEvent(new Event('input',{bubbles:true}));
+ window.fdUpdateLogCopyUndo();
+ if(elapsed>0)value.dispatchEvent(new Event('input',{bubbles:true}));
 };
 function record(){
  const e=ex(chosen)||DATA[0], l=editId?S.logs.find(x=>logId(x)===editId):null,m=e.mode;
@@ -206,10 +293,20 @@ function record(){
  const activeCardio=cardioSession&&!cardioSession.finished;
  const defaultSets=l||null;
  const valueTitle=m==='time'?'Seconds':m==='range'?'Gap from floor (cm)':m==='duration'?'Minutes':'Distance (km)';
- const selectedSide=l?.side||'both';
- const side=e.side?'<div class="field"><label for="side">Side</label><select id="side" onchange="fdRefreshLogComparison()">'+['both','left','right'].map(x=>'<option value="'+x+'" '+(x===selectedSide?'selected':'')+'>'+x+'</option>').join('')+'</select></div>':'';
+ const selectedSide=l?.side||holdSide||'both';
+ const editSets=l&&setMode?previousSetLog(e,selectedSide):null;
+ const side=e.side?'<div class="field"><label for="side">Side</label><select id="side" onchange="fdChangeLogSide()"'+(running?' disabled':'')+'>'+['both','left','right'].map(x=>'<option value="'+x+'" '+(x===selectedSide?'selected':'')+'>'+x+'</option>').join('')+'</select></div>':'';
  const comparison=l?'':'<div id="fd-log-previous">'+exerciseComparison(e,selectedSide,running)+'</div>';
- const metrics=setMode?side+comparison+'<label class="fd-record-label">'+(m==='sets'?'Weight and repetitions':'Repetitions per set')+'</label><div id="setrows">'+formSetRows(e,defaultSets)+'</div><div class="fd-set-actions"><button class="small" type="button" onclick="addSet()">+ Add set</button>'+(l&&previousSetLog(e,selectedSide)?'<button class="small" type="button" onclick="prefillSets()">Use last session</button>':'')+'</div>':(timedHold?holdTimer():cardio||'')+side+comparison+'<div class="field"><label for="value">'+valueTitle+'</label><input id="value" type="number" '+(m==='range'?'':'min="0"')+' step="any" value="'+esc(l?.value??(timedHold?holdResult||'':''))+'" placeholder="'+esc(e.unit)+'"'+(running?' disabled':'')+'></div>';
+ const undo='<button id="fd-undo-log-copy" class="small" type="button" onclick="fdUndoLogCopy()" hidden>Undo copy</button>';
+ const sets=side+comparison+'<label class="fd-record-label">'+(m==='sets'?'Weight and repetitions':'Repetitions per set')+'</label>'
+  +'<div id="setrows" oninput="fdUpdateLogCopyUndo()">'+(setMode?formSetRows(e,defaultSets):'')+'</div>'
+  +'<div class="fd-set-actions"><button class="small" type="button" onclick="addSet()">+ Add set</button>'
+  +(editSets?'<button class="small" type="button" onclick="prefillSets()">Copy '+editSets.sets.length+' '+(editSets.sets.length===1?'set':'sets')+'</button>':'')
+  +undo+'</div>';
+ const measurement='<div class="field"><label for="value">'+valueTitle+'</label><input id="value" type="number" '
+  +(m==='range'?'':'min="0"')+' step="any" oninput="fdUpdateLogCopyUndo()" value="'+esc(l?.value??(timedHold?holdResult||'':''))
+  +'" placeholder="'+esc(e.unit)+'"'+(running?' disabled':'')+'></div>';
+ const metrics=setMode?sets:side+(timedHold?holdTimer():cardio||'')+comparison+measurement+(timedHold?undo:'');
  const extra=m==='distance'||m==='duration'?'<div class="field"><label for="extra">'+(m==='distance'?'Minutes':'Distance (km)')+' (optional)</label><input id="extra" type="number" min="0" step="any" value="'+esc(m==='distance'?l?.minutes??(cardioSession?.finished?Math.round(cardioSession.elapsedMs/60)/1000:''):l?.distance??'')+'"'+(activeCardio?' readonly':'')+'></div>':'';
  const isSwim=m==='duration'&&(e.id==='e051'||['e121','e122','e123','e124'].includes(e.id));
  const swim=isSwim?'<div class="two"><div class="field"><label for="stroke">Stroke</label><select id="stroke">'+['','Front crawl','Breaststroke','Backstroke','Butterfly','Mixed'].map(x=>'<option '+(x===(l?.stroke||'')?'selected':'')+'>'+esc(x)+'</option>').join('')+'</select></div><div class="field"><label for="lengths">Lengths</label><input id="lengths" type="number" min="0" step="1" value="'+esc(l?.lengths??'')+'"></div></div>':'';
@@ -217,7 +314,12 @@ function record(){
  const groupPicker=window.fdWorkoutSelector?window.fdWorkoutSelector(l):'<div class="field"><label>How to save</label><select id="session"><option value="standalone">Standalone</option></select></div>';
  const timedFinish=cardioSession?.finished?new Date(cardioSession.finishedAt):null;
  const details='<details class="fd-log-details"><summary>More details <small>Time, notes, workout</small></summary><div class="fd-log-details-inner"><div class="two"><div class="field"><label for="date">Date</label><input id="date" type="date" value="'+esc(l?.date||(timedFinish?stamp(timedFinish):today()))+'"></div><div class="field"><label for="clock">Time</label><input id="clock" type="time" value="'+(timedFinish?localTime(timedFinish):timeText(l))+'"></div></div>'+mobility+groupPicker+'<div class="field"><label for="notes">Notes (optional)</label><input id="notes" maxlength="500" value="'+esc(l?.notes||'')+'" placeholder="Technique, route, how it felt…"></div></div></details>';
- return '<div class="fd-step-screen fd-log-record">'+back('Record activity',4)+exerciseHeading(e)+'<section class="fd-entry-card"><h2>'+(timedHold?'Time your hold':'What did you complete?')+'</h2>'+metrics+extra+swim+'</section>'+details+'<details class="fd-log-details"><summary>How to do this exercise</summary><p>'+esc(EXERCISE_GUIDES[e.id]||'')+'</p></details><div class="fd-save-actions"><button class="primary" onclick="submitLog()"'+(timedHold?' id="fd-hold-save"':cardio?' id="fd-cardio-save"':'')+((running||activeCardio)?' disabled':'')+'>'+(l?'Save corrections':'Save activity')+'</button></div></div>';
+ const saveButton='<div class="fd-save-actions"><button class="primary" onclick="submitLog()"'
+  +(timedHold?' id="fd-hold-save"':cardio?' id="fd-cardio-save"':'')+((running||activeCardio)?' disabled':'')+'>'
+  +(l?'Save corrections':'Save activity')+'</button></div>';
+ return '<div class="fd-step-screen fd-log-record">'+back('Record activity',4)+exerciseHeading(e)+'<section class="fd-entry-card"><h2>'
+  +(timedHold?'Time your hold':'What did you complete?')+'</h2>'+metrics+extra+swim+saveButton+'</section>'+details
+  +'<details class="fd-log-details"><summary>How to do this exercise</summary><p>'+esc(EXERCISE_GUIDES[e.id]||'')+'</p></details></div>';
 }
 function done(){const last=S.v4?.lastResult||{},xp=last.xpGain||0;
  const saved=last.logId&&S.logs.find(x=>logId(x)===last.logId);
@@ -262,6 +364,7 @@ window.fdCanLeaveExercise=()=>{
  if(!editId&&window.fdCardioDiscard?.(chosen)===false)return false;
  window.fdClearQuickDraft?.(chosen,editId);
  clearHoldTimer();
+ undoCopy=null;
  return true;
 };
 window.fdOpenLogSkillTree=index=>{
@@ -338,7 +441,7 @@ window.fdAndroidBack=()=>{
  return true;
 };
 logForm=function(){return editId?record():stage==='type'?categories():stage==='find'?find():stage==='variants'?variants():stage==='method'?method():stage==='done'?done():record();};
-submitLog=function(){if(holdStarted!==null)return;const before=S.logs.length,wasEdit=!!editId;baseSubmit();if(!wasEdit&&S.logs.length>before){clearHoldTimer();stage='done';tab='log';render();top();}};
+submitLog=function(){if(holdStarted!==null)return;const before=S.logs.length,wasEdit=!!editId;baseSubmit();if(!wasEdit&&S.logs.length>before){clearHoldTimer();undoCopy=null;stage='done';tab='log';render();top();}};
 const baseRender=render;
 render=function(){
  if(tab!=='log'||stage!=='record'||editId||migrationError)clearHoldTimer();

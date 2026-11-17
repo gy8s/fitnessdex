@@ -19,11 +19,11 @@ function collectDraft(){
  const fields={};for(const id of ['date','clock','notes','session','value','extra','side','stroke','lengths','mobilityType']){
   const el=document.getElementById(id);if(el)fields[id]=String(el.value||'').slice(0,500);
  }
- const rows=[...document.querySelectorAll('#setrows .setrow')].slice(0,100).map(row=>({
-  reps:String(row.querySelector('.reps')?.value??'').slice(0,9),
-  weight:String(row.querySelector('.weight')?.value??'').slice(0,9)
+ const rows=readSetRows().slice(0,100).map(row=>({
+  reps:row.reps.slice(0,9),
+  weight:row.weight.slice(0,9)
  }));
- const draft={id:chosen,editId:editId||null,at:new Date().toISOString(),fields,sets:rows};
+ const draft={id:chosen,editId:editId||null,at:new Date().toISOString(),fields,sets:rows,copiedSide:window.fdCopiedLogSide?.()||null};
  try{const value=JSON.stringify(draft);if(value.length<=40000)localStorage.setItem(KEY,value);}catch(e){}
 }
 window.fdClearQuickDraft=(id,logEditId)=>{
@@ -51,6 +51,7 @@ window.fdResumeQuickDraft=()=>{
   if(area)area.innerHTML=formSetRows(ex(d.id),{sets:d.sets.map(x=>({weight:x.weight,reps:x.reps}))});
  }
  if(d.fields.side)window.fdRefreshLogComparison?.();
+ window.fdRestoreCopiedLogSide?.(d.copiedSide);
  toast('Unfinished activity restored. Review the numbers before saving.');
 };
 window.fdDiscardQuickDraft=()=>{
@@ -68,6 +69,8 @@ window.fdRepeatLast=()=>{
  }
  const side=document.getElementById('side');
  if(side&&last.side){side.value=last.side;window.fdRefreshLogComparison?.();}
+ window.fdRestoreCopiedLogSide?.(last.side||'both');
+ collectDraft();
  toast('Previous result copied as a starting point. Edit it to match what you actually do.');
 };
 window.fdQuickRepeatHome=()=>{
