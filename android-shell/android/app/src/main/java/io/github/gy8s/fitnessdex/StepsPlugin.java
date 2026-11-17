@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import java.util.Map;
+import java.util.UUID;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
@@ -27,14 +29,23 @@ public final class StepsPlugin extends Plugin {
     }
 
     @PluginMethod
-    public void status(PluginCall call) {
+    public synchronized void status(PluginCall call) {
         SharedPreferences state = StepsService.preferences(getContext());
         JSObject current = new JSObject();
         current.put("available", StepsService.counter(getContext()) != null);
         current.put("enabled", state.getBoolean("enabled", false) && hasPermission(getContext()));
         current.put("running", StepsService.running);
-        current.put("today", StepsService.today().equals(state.getString("day", ""))
-            ? state.getLong("total", 0) : 0);
+        String day = StepsService.today();
+        String source = state.getString("source", null);
+        if (source == null) {
+            source = UUID.randomUUID().toString();
+            state.edit().putString("source", source).apply();
+        }
+        Map<String, ?> counts = state.getAll();
+        current.put("day", day);
+        current.put("source", source);
+        current.put("tracked", counts.get("tracked") instanceof Long ? counts.get("tracked") : 0L);
+        current.put("today", day.equals(counts.get("day")) ? counts.get("total") : 0L);
         call.resolve(current);
     }
 

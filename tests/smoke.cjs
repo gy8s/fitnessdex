@@ -29,7 +29,7 @@ assert(read('push-client.js').includes('fdPushBackgroundTest'),'Queued server pu
 assert(sw.includes("self.addEventListener('notificationclick'"),'Notifications must navigate correctly when tapped');
 new vm.Script(sw,{filename:'sw.js'});
 
-function boot(initial){
+function boot(initial,cardioForSave){
  const keys=new Map();
  if(initial)keys.set('fitnessdex-v01',JSON.stringify(initial));
  let failWrites=false;
@@ -49,10 +49,10 @@ function boot(initial){
   }
  };
  const emitted=[],alerts=[];
- const window={scrollTo(){},dispatchEvent(e){emitted.push(e.type)}};
+ const window={scrollTo(){},dispatchEvent(e){emitted.push(e.type)},fdCardioForSave:cardioForSave};
  const fn=new Function('window','document','localStorage','Event','alert','confirm','console',
   codeScripts[0]+'\n'+codeScripts[1]+
-  '\nreturn {state:()=>S,save,submitLog,deleteLog,checkpoint,recoveryRows,restoreCheckpoint,validBackup,editLog,today,localTime};');
+  '\nreturn {state:()=>S,save,choose,submitLog,deleteLog,checkpoint,recoveryRows,restoreCheckpoint,validBackup,editLog,today,localTime};');
  const app=fn(window,doc,storage,function Event(type){this.type=type;},m=>alerts.push(m),()=>true,console);
  const now=new Date();
  for(const [id,val] of [['date',app.today()],['clock',app.localTime(now)],['notes',''],['session','standalone']])doc.getElementById(id).value=val;
@@ -89,6 +89,23 @@ assert(b.app.validBackup(b.app.state()),'Recovery restored invalid data');
 const empty=boot(null);
 assert.equal(empty.app.state().logs.length,0,'Existing empty profile broken');
 assert(empty.app.validBackup(empty.app.state()),'Old profile backward compatibility broken');
+const hike=boot(sample(),()=>({id:'tracked-hike',finished:true,total:240,today:240,day:today,source:'24189eb3-1363-4f80-9bed-ef37d7faa770'}));
+const today=hike.app.today();
+hike.app.choose('e149');
+hike.doc.getElementById('value').value='1.4';
+hike.doc.getElementById('extra').value='21';
+hike.setFail(true);
+hike.app.submitLog();
+assert.equal(hike.app.state().logs.length,1,'A failed recorder save changed the history');
+hike.setFail(false);
+hike.app.submitLog();
+const savedHike=hike.app.state().logs.find(l=>l.at==='tracked-hike');
+assert.equal(savedHike.cardioSteps.total,240);
+assert.equal(savedHike.minutes,21);
+assert.equal(savedHike.value,1.4);
+assert(hike.app.validBackup(hike.app.state()),'Saved hike failed the backup validator');
+assert.match(hike.app.state().v4.lastResult.summary,/240 steps.*15:00\/km/);
+
 console.log('FitnessDex smoke checks passed: version, PWA assets, JS syntax, old saves, failed/successful activity saves, deletion rollback, recovery.');
 
 

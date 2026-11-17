@@ -24,7 +24,9 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       - name: Existing FitnessDex source regression checks
-        run: node tests/smoke.cjs
+        run: |
+          node tests/smoke.cjs
+          node android-shell/tests/check-cardio-recorder.cjs
       - name: Export a disposable profile from the unmodified PWA in Chrome
         working-directory: android-shell
         run: |

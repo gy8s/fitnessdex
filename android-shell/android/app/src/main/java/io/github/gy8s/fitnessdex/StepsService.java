@@ -77,7 +77,8 @@ public final class StepsService extends Service implements SensorEventListener {
         String day = localDay(sampleMillis);
         long total = day.equals(state.getString("day", "")) ? state.getLong("total", 0) : 0;
         state.edit().putInt("boot", bootCount).putLong("raw", raw)
-            .putString("day", day).putLong("total", total + delta).apply();
+            .putString("day", day).putLong("total", total + delta)
+            .putLong("tracked", state.getLong("tracked", 0) + delta).apply();
     }
 
     @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}

@@ -7,7 +7,10 @@
 
   const output = card.querySelector('output');
   const status = card.querySelector('.hint');
-  const toggle = card.querySelector('button');
+  const toggle = card.querySelector('#fd-toggle-steps');
+  const breakdown = card.querySelector('#fd-step-breakdown');
+  const resume = card.querySelector('#fd-cardio-resume');
+  resume.addEventListener('click', () => window.fdCardioResume?.());
   let busy = false;
   let running = false;
 
@@ -15,6 +18,7 @@
     const enabled = state.enabled;
     running = enabled && state.running;
     output.textContent = state.today.toLocaleString();
+    window.fdCardioHome?.(state, breakdown, resume);
     status.textContent = !state.available ? 'This device has no step counter.'
       : state.running && enabled ? 'Counting throughout the day'
       : enabled ? 'Tracking is stopped. Tap Resume to count steps.'
