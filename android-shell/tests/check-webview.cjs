@@ -11,7 +11,7 @@ const stages = [
   'first', 'after-restart', 'navigation', 'activity-save', 'activity-reopen', 'activity-edit',
   'activity-edit-reopen', 'activity-delete', 'activity-delete-reopen', 'activity-restore',
   'activity-restore-reopen', 'backup-export', 'backup-import', 'backup-import-verify',
-  'migration-verify', 'upgrade-baseline', 'upgrade-verify', 'screen-parity', 'android-back'
+  'migration-verify', 'upgrade-baseline', 'upgrade-verify', 'screen-parity', 'android-back', 'previous-performance'
 ];
 if (!stages.includes(stage)) throw Error('Specify a supported Android test stage');
 const address = 'http://127.0.0.1:9222';
@@ -62,6 +62,67 @@ async function findTarget() {
     for (let attempt = 0; attempt < 15 && await evaluate('tab') !== 'home'; attempt++) await delay(200);
     assert.equal(await evaluate('tab'), 'home');
     console.log('PASS: Android Back keeps the form on Cancel and discards without saving on OK');
+    return;
+  }
+  if (stage === 'previous-performance') {
+    const expression = String.raw`JSON.stringify((() => {
+      const stored = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}');
+      if (S.logs.length || stored.logs?.length) throw Error('Expected a disposable empty Android profile');
+      const at = new Date(Date.now() - 86400000).toISOString();
+      const date = stamp(new Date(at));
+      S.logs.push(
+        {at:'previous-hold-left',id:'e084',mode:'time',performedAt:at,date,side:'left',value:18},
+        {at:'previous-hold-right',id:'e084',mode:'time',performedAt:at,date,side:'right',value:45},
+        {at:'previous-weight',id:'e025',mode:'sets',performedAt:at,date,sets:[{weight:42.5,reps:5},{weight:40,reps:6}]}
+      );
+      resetDerived();
+      const open = (category, name, id) => {
+        document.querySelector('nav.nav button[data-tab=log]').click();
+        document.querySelector('button[data-cat="' + category + '"]').click();
+        const search = document.querySelector('#fd-exercise-search');
+        search.value = name;
+        search.dispatchEvent(new Event('input',{bubbles:true}));
+        document.querySelector('.fd-find-results button[onclick*="' + id + '"]').click();
+      };
+      open('Flexibility & mobility','Half split stretch','e084');
+      const select = value => {
+        const side = document.querySelector('#side');
+        side.value = value;
+        side.dispatchEvent(new Event('change',{bubbles:true}));
+      };
+      const input = document.querySelector('#value');
+      const absentForBoth = !document.getElementById('fd-copy-last-hold');
+      select('right');
+      document.getElementById('fd-copy-last-hold').click();
+      const right = Number(input.value);
+      select('left');
+      const toggle = document.getElementById('fd-hold-toggle');
+      toggle.click();
+      const disabledWhileTiming = document.getElementById('fd-copy-last-hold').disabled && input.disabled;
+      toggle.click();
+      document.getElementById('fd-copy-last-hold').click();
+      const left = Number(input.value);
+      const draftOnly = S.logs.length === 3;
+      input.value = '21';
+      document.getElementById('fd-hold-save').click();
+      const first = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01')).logs.find(log => logId(log) === S.v4.lastResult.logId);
+      open('Weight training','Back squat','e025');
+      document.querySelector('button[onclick="fdQuickLog()"]').click();
+      document.querySelector('#fd-log-previous button[onclick="prefillSets()"]').click();
+      const weights = [...document.querySelectorAll('#setrows input.weight')].map(field => Number(field.value));
+      document.querySelector('#setrows input.reps').value = '7';
+      document.querySelector('.fd-save-actions button.primary').click();
+      const second = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01')).logs.find(log => logId(log) === S.v4.lastResult.logId);
+      navigate('home');
+      return {absentForBoth,right,left,disabledWhileTiming,draftOnly,hold:[first.id,first.side,first.value],weights,
+        sets:second.sets,logCount:S.logs.length};
+    })())`;
+    const info = JSON.parse(await inspect(await findTarget(), expression));
+    assert.deepEqual(info, {
+      absentForBoth:true,right:45,left:18,disabledWhileTiming:true,draftOnly:true,hold:['e084','left',21],
+      weights:[42.5,40],sets:[{weight:42.5,reps:7},{weight:40,reps:6}],logCount:5
+    });
+    console.log('PASS: Android previous-performance copy, timer guard and normal save of edited values');
     return;
   }
   if (stage === 'screen-parity') {

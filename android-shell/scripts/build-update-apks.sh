@@ -8,7 +8,7 @@ unset FITNESSDEX_TEST_SUPABASE_KEY
 root="$(git rev-parse --show-toplevel)"
 baseline="$(mktemp -d)"
 rmdir "$baseline"
-git -C "$root" worktree add --detach "$baseline" 4a76549ed2141347db0c09e668ce6dd827f84fdc
+git -C "$root" worktree add --detach "$baseline" 9837d9df0ab22e00fb935f3c04e3c6fa335a3f7a
 trap 'git -C "$root" worktree remove --force "$baseline"' EXIT
 ln -s "$PWD/node_modules" "$baseline/android-shell/node_modules"
 

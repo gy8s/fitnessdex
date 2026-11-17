@@ -547,6 +547,7 @@ main{padding-top:21px}
 .fd-log-comparison>div{padding:9px 11px;border:1px solid var(--line);background:#102034;border-radius:10px}
 .fd-log-comparison dt{color:var(--muted);font-size:11px}
 .fd-log-comparison dd{margin:3px 0 0;font-weight:700;font-size:14px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.fd-log-comparison button{display:block;margin-top:7px;min-height:44px;text-align:left}
 
 .fd-logged-progress{display:grid;gap:5px;justify-items:center;color:var(--muted);font-size:14px}
 .fd-logged-progress strong{color:var(--a)}

@@ -129,7 +129,7 @@ function bootConvenience(extraLogs=[]){
  entries.push({at:'recent-pushups',id:'e004',mode:'bodysets',date,performedAt:new Date(Date.now()-15000).toISOString(),sets:[{reps:7},{reps:6}],notes:'unique newest push-ups'});
  const seed={...sample(),logs:[...entries,...extraLogs]};
  const keys=new Map([['fitnessdex-v01',JSON.stringify(seed)]]),nodes=new Map();
- const fakeNode=id=>({id,value:'',checked:true,innerHTML:'',textContent:'',dataset:{},style:{},classList:{toggle(){},add(){},remove(){}},parentNode:{insertBefore(){}},addEventListener(){},appendChild(){},focus(){},setSelectionRange(){},scrollIntoView(){},closest(){return true},setAttribute(){},options:[]});
+ const fakeNode=id=>({id,value:'',checked:true,innerHTML:'',textContent:'',dataset:{},style:{},classList:{toggle(){},add(){},remove(){}},parentNode:{insertBefore(){}},addEventListener(){},appendChild(){},dispatchEvent(event){doc.handlers[event.type]?.({target:this})},focus(){},setSelectionRange(){},scrollIntoView(){},closest(){return true},setAttribute(){},options:[]});
  const appNode=fakeNode('app'),buttons=['home','log','dex','more'].map(tab=>({...fakeNode(tab),dataset:{tab}}));
  const doc={
   body:{dataset:{}},head:{appendChild(){}},hidden:false,handlers:{},
@@ -146,7 +146,7 @@ function bootConvenience(extraLogs=[]){
  const win={handlers:{},addEventListener(k,cb){this.handlers[k]=cb},scrollTo(){},dispatchEvent(){}};
  const modules=['workouts.js','habits.js','log-flow.js','ui-shell.js','campaigns.js','progression.js','set-ui.js','daily-care.js','quick-tools.js'];
  const code='const queueMicrotask=fn=>{};\n'+codeScripts[0]+'\n'+codeScripts[1]+'\n'+modules.map(read).join('\n')+
-  '\nreturn {state:()=>S,tab:()=>tab,history,navigate,choose,submitLog,validBackup};';
+  '\nreturn {state:()=>S,tab:()=>tab,history,navigate,choose,submitLog,validBackup,prefillSets};';
  const app=new Function('window','document','localStorage','alert','confirm','Event','console',code)(win,doc,localStorage,
   msg=>{throw Error('Unexpected alert: '+msg)},()=>true,function Event(type){this.type=type},console);
  return {app,win,doc,keys,date};
@@ -187,15 +187,40 @@ const held=(id,value,age,side)=>{
 const overview=bootConvenience([
  held('e036',28,2),held('e036',35,10),
  held('e084',18,2,'left'),held('e084',24,3,'left'),held('e084',45,4,'right'),
- held('e117',3,2),held('e117',-2,4)
+ held('e117',3,2),held('e117',-2,4),
+ {...held('e025',null,2),mode:'sets',sets:[{weight:42.5,reps:5},{weight:40,reps:6}]},
+ {...held('e025',null,10),mode:'sets',sets:[{weight:35,reps:5}]},
+ {...held('e075',null,2,'left'),mode:'bodysets',sets:[{reps:4}]},
+ {...held('e075',null,1,'right'),mode:'bodysets',sets:[{reps:9}]}
 ]);
 const overviewPage=()=>overview.doc.getElementById('app').innerHTML;
+const input=id=>overview.doc.getElementById(id);
+const beforeCopy=overview.app.state().logs.length;
 overview.app.choose('e036');
 assert.match(overviewPage(),/Foundation<\/span><span>Step 2 of 2/);
-assert.match(overviewPage(),/<dt>Last time<\/dt><dd>28 s<\/dd>.*<dt>Best<\/dt><dd>35 s<\/dd>/);
+assert.match(overviewPage(),/<dt>Last time<\/dt><dd>28 s.*Copy seconds.*<dt>Best<\/dt><dd>35 s<\/dd>/);
+overview.win.fdCopyLastHold();
+assert.equal(input('value').value,'28');
+assert.equal(JSON.parse(overview.keys.get('fitnessdex-quick-log-draft-v1')).fields.value,'28');
+assert.equal(overview.app.state().logs.length,beforeCopy);
 overview.app.choose('e084');
 assert.match(overviewPage(),/View skill tree.*Front split preparation · Step 1 of 3.*Forward fold preparation · Step 1 of 2/);
-assert.match(overviewPage(),/<dt>Best \(left\)<\/dt><dd>24 s<\/dd>/);
+assert.doesNotMatch(overviewPage(),/Copy seconds/);
+input('side').value='left';
+overview.win.fdRefreshLogComparison();
+assert.match(input('fd-log-previous').innerHTML,/<dt>Last time \(left\)<\/dt><dd>18 s.*<dt>Best \(left\)<\/dt><dd>24 s<\/dd>/);
+overview.win.fdCopyLastHold();
+assert.equal(input('value').value,'18');
+input('side').value='right';
+overview.win.fdRefreshLogComparison();
+assert.match(input('fd-log-previous').innerHTML,/<dt>Last time \(right\)<\/dt><dd>45 s/);
+overview.win.fdCopyLastHold();
+assert.equal(input('value').value,'45');
+input('side').value='both';
+overview.win.fdRefreshLogComparison();
+assert.equal(input('fd-log-previous').innerHTML,'');
+overview.win.fdCopyLastHold();
+assert.equal(input('value').value,'45','A side with no history must not copy another side');
 overview.win.fdOpenLogSkillTree(0);
 assert.equal(overview.app.tab(),'dex');
 assert.match(overviewPage(),/Front splits.*Front split preparation/);
@@ -204,8 +229,27 @@ assert.match(overviewPage(),/<dt>Best<\/dt><dd>-2 cm gap<\/dd>/);
 overview.app.choose('e004');
 assert.match(overviewPage(),/Build your push-up · Step 3 of 5.*One-arm and leverage · Step 1 of 4/);
 overview.win.fdQuickLog();
-assert.match(overviewPage(),/<dt>Last time<\/dt><dd>7 reps in one set<\/dd>/);
-console.log('Exercise selection checks passed: skill paths, last and best, side-specific holds, and signed range measurements.');
+assert.match(overviewPage(),/<dt>Last time<\/dt><dd>7 reps in one set.*Use last session/);
+overview.app.prefillSets();
+assert.match(input('setrows').innerHTML,/value="7".*value="6"/);
+overview.app.choose('e025');
+overview.win.fdQuickLog();
+assert.match(overviewPage(),/<dt>Last time<\/dt><dd>42\.5 kg × 5.*Use last session/);
+assert.equal((overviewPage().match(/Use last session/g)||[]).length,1);
+overview.app.prefillSets();
+assert.match(input('setrows').innerHTML,/value="42\.5".*value="40"/);
+overview.app.choose('e075');
+overview.win.fdQuickLog();
+assert.doesNotMatch(overviewPage(),/Use last session/);
+input('side').value='left';
+overview.win.fdRefreshLogComparison();
+assert.match(input('fd-log-previous').innerHTML,/<dt>Last time \(left\)<\/dt><dd>4 reps in one set.*Use last session/);
+overview.app.prefillSets();
+assert.match(input('setrows').innerHTML,/value="4"/);
+assert.equal(overview.app.state().logs.length,beforeCopy);
+overview.app.choose('e085');
+assert.doesNotMatch(overviewPage(),/Copy seconds/);
+console.log('Exercise selection checks passed: skill paths, last and best, exact-side timed copies, and strength/bodyweight copies.');
 
 function finishHold(seconds){
  overview.app.choose('e036');

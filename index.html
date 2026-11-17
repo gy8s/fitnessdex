@@ -1024,7 +1024,21 @@ function logForm(){
 }
 function renumberSets(){document.querySelectorAll('#setrows .setrow').forEach((r,i)=>r.firstElementChild.textContent=i+1);}
 function addSet(){const e=ex(chosen),a=$('setrows');if(!a||a.children.length>=100)return;const i=a.children.length+1;const div=document.createElement('div');div.className='setrow';div.innerHTML=`<span class="muted">${i}</span>${e.mode==='sets'?`<input class="weight" aria-label="Set ${i} weight" type="number" min="0" step="0.5" placeholder="kg">`:'<span class="muted">Bodyweight</span>'}<input class="reps" aria-label="Set ${i} reps" type="number" min="0" step="1" placeholder="reps"><button class="small" onclick="this.closest('.setrow').remove();renumberSets()">×</button>`;a.appendChild(div);}
-function prefillSets(){const prev=logsFor(chosen).slice(-1)[0];if(!prev?.sets){toast('No previous sets for this exercise.');return;}const area=$('setrows');area.innerHTML=formSetRows(ex(chosen),prev);}
+function previousSetLog(e,side){
+ return logsFor(e.id).reduce((last,row)=>{
+  if(row.id!==e.id||row.mode!==e.mode||!row.sets?.length)return last;
+  if(e.side&&(row.side||'both')!==side)return last;
+  return !last||logWhen(row)>=logWhen(last)?row:last;
+ },null);
+}
+function prefillSets(){
+ const e=ex(chosen),area=$('setrows');
+ if(!e||!area)return;
+ const previous=previousSetLog(e,$('side')?.value||'both');
+ if(!previous){toast('No previous sets for this exercise.');return;}
+ area.innerHTML=formSetRows(e,previous);
+ area.dispatchEvent(new Event('input',{bubbles:true}));
+}
 function cancelEdit(){editId=null;render();}
 function submitLog(){if(migrationError){alert(migrationError);return;}
  const e=ex(chosen),date=$('date').value,clock=$('clock').value,notes=$('notes').value,existing=editId?S.logs.find(x=>logId(x)===editId):null;

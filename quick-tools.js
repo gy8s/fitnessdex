@@ -50,6 +50,7 @@ window.fdResumeQuickDraft=()=>{
   const area=document.getElementById('setrows');
   if(area)area.innerHTML=formSetRows(ex(d.id),{sets:d.sets.map(x=>({weight:x.weight,reps:x.reps}))});
  }
+ if(d.fields.side)window.fdRefreshLogComparison?.();
  toast('Unfinished activity restored. Review the numbers before saving.');
 };
 window.fdDiscardQuickDraft=()=>{
@@ -63,8 +64,10 @@ window.fdRepeatLast=()=>{
  if(['sets','bodysets'].includes(ex(last.id).mode)){window.fdQuickLog?.();const area=document.getElementById('setrows');if(area&&last.sets?.length)area.innerHTML=formSetRows(ex(last.id),last);}
  else{const value=document.getElementById('value');if(value)value.value=last.value??'';
   const extra=document.getElementById('extra');if(extra)extra.value=last.mode==='distance'?(last.minutes??''):(last.distance??'');
-  for(const id of ['side','stroke','lengths']){const el=document.getElementById(id);if(el&&last[id]!=null)el.value=last[id];}
+  for(const id of ['stroke','lengths']){const el=document.getElementById(id);if(el&&last[id]!=null)el.value=last[id];}
  }
+ const side=document.getElementById('side');
+ if(side&&last.side){side.value=last.side;window.fdRefreshLogComparison?.();}
  toast('Previous result copied as a starting point. Edit it to match what you actually do.');
 };
 window.fdQuickRepeatHome=()=>{
