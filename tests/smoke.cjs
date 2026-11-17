@@ -146,7 +146,7 @@ function bootConvenience(extraLogs=[]){
  const win={handlers:{},addEventListener(k,cb){this.handlers[k]=cb},scrollTo(){},dispatchEvent(){}};
  const modules=['workouts.js','habits.js','log-flow.js','ui-shell.js','campaigns.js','progression.js','set-ui.js','daily-care.js','quick-tools.js'];
  const code='const queueMicrotask=fn=>{};\n'+codeScripts[0]+'\n'+codeScripts[1]+'\n'+modules.map(read).join('\n')+
-  '\nreturn {state:()=>S,tab:()=>tab,history,choose,submitLog,validBackup};';
+  '\nreturn {state:()=>S,tab:()=>tab,history,navigate,choose,submitLog,validBackup};';
  const app=new Function('window','document','localStorage','alert','confirm','Event','console',code)(win,doc,localStorage,
   msg=>{throw Error('Unexpected alert: '+msg)},()=>true,function Event(type){this.type=type},console);
  return {app,win,doc,keys,date};
@@ -206,6 +206,56 @@ assert.match(overviewPage(),/Build your push-up · Step 3 of 5.*One-arm and leve
 overview.win.fdQuickLog();
 assert.match(overviewPage(),/<dt>Last time<\/dt><dd>7 reps in one set<\/dd>/);
 console.log('Exercise selection checks passed: skill paths, last and best, side-specific holds, and signed range measurements.');
+
+function finishHold(seconds){
+ overview.app.choose('e036');
+ const now=new Date();
+ const clock=[now.getHours(),now.getMinutes()].map(n=>String(n).padStart(2,'0')).join(':');
+ for(const [id,value] of Object.entries({date:overview.date,clock,value:String(seconds),notes:'',session:'standalone'}))
+  overview.doc.getElementById(id).value=value;
+ overview.app.submitLog();
+}
+finishHold(35);
+assert.match(overviewPage(),/\+7 s since last time/);
+assert.doesNotMatch(overviewPage(),/New personal best/);
+finishHold(42);
+assert.match(overviewPage(),/\+7 s since last time/);
+assert.match(overviewPage(),/New personal best/);
+finishHold(42);
+assert.match(overviewPage(),/Same as last time/);
+assert.doesNotMatch(overviewPage(),/New personal best/);
+
+const habitUI=bootConvenience();
+const habitView=()=>habitUI.doc.getElementById('app').innerHTML;
+const habits=habitUI.app.state().v6;
+habits.days.push({category:'smoking',date:habitUI.date,quantity:2});
+habits.baselineWeek.smoking=12;
+habits.awards.push({id:'smoking-streak-3',at:habitUI.date});
+habitUI.app.navigate('more');
+assert.match(habitView(),/<strong>Habits<\/strong>/);
+habitUI.win.fdHabitsOpen();
+assert.match(habitView(),/<h1>Habits<\/h1>.*<strong>Smoking<\/strong><small>2 cigarettes/);
+assert.doesNotMatch(habitView(),/Save baseline/);
+habitUI.win.fdHabitsSelect('smoking');
+assert.match(habitView(),/Daily total \(cigarettes\).*Save total.*Recent entries.*Progress and rewards/);
+habitUI.doc.getElementById('fd-habit-quantity-smoking').value='3';
+habitUI.win.fdHabitsQuantity('smoking');
+assert.equal(habitUI.app.state().v6.days.length,1);
+assert.equal(habitUI.app.state().v6.days[0].quantity,3);
+habitUI.win.fdHabitsZero('smoking');
+assert.equal(habitUI.app.state().v6.days[0].quantity,0);
+assert.match(habitView(),/<h2>No cigarettes<\/h2>/);
+habitUI.win.fdHabitsRemove('smoking');
+assert.equal(habitUI.app.state().v6.days.length,0);
+assert.equal(habitUI.app.state().v6.awards.length,1);
+assert.equal(habitUI.app.state().v6.baselineWeek.smoking,12);
+habitUI.win.fdHabitsBack();
+assert.match(habitView(),/<h1>Habits<\/h1>.*<strong>Smoking<\/strong><small>Not logged/);
+habitUI.win.fdHabitsBack();
+assert.equal(habitUI.app.tab(),'more');
+assert(habitUI.app.validBackup(habitUI.app.state()));
+console.log('Results and Habits checks passed: previous performance, strict personal bests, daily totals, and existing rewards.');
+
 
 
 

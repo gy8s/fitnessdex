@@ -50,7 +50,7 @@ function comparableResult(e,entry){
    const heaviest=(entry.sets||[]).reduce((best,set)=>
     !best||set.weight>best.weight||set.weight===best.weight&&set.reps>best.reps?set:best,null);
    if(!heaviest)return null;
-   return {score:heaviest.weight,tie:heaviest.reps,label:heaviest.weight+' kg × '+heaviest.reps};
+   return {score:heaviest.weight,tie:heaviest.reps,value:heaviest.weight,unit:'kg',label:heaviest.weight+' kg × '+heaviest.reps};
   }
   case 'bodysets':
    value=entry.mode==='reps'?result.reps:result.bestReps;
@@ -63,21 +63,45 @@ function comparableResult(e,entry){
   default: return null;
  }
  if(!Number.isFinite(value)||(descending&&value<=0))return null;
- return {score:descending?value:-value,tie:0,label:round(value,2)+' '+unit};
+ return {score:descending?value:-value,tie:0,value,unit,label:round(value,2)+' '+unit};
+}
+function resultRows(e){
+ return logsFor(e.id).map(entry=>({entry,result:comparableResult(e,entry)})).filter(row=>row.result);
+}
+function sameResultType(e,a,b){
+ return a.mode===b.mode&&(!e.side||(a.side||'both')===(b.side||'both'));
+}
+function compareResults(a,b){return a.score-b.score||a.tie-b.tie;}
+function latestResult(rows){
+ return rows.reduce((last,row)=>!last||logWhen(row.entry)>=logWhen(last.entry)?row:last,null);
+}
+function bestResult(rows){
+ return rows.reduce((best,row)=>!best||compareResults(row.result,best.result)>0?row:best,null);
 }
 function exerciseComparison(e){
- const results=logsFor(e.id).map(entry=>({entry,result:comparableResult(e,entry)})).filter(row=>row.result);
- if(!results.length)return '';
- const latest=results.reduce((last,row)=>logWhen(row.entry)>=logWhen(last.entry)?row:last);
+ const results=resultRows(e);
+ const latest=latestResult(results);
+ if(!latest)return '';
+ const best=bestResult(results.filter(row=>sameResultType(e,row.entry,latest.entry)));
  const lastSide=latest.entry.side||'both';
- const best=results.filter(row=>row.entry.mode===latest.entry.mode&&(!e.side||(row.entry.side||'both')===lastSide))
-  .reduce((leading,row)=>{
-   const a=row.result,b=leading.result;
-   return a.score>b.score||a.score===b.score&&a.tie>b.tie?row:leading;
-  },latest);
  const side=e.side?' ('+(lastSide==='both'?'both sides':lastSide)+')':'';
  return '<dl class="fd-log-comparison"><div><dt>Last time'+esc(side)+'</dt><dd>'+esc(latest.result.label)
   +'</dd></div><div><dt>Best'+esc(side)+'</dt><dd>'+esc(best.result.label)+'</dd></div></dl>';
+}
+function savedComparison(saved){
+ if(!saved)return '';
+ const e=ex(saved.id),current=e&&comparableResult(e,saved);
+ if(!current)return '';
+ const others=resultRows(e).filter(row=>logId(row.entry)!==logId(saved)&&sameResultType(e,row.entry,saved));
+ const last=latestResult(others.filter(row=>logWhen(row.entry)<=logWhen(saved)));
+ if(!last)return '';
+ const best=bestResult(others);
+ const tiedWeight=e.mode==='sets'&&current.score===last.result.score;
+ const delta=round(tiedWeight?current.tie-last.result.tie:current.value-last.result.value,2);
+ const unit=tiedWeight||current.unit==='reps in one set'?'reps':current.unit;
+ const change=delta===0?'Same as last time':(delta>0?'+':'−')+Math.abs(delta)+' '+unit+' since last time';
+ return '<div class="fd-logged-progress"><span>'+esc(change)+'</span>'
+  +(compareResults(current,best.result)>0?'<strong>New personal best</strong>':'')+'</div>';
 }
 function back(label,number){return '<div class="fd-stepback"><button onclick="fdLogBack()">‹ Back</button><span>'+esc(label)+' · '+number+'/4</span></div>';}
 function frequent(cat){const r=familiar(cat);return r.length?'<section class="fd-step-section"><div class="fd-section-label"><h2>Recent & frequent</h2><small>Up to 5</small></div><div class="fd-option-list">'+r.map(e=>item(e)).join('')+'</div></section>':'';}
@@ -173,7 +197,7 @@ function done(){const last=S.v4?.lastResult||{},xp=last.xpGain||0;
  const actions=saved?.mode==='time'
   ? '<button class="primary" onclick="fdRepeatHold()">Repeat</button><button onclick="fdNextAfterHold()">Next exercise</button><button onclick="navigate(\'home\')">Finish</button>'
   : '<button class="primary" onclick="navigate(\'log\')">Log another</button><button onclick="navigate(\'home\')">Done for now</button>';
- return '<div class="fd-step-screen fd-logged"><div class="fd-logged-symbol">✓</div><small>Activity saved</small><h1>'+esc(last.exercise||'Exercise')+' logged</h1><p>'+esc(last.summary||'')+'</p>'+(xp?'<div class="fd-logged-xp">+'+Math.round(xp)+' XP</div>':'')+(last.milestones?.length?'<p>New milestone: '+esc(last.milestones.slice(0,2).join(' · '))+'</p>':'')+(last.challengeNames?.length?'<p>Challenge complete: '+esc(last.challengeNames.slice(0,2).join(' · '))+'</p>':'')+'<div class="fd-logged-actions">'+actions+(saved?'<button class="fd-undo-last" onclick="fdUndoLastLog()">Undo this log</button>':'')+'</div></div>';
+ return '<div class="fd-step-screen fd-logged"><div class="fd-logged-symbol">✓</div><small>Activity saved</small><h1>'+esc(last.exercise||'Exercise')+' logged</h1><p>'+esc(last.summary||'')+'</p>'+savedComparison(saved)+(xp?'<div class="fd-logged-xp">+'+Math.round(xp)+' XP</div>':'')+(last.milestones?.length?'<p>New milestone: '+esc(last.milestones.slice(0,2).join(' · '))+'</p>':'')+(last.challengeNames?.length?'<p>Challenge complete: '+esc(last.challengeNames.slice(0,2).join(' · '))+'</p>':'')+'<div class="fd-logged-actions">'+actions+(saved?'<button class="fd-undo-last" onclick="fdUndoLastLog()">Undo this log</button>':'')+'</div></div>';
 }
 window.fdRepeatHold=()=>{
  const saved=S.logs.find(x=>logId(x)===S.v4?.lastResult?.logId);

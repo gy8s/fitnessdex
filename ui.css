@@ -547,3 +547,15 @@ main{padding-top:21px}
 .fd-log-comparison>div{padding:9px 11px;border:1px solid var(--line);background:#102034;border-radius:10px}
 .fd-log-comparison dt{color:var(--muted);font-size:11px}
 .fd-log-comparison dd{margin:3px 0 0;font-weight:700;font-size:14px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+
+.fd-logged-progress{display:grid;gap:5px;justify-items:center;color:var(--muted);font-size:14px}
+.fd-logged-progress strong{color:var(--a)}
+.fd-habit-date input{width:min(100%,220px)}
+.fd-habit-entry{display:grid;gap:11px}
+.fd-habit-entry h2,.fd-habit-entry .field{margin:0}
+.fd-habit-entry form,.fd-habit-progress{display:grid;gap:8px;margin:0}
+.fd-habit-entry .fd-care-secondary,.fd-habit-remove{justify-self:start}
+.fd-habit-remove{border:0;background:transparent;padding-left:0;color:var(--muted)}
+.fd-habit-history{display:grid;gap:6px}
+.fd-habit-history button,.fd-habit-progress div{display:flex;justify-content:space-between;gap:8px}
+.fd-habit-progress dd{margin:0;font-weight:700}
