@@ -240,7 +240,7 @@ adb shell run-as "$PACKAGE" test ! -e files/fitnessdex-v01.json
 adb shell am force-stop "$PACKAGE"
 adb forward --remove tcp:9222
 adb install -r "$APK"
-adb shell dumpsys package "$PACKAGE" | grep -E 'versionCode=14([[:space:]]|$)'
+adb shell dumpsys package "$PACKAGE" | grep -E 'versionCode=15([[:space:]]|$)'
 adb shell am start -n "$PACKAGE/.MainActivity"
 forward_upgrade_probe
 node android-shell/tests/check-webview.cjs upgrade-verify "$UPGRADE_BASELINE"
@@ -277,7 +277,7 @@ for width in 411 360; do
       python3 android-shell/tests/tap-android-ui.py 'Close app'
     fi
   fi
-  for screen in home log dex more history care; do
+  for screen in home log dex more history care habits workouts progressions campaigns notifications; do
     node android-shell/tests/check-webview.cjs screen-parity "$screen" "$VISUAL_DIR/web-screen-parity.json" "$width"
     # Allow the Android compositor to present the new WebView frame before screencap.
     sleep 1

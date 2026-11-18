@@ -194,7 +194,7 @@ window.fdHabitsView=()=>{
  const awards=model().awards.map(a=>awardDetails(a.id)).filter(Boolean);
  return '<section class="fd-care-page fd-habits"><div class="fd-care-top">'
   +'<button type="button" class="fd-care-back" onclick="fdHabitsBack()">‹ '+(origin==='more'?'More':'Home')+'</button>'
-  +'<h1>Habits</h1><p>Don’t break the chain</p></div>'
+  +'<h1>Habits</h1></div>'
   +dateField(date)
   +(date===today()&&missing&&!alreadyUsed?'<button type="button" class="primary fd-habit-none" onclick="fdHabitsNoneToday()">None today</button>':'')
   +CATEGORIES.map(cat=>checkIn(cat,date)).join('')

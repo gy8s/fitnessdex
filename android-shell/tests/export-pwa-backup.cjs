@@ -84,7 +84,7 @@ async function main(output) {
       }
     }
     await fs.writeFile(path.join(visualDir, 'web-screen-parity.json'), JSON.stringify(parity, null, 2));
-    console.log('PASS: captured v0.8.7 web reference screens at 360px and 411px');
+    console.log('PASS: captured web reference screens at 360px and 411px');
     await page.goto(origin + '/test-profile');
 
     const profile = testProfile();

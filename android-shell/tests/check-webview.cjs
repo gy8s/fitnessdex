@@ -169,7 +169,7 @@ async function findTarget() {
     const reference = references[band + '-' + screen.name];
     assert.equal(state.heading, reference.heading);
     assert.deepEqual(state.tabs, reference.tabs);
-    console.log('PASS: Android ' + screen.name + ' matches v0.8.9 screen and navigation at ' + state.width + 'px');
+    console.log('PASS: Android ' + screen.name + ' matches the web screen and navigation at ' + state.width + 'px');
     return;
   }
   if (stage === 'upgrade-baseline' || stage === 'upgrade-verify') {
@@ -223,7 +223,7 @@ async function findTarget() {
   }
   if (stage === 'navigation') {
     // Read-only interaction test: clicks the real four tab buttons in disposable emulator storage.
-    const expected = [['log','What did you do?'],['dex','ExerciseDex'],['more','More'],['home','Make today count.']];
+    const expected = [['log','Log activity'],['dex','ExerciseDex'],['more','More'],['home','Training']];
     const countExpr = "(() => { const s = JSON.parse(fdProfileStorage.getItem('fitnessdex-v01') || '{}'); return Array.isArray(s.logs) ? s.logs.length : 0; })()";
     const beforeCount = await inspect(await findTarget(), countExpr);
     for (const [targetTab, label] of expected) {
@@ -624,7 +624,7 @@ async function findTarget() {
          hostname: location.hostname,
          version: document.querySelector('meta[name="fitnessdex-version"]')?.content,
          rendered: !!document.querySelector('.fd-landing-hero'),
-         homeText: document.querySelector('#app')?.textContent?.includes('Make today count.'),
+         homeText: document.querySelector('.fd-landing-primary')?.textContent?.includes('Log an activity'),
          nav: !!document.querySelector('main .nav'),
          cloudClient: !!window.supabase?.createClient,
          webUpdater: !!document.querySelector('script[src="./updates.js"]')

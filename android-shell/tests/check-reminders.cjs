@@ -105,7 +105,7 @@ async function main() {
         port = adb('forward', 'tcp:0', 'localabstract:webview_devtools_remote_' + reopened);
         reopenedPid = reopened;
       }
-      return evaluate("document.querySelector('.fd-care-page h1')?.textContent === 'Your routine'", port);
+      return evaluate("document.querySelector('.fd-care-page h1')?.textContent === 'Supplements'", port);
     }, 'Supplement notification did not open its routine screen', 45);
     adb('forward', 'tcp:9222', 'localabstract:webview_devtools_remote_' + reopenedPid);
   } finally {

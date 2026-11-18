@@ -30,10 +30,10 @@ function familiar(cat=null){
  return [...records.values()].sort((a,b)=>b.uses-a.uses||b.last-a.last).slice(0,5).map(x=>x.e);
 }
 function stepLabel(position){return 'Step '+position.step+' of '+position.total;}
-function item(e,subtitle){
+function item(e){
  const paths=dexPathPositions(e.id);
  const skill=[dexDifficulty(e),paths.length===1?stepLabel(paths[0]):''].filter(Boolean).join(' · ');
- return '<button class="fd-option" type="button" onclick="fdSelectExercise(\''+e.id+'\')"><span><strong>'+esc(e.name)+'</strong><small>'+esc(skill||subtitle||familyName(e))+'</small></span><span class="fd-arrow">›</span></button>';
+ return '<button class="fd-option" type="button" onclick="fdSelectExercise(\''+e.id+'\')"><span><strong>'+esc(e.name)+'</strong><small>'+esc(skill||familyName(e))+'</small></span><span class="fd-arrow" aria-hidden="true">›</span></button>';
 }
 function exerciseHeading(e){
  const paths=dexPathPositions(e.id),difficulty=dexDifficultyTag(e);
@@ -202,10 +202,10 @@ function savedComparison(saved){
   +(compareResults(current,best.result)>0?'<strong>New personal best</strong>':'')+'</div>';
 }
 function back(label,number){return '<div class="fd-stepback"><button onclick="fdLogBack()">‹ Back</button><span>'+esc(label)+' · '+number+'/4</span></div>';}
-function frequent(cat){const r=familiar(cat);return r.length?'<section class="fd-step-section"><div class="fd-section-label"><h2>Recent & frequent</h2><small>Up to 5</small></div><div class="fd-option-list">'+r.map(e=>item(e)).join('')+'</div></section>':'';}
-function categories(){return '<div class="fd-step-screen"><header class="fd-step-hero"><small>Log activity</small><h1>What did you do?</h1></header><div class="fd-category-list">'+CATS.map(cat=>{
+function frequent(cat){const r=familiar(cat);return r.length?'<section class="fd-step-section"><div class="fd-section-label"><h2>Recent &amp; frequent</h2></div><div class="fd-option-list">'+r.map(e=>item(e)).join('')+'</div></section>':'';}
+function categories(){return '<div class="fd-step-screen"><header class="fd-step-hero"><h1>Log activity</h1></header><div class="fd-category-list">'+CATS.map(cat=>{
  const [symbol,name,note]=categoryNames[cat];
- return '<button class="fd-category-option" data-cat="'+esc(cat)+'" onclick="fdPickActivityType(this.dataset.cat)"><span class="fd-category-symbol">'+symbol+'</span><span><strong>'+esc(name)+'</strong><small>'+esc(note)+'</small></span><span class="fd-arrow">›</span></button>';
+ return '<button class="fd-category-option" data-cat="'+esc(cat)+'" onclick="fdPickActivityType(this.dataset.cat)"><span class="fd-category-symbol" aria-hidden="true">'+symbol+'</span><span><strong>'+esc(name)+'</strong><small>'+esc(note)+'</small></span><span class="fd-arrow" aria-hidden="true">›</span></button>';
  }).join('')+'</div>'+frequent()+'</div>';}
 function find(){
  const exercises=DATA.filter(e=>e.cat===category),families=[...new Set(exercises.map(familyName))].sort((a,b)=>a.localeCompare(b)),q=simplify(query);
@@ -215,17 +215,17 @@ function find(){
   content='<div class="fd-section-label"><h2>Matching exercises</h2><small>'+results.length+' found</small></div><div class="fd-option-list">'+results.slice(0,60).map(e=>item(e)).join('')+'</div>';
   if(!results.length)content='<p class="fd-step-empty">Nothing found in this activity type. Try another search.</p>';
  }else{
-  content=frequent(category)+'<section class="fd-step-section"><div class="fd-section-label"><h2>Exercise groups</h2><small>Choose a group</small></div><div class="fd-option-list fd-group-list">'+families.map(f=>{
+  content=frequent(category)+'<section class="fd-step-section"><div class="fd-section-label"><h2>Exercise groups</h2></div><div class="fd-option-list fd-group-list">'+families.map(f=>{
    const count=exercises.filter(e=>familyName(e)===f).length;
-   return '<button class="fd-option" data-group="'+esc(f)+'" onclick="fdPickExerciseGroup(this.dataset.group)"><span><strong>'+esc(f)+'</strong><small>'+count+' '+(count===1?'exercise':'variations')+'</small></span><span class="fd-arrow">›</span></button>';
+   return '<button class="fd-option" data-group="'+esc(f)+'" onclick="fdPickExerciseGroup(this.dataset.group)"><span><strong>'+esc(f)+'</strong><small>'+count+' '+(count===1?'exercise':'variations')+'</small></span><span class="fd-arrow" aria-hidden="true">›</span></button>';
   }).join('')+'</div></section>';
  }
  return '<div class="fd-step-screen">'+back('Find exercise',2)+'<header class="fd-step-hero"><small>'+esc(category)+'</small><h1>Find an exercise</h1></header><label class="fd-search-label" for="fd-exercise-search">Search exercises</label><input id="fd-exercise-search" class="fd-exercise-search" type="search" autocomplete="off" placeholder="Search exercise or group" value="'+esc(query)+'" oninput="fdExerciseQuery(this.value)"><div class="fd-find-results">'+content+'</div></div>';
 }
 function variants(){const exercises=DATA.filter(e=>e.cat===category&&familyName(e)===family);
- return '<div class="fd-step-screen">'+back('Choose variation',3)+'<header class="fd-step-hero"><small>'+esc(category)+'</small><h1>'+esc(family)+'</h1><p>Which variation did you do?</p></header><div class="fd-option-list">'+exercises.map(e=>item(e,'Select to record')).join('')+'</div></div>';
+ return '<div class="fd-step-screen">'+back('Choose variation',3)+'<header class="fd-step-hero"><small>'+esc(category)+'</small><h1>'+esc(family)+'</h1></header><div class="fd-option-list">'+exercises.map(e=>item(e)).join('')+'</div></div>';
 }
-function method(){const e=ex(chosen);return '<div class="fd-step-screen fd-method-screen">'+back('Training method',4)+exerciseHeading(e)+'<div class="fd-option-list"><button class="fd-option fd-method-choice" onclick="fdQuickLog()"><span><strong>Just log sets and reps</strong><small>Record what you actually complete, without targets</small></span><span class="fd-arrow">›</span></button><button class="fd-option fd-method-choice" onclick="fdStartProgression(\''+e.id+'\')"><span><strong>Follow a progression</strong><small>Suggested sets, variations, recovery and persistence awards</small></span><span class="fd-arrow">›</span></button></div></div>';}
+function method(){const e=ex(chosen);return '<div class="fd-step-screen fd-method-screen">'+back('Training method',4)+exerciseHeading(e)+'<div class="fd-option-list"><button class="fd-option fd-method-choice" onclick="fdQuickLog()"><span><strong>Just log sets and reps</strong><small>Record what you actually complete, without targets</small></span><span class="fd-arrow" aria-hidden="true">›</span></button><button class="fd-option fd-method-choice" onclick="fdStartProgression(\''+e.id+'\')"><span><strong>Follow a progression</strong><small>Suggested sets, variations, recovery and persistence awards</small></span><span class="fd-arrow" aria-hidden="true">›</span></button></div></div>';}
 function holdSeconds(){return Math.max(0,Math.floor((performance.now()-holdStarted)/1000));}
 function holdClock(seconds){return String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');}
 function holdTimer(){
@@ -318,7 +318,7 @@ function record(){
   +(timedHold?' id="fd-hold-save"':cardio?' id="fd-cardio-save"':'')+((running||activeCardio)?' disabled':'')+'>'
   +(l?'Save corrections':'Save activity')+'</button></div>';
  return '<div class="fd-step-screen fd-log-record">'+back('Record activity',4)+exerciseHeading(e)+'<section class="fd-entry-card"><h2>'
-  +(timedHold?'Time your hold':'What did you complete?')+'</h2>'+metrics+extra+swim+saveButton+'</section>'+details
+  +(timedHold?'Time your hold':'Activity details')+'</h2>'+metrics+extra+swim+saveButton+'</section>'+details
   +'<details class="fd-log-details"><summary>How to do this exercise</summary><p>'+esc(EXERCISE_GUIDES[e.id]||'')+'</p></details></div>';
 }
 function done(){const last=S.v4?.lastResult||{},xp=last.xpGain||0;
@@ -326,7 +326,7 @@ function done(){const last=S.v4?.lastResult||{},xp=last.xpGain||0;
  const actions=saved?.mode==='time'
   ? '<button class="primary" onclick="fdRepeatHold()">Repeat</button><button onclick="fdNextAfterHold()">Next exercise</button><button onclick="navigate(\'home\')">Finish</button>'
   : '<button class="primary" onclick="navigate(\'log\')">Log another</button><button onclick="navigate(\'home\')">Done for now</button>';
- return '<div class="fd-step-screen fd-logged"><div class="fd-logged-symbol">✓</div><small>Activity saved</small><h1>'+esc(last.exercise||'Exercise')+' logged</h1><p>'+esc(last.summary||'')+'</p>'+savedComparison(saved)+(xp?'<div class="fd-logged-xp">+'+Math.round(xp)+' XP</div>':'')+(last.milestones?.length?'<p>New milestone: '+esc(last.milestones.slice(0,2).join(' · '))+'</p>':'')+(last.challengeNames?.length?'<p>Challenge complete: '+esc(last.challengeNames.slice(0,2).join(' · '))+'</p>':'')+'<div class="fd-logged-actions">'+actions+(saved?'<button class="fd-undo-last" onclick="fdUndoLastLog()">Undo this log</button>':'')+'</div></div>';
+ return '<div class="fd-step-screen fd-logged"><div class="fd-logged-symbol" aria-hidden="true">✓</div><h1>'+esc(last.exercise||'Exercise')+' logged</h1><p>'+esc(last.summary||'')+'</p>'+savedComparison(saved)+(xp?'<div class="fd-logged-xp">+'+Math.round(xp)+' XP</div>':'')+(last.milestones?.length?'<p>New milestone: '+esc(last.milestones.slice(0,2).join(' · '))+'</p>':'')+(last.challengeNames?.length?'<p>Challenge complete: '+esc(last.challengeNames.slice(0,2).join(' · '))+'</p>':'')+'<div class="fd-logged-actions">'+actions+(saved?'<button class="fd-undo-last" onclick="fdUndoLastLog()">Undo this log</button>':'')+'</div></div>';
 }
 window.fdRepeatHold=()=>{
  const saved=S.logs.find(x=>logId(x)===S.v4?.lastResult?.logId);

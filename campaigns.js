@@ -227,7 +227,7 @@ function benchmark(def,rows){
  return output.sort((a,b)=>b.improvement/Math.max(1,b.initial)-a.improvement/Math.max(1,a.initial)).slice(0,4);
 }
 function listView(){
- return '<div class="fd-campaigns"><header class="fd-campaign-hero"><small>Long-term training</small><h1>Campaigns</h1><p>Train consistently. Build skills. Track what changes, not the number on the scale.</p></header>'+
+ return '<div class="fd-campaigns"><header class="fd-campaign-hero"><h1>Campaigns</h1></header>'+
   '<div class="fd-campaign-list">'+DEFINITIONS.map(def=>{
    const enrolled=enrollment(def.id),progress=enrolled?progressOf(def,enrolled.started):null;
    return '<button class="fd-campaign-choice" data-campaign="'+def.id+'" onclick="fdCampaignOpen(this.dataset.campaign)"><span class="fd-campaign-symbol">'+def.icon+'</span><span class="fd-campaign-copy"><strong>'+escape(def.name)+'</strong><small>'+escape(def.kind)+' · '+def.days+' training days/week</small><small>'+(progress?progress.complete+' qualifying weeks · '+(progress.activeIndex===null?'Campaign ended':'Week '+(progress.activeIndex+1)):'Not started')+'</small></span><span class="fd-arrow">›</span></button>';

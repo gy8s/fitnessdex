@@ -76,14 +76,14 @@ function carePersist(mutate,message){
  resetDerived();render();if(message)toast(message);
  return true;
 }
-const top=(sub,title,detail,back=true)=>'<div class="fd-care-top">'+(back?'<button class="fd-care-back" onclick="fdCareHome()">‹ Daily care</button>':'')+'<small>'+sub+'</small><h1>'+title+'</h1><p>'+detail+'</p></div>';
+const top=(title,detail,back=true)=>'<div class="fd-care-top">'+(back?'<button class="fd-care-back" onclick="fdCareHome()">‹ Daily care</button>':'')+'<h1>'+title+'</h1>'+(detail?'<p>'+detail+'</p>':'')+'</div>';
 const gauge=(value,max)=>'<div class="fd-care-gauge"><span style="width:'+Math.min(100,Math.max(0,Math.round(value/Math.max(1,max)*100)))+'%"></span></div>';
 const cardioLogged=day=>completedLogs().some(l=>l.date===day&&ex(l.id)?.cat==='Cardio'&&(logMetrics(l).minutes>=20||logMetrics(l).distance>=3));
 const goalChoices=choice=>[1000,1500,2000,2250,2500,2750,3000,3500,4000,4500,5000].map(x=>'<option value="'+x+'" '+(x===choice?'selected':'')+'>'+fmt(x)+'</option>').join('');
 
 function careHomePage(){
  const d=today(),w=amount(d),g=waterGoal(d),s=checkIns(d);
- return '<section class="fd-care-page">'+top('DAILY CARE','Small habits, every day','Water and supplement check-ins. No nutrition tracking.',false)+
+ return '<section class="fd-care-page">'+top('Daily care','',false)+
  '<button class="fd-care-option" onclick="fdCareWater()"><span class="fd-care-icon water">◉</span><span><strong>Hydration</strong><small>'+fmt(w)+' of '+fmt(g)+'</small>'+gauge(w,g)+'</span><b>›</b></button>'+
  '<button class="fd-care-option" onclick="fdCareSupplements()"><span class="fd-care-icon supp">◇</span><span><strong>Supplements</strong><small>'+(s.due?s.done+' of '+s.due+' scheduled today':'Register a supplement routine')+'</small></span><b>›</b></button>'+
  '<button class="fd-care-reminder-link" onclick="fdReminderOpen()"><span aria-hidden="true">◷</span><span><strong>Notifications</strong><small>Set up water and supplement reminders</small></span><b aria-hidden="true">›</b></button>'+
@@ -91,7 +91,7 @@ function careHomePage(){
 }
 function careWaterPage(){
  const d=today(),m=care(),w=amount(d,m),g=waterGoal(d,m),rows=drinks(d,m);
- return '<section class="fd-care-page">'+top('WATER','Hydration','Log water as you drink it. More is not always better.')+
+ return '<section class="fd-care-page">'+top('Hydration')+
  '<div class="fd-care-water-hero"><small>WATER TODAY</small><div><strong>'+fmt(w)+'</strong><span> / '+fmt(g)+'</span></div>'+gauge(w,g)+'<p>'+(waterMet(d,m)?'Daily target reached':fmt(Math.max(0,g-w))+' until your target')+'</p></div>'+
  (cardioLogged(d)&&g<Math.min(5000,m.water.baseGoal+500)?'<div class="fd-care-active-suggest"><strong>Cardio logged today</strong><p>For a longer or sweaty session, you might prefer a higher water goal. You decide.</p><button onclick="fdCareActiveGoal()">Use '+fmt(Math.min(5000,m.water.baseGoal+500))+' goal</button></div>':'')+
  '<div class="fd-care-section-title">Add water</div><div class="fd-care-add-row">'+[250,500,750].map(x=>'<button onclick="fdCareAddWater('+x+')"><b>+'+x+'</b><small>ml</small></button>').join('')+'</div>'+
@@ -117,7 +117,7 @@ function routineRow(x,date){
 }
 function careSuppPage(){
  const m=care(),d=today(),all=m.supplements.items.filter(x=>!x.archivedAt),list=due(d,m),other=all.filter(x=>!list.includes(x)),state=checkIns(d,m);
- return '<section class="fd-care-page">'+top('SUPPLEMENTS','Your routine','Register each routine once; tap when you have taken it.')+
+ return '<section class="fd-care-page">'+top('Supplements')+
  '<div class="fd-care-supp-hero"><div><strong>'+state.done+'</strong><span> / '+state.due+'</span></div><p>scheduled check-ins today</p>'+gauge(state.done,state.due)+'</div>'+
  '<div class="fd-care-section-title">Scheduled today</div>'+
  '<div class="fd-care-routines">'+(list.length?list.map(x=>routineRow(x,d)).join(''):'<p class="fd-care-note">No supplements scheduled today.</p>')+'</div>'+
@@ -130,7 +130,7 @@ function careSuppPage(){
 }
 function careEditPage(){
  const x=care().supplements.items.find(v=>v.id===careEdit);
- return '<section class="fd-care-page">'+top('SUPPLEMENT ROUTINE',x?'Edit routine':'Register supplement','Set your preferred schedule. FitnessDex does not recommend doses or medically optimal times.')+
+ return '<section class="fd-care-page">'+top(x?'Edit routine':'Register supplement','Choose your own schedule. Follow product or clinician guidance.')+
  '<div class="fd-care-form"><label for="fd-care-name">Supplement name</label><input id="fd-care-name" maxlength="70" value="'+esc(x?.name||'')+'" placeholder="e.g. Vitamin D">'+
  '<label for="fd-care-note">Dose or note (optional)</label><input id="fd-care-note" maxlength="100" value="'+esc(x?.note||'')+'" placeholder="Follow product directions">'+
  '<label for="fd-care-time">Your usual time (optional)</label><input type="time" id="fd-care-time" value="'+esc(x?.time||'')+'">'+

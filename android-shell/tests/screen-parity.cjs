@@ -3,12 +3,17 @@
 const assert = require('node:assert/strict');
 
 const screens = [
-  { name:'home', tab:'home', heading:'Make today count.' },
-  { name:'log', tab:'log', heading:'What did you do?' },
+  { name:'home', tab:'home', heading:'Training' },
+  { name:'log', tab:'log', heading:'Log activity' },
   { name:'dex', tab:'dex', heading:'ExerciseDex' },
   { name:'more', tab:'more', heading:'More' },
   { name:'history', tab:'more', option:'History & data', heading:'History & data' },
-  { name:'care', tab:'more', option:'Daily care', heading:'Small habits, every day' }
+  { name:'care', tab:'more', option:'Daily care', heading:'Daily care' },
+  { name:'habits', tab:'more', option:'Habits', heading:'Habits' },
+  { name:'workouts', tab:'more', option:'Workouts', heading:'Workouts' },
+  { name:'progressions', tab:'more', option:'Progressions', heading:'Progressions' },
+  { name:'campaigns', tab:'more', option:'Campaigns', heading:'Campaigns' },
+  { name:'notifications', tab:'more', option:'Notifications', heading:'Reminders' }
 ];
 
 function inspectScreen(screen) {
@@ -33,6 +38,7 @@ function inspectScreen(screen) {
     controls: [...app.querySelectorAll('button')].filter(button => button.offsetHeight > 0).length,
     tabs: tabs.map(button => button.textContent.trim()),
     allTabsReachable,
+    activeTab: nav.querySelector('button[aria-current=page]')?.dataset.tab,
     headerVisible: header.top >= 0 && header.bottom <= innerHeight,
     fitsWidth: document.documentElement.scrollWidth <= innerWidth + 1,
     width: innerWidth,
@@ -45,6 +51,7 @@ function verifyScreen(screen, state) {
   assert(state.heading?.startsWith(screen.heading), JSON.stringify({ screen:screen.name, state }));
   assert.deepEqual(state.tabs, ['Home', 'Log', 'ExerciseDex', 'More']);
   assert(state.controls > 0, screen.name + ' has no usable controls');
+  assert.equal(state.activeTab, screen.tab, screen.name + ' has no accessible current tab');
   assert(state.allTabsReachable, screen.name + ' has obstructed navigation');
   assert(state.headerVisible, screen.name + ' header is outside the viewport');
   assert(state.fitsWidth, screen.name + ' overflows at ' + state.width + 'px');

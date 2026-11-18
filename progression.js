@@ -108,7 +108,7 @@ function chooseExercise(id){
 function scrollTop(){window.scrollTo({top:0,behavior:'instant'});}
 function list(){
  const list=model().tracks.slice().reverse();
- return '<section class="fd-p-page"><div class="fd-p-heading"><small>TRAINING MODE</small><h1>Your progressions</h1><p>Every real set counts. Develop repetitions, variations, or both.</p></div>'+
+ return '<section class="fd-p-page"><div class="fd-p-heading"><h1>Progressions</h1></div>'+
   '<div class="fd-p-list">'+list.map(t=>'<button class="fd-p-card" onclick="fdProgHub(\''+t.id+'\')"><strong>'+escP(ex(t.baseId)?.name||t.baseId)+'</strong><span>'+escP(FOCI[t.focus])+' · '+sessions(t.id).length+' saved sessions</span><b>›</b></button>').join('')+'</div>'+
   (!list.length?'<p class="hint">No progression tracks yet. Choose an exercise to begin one.</p>':'')+
   '<button class="fd-p-primary" onclick="navigate(\'log\')">Choose an exercise</button></section>';
@@ -117,7 +117,7 @@ function setup(){
  const e=ex(view.exercise),last=observedBest(e.id);
  const choices=variants(e.id).filter(x=>x.id!==e.id);
  return '<section class="fd-p-page"><button class="fd-p-back" onclick="fdProgBack()">‹ Back</button>'+
-  '<div class="fd-p-heading"><small>NEW PROGRESSION</small><h1>'+escP(e.name)+'</h1><p>Choose how to develop this movement. Targets are adjustable, and every variation remains independent.</p></div>'+
+  '<div class="fd-p-heading"><small>NEW PROGRESSION</small><h1>'+escP(e.name)+'</h1></div>'+
   '<div class="fd-p-form"><label for="fd-p-focus">What do you want to develop?</label><select id="fd-p-focus" onchange="fdProgFocusChanged(this.value)">'+Object.keys(FOCI).map(x=>'<option value="'+x+'">'+FOCI[x]+'</option>').join('')+'</select>'+
   '<div class="fd-p-variant-config" id="fd-p-variant-config" hidden><label for="fd-p-variant">A variation to practice</label><select id="fd-p-variant">'+choices.map(x=>'<option value="'+x.id+'">'+escP(x.name)+'</option>').join('')+'</select>'+
   (choices.length?'':'<p class="hint">No other variation with comparable logging units is available for this movement.</p>')+'</div>'+
@@ -140,7 +140,7 @@ function hub(){
  const best=observedBest(t.baseId),primary=metricsFor(t,t.baseId);
  const supports=plateau(t,t.baseId)?support(t):[];
  return '<section class="fd-p-page"><button class="fd-p-back" onclick="fdProgBack()">‹ Progressions</button>'+
-  '<div class="fd-p-heading"><small>'+escP(FOCI[t.focus])+'</small><h1>'+escP(ex(t.baseId).name)+'</h1><p>Only your completed sets determine improvement. Session targets are suggestions you can change.</p></div>'+
+  '<div class="fd-p-heading"><small>'+escP(FOCI[t.focus])+'</small><h1>'+escP(ex(t.baseId).name)+'</h1><p>Adjust the suggested targets as needed.</p></div>'+
   '<div class="fd-p-stats"><div><strong>'+done.length+'</strong><span>Sessions</span></div><div><strong>'+best+'</strong><span>Best recorded set</span></div><div><strong>+'+primary.level+'</strong><span>Target increases</span></div></div>'+
   (draft?.trackId===t.id?'<button class="fd-p-primary" onclick="fdProgResume()">Resume unfinished session</button>':draft?'<div class="fd-p-support"><strong>Another session is unfinished</strong><p>You can resume it or discard that unsaved draft before starting here.</p><button onclick="fdProgResume()">Resume unfinished session</button><button onclick="fdProgDiscardDraft()">Discard unfinished draft</button></div>':'<button class="fd-p-primary" onclick="fdProgBegin()">Begin next session</button>')+
   '<p class="fd-p-help">Targets increase after two successful sessions of each variation. Three difficult sessions can ease the targets. Switching variations does not erase progress.</p>'+
@@ -198,7 +198,7 @@ function chooseVariant(){
 function rest(){
  if(!draft)return list();
  const left=Math.max(0,Math.ceil((draft.restUntil-Date.now())/1000)),previous=draft.actual[draft.actual.length-1],miss=previous&&!previous.skipped&&previous.reps<previous.target;
- return '<section class="fd-p-page fd-p-restscreen"><button class="fd-p-back" onclick="fdProgPause()">‹ Save for later</button><div class="fd-p-heading"><small>RECOVER</small><h1>Rest before your next set</h1></div>'+
+ return '<section class="fd-p-page fd-p-restscreen"><button class="fd-p-back" onclick="fdProgPause()">‹ Save for later</button><div class="fd-p-heading"><h1>Rest before your next set</h1></div>'+
   '<strong class="fd-p-restclock" id="fd-p-rest-count">'+formatTime(left)+'</strong>'+
   (previous&&!previous.skipped?'<div class="fd-v3-rest-status '+(miss?'is-adjusted':'is-met')+'"><span aria-hidden="true">'+(miss?'↗':'✓')+'</span><div><strong>Set logged · '+previous.reps+' / '+previous.target+' reps</strong><small>'+(miss?'You can switch to another variation next.':'Target met. Recover before continuing.')+'</small></div></div>':'')+
   (miss?'<p class="fd-p-help">Missed targets don’t erase your session. Rest or change variation as needed.</p>':'<p class="fd-p-help">Rest as needed. You can continue or end the session without penalty.</p>')+

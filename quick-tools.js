@@ -80,7 +80,7 @@ window.fdQuickRepeatHome=()=>{
 window.fdCareQuickHome=()=>{
  if(!window.fdCareStatus)return '';
  const status=window.fdCareStatus(),supp=status.supp||{done:0,due:0};
- return '<details class="fd-care-home-quick"><summary>Daily care <small>'+html((status.ml/1000).toLocaleString('en-GB',{maximumFractionDigits:2}))+' / '+html((status.goal/1000).toLocaleString('en-GB',{maximumFractionDigits:2}))+' L water · '+supp.done+'/'+supp.due+' supplements</small></summary><div class="fd-care-home-buttons"><button onclick="fdCareAddWater(250)">+250 ml water</button><button onclick="fdCareSupplements()">Supplements</button></div></details>';
+ return '<details class="fd-care-home-quick"><summary>Quick check-in <small>'+html((status.ml/1000).toLocaleString('en-GB',{maximumFractionDigits:2}))+' / '+html((status.goal/1000).toLocaleString('en-GB',{maximumFractionDigits:2}))+' L water · '+supp.done+'/'+supp.due+' supplements</small></summary><div class="fd-care-home-buttons"><button onclick="fdCareAddWater(250)">+250 ml water</button><button onclick="fdCareSupplements()">Supplements</button></div></details>';
 };
 window.fdUndoLastLog=()=>{
  const id=S.v4?.lastResult?.logId;
