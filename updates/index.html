@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#10171a">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src https://ntepqkhftnnwtowpuggt.supabase.co; base-uri 'none'; form-action 'none'">
+  <title>FitnessDex updates</title>
+  <link rel="stylesheet" href="./updates.css">
+  <script src="./download.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>FitnessDex updates</h1>
+    <section aria-label="Latest Android release">
+      <div id="release" role="status" aria-live="polite" aria-atomic="true">
+        <p class="label">Latest Android version</p>
+        <p id="version" class="version">Checking…</p>
+        <p id="published" hidden>Published <time id="publish-date"></time></p>
+      </div>
+      <p id="notice" role="status" hidden></p>
+      <a id="download" class="download" hidden>Download APK</a>
+      <p id="instructions" class="instructions" hidden>Open the downloaded file and tap <strong>Update</strong>.</p>
+      <noscript><p>Turn on JavaScript to check the latest version and download the APK.</p></noscript>
+    </section>
+  </main>
+</body>
+</html>
