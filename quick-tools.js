@@ -93,15 +93,17 @@ window.fdHistoryDate='';
 window.fdHistoryLimit=200;
 window.fdHistoryApply=()=>{
  const search=document.getElementById('fd-history-query'),date=document.getElementById('fd-history-date');
- const focused=document.activeElement===search,position=focused?search.selectionStart:0;
  window.fdHistoryQuery=(search?.value||'').slice(0,100);window.fdHistoryDate=date?.value||'';
- window.fdHistoryLimit=200;const scroll=window.scrollY;
- render();
- if(focused){const el=document.getElementById('fd-history-query');el?.focus();try{el?.setSelectionRange(position,position);}catch(e){}}
- window.scrollTo(0,scroll);
+ window.fdHistoryLimit=200;renderHistoryResults();
 };
-window.fdHistoryReset=()=>{window.fdHistoryQuery='';window.fdHistoryDate='';window.fdHistoryLimit=200;render();};
-window.fdHistoryMore=()=>{window.fdHistoryLimit=Math.min(2000,window.fdHistoryLimit+200);render();};
+window.fdHistoryReset=()=>{
+ const search=document.getElementById('fd-history-query'),date=document.getElementById('fd-history-date');
+ if(search)search.value='';
+ if(date)date.value='';
+ window.fdHistoryQuery='';window.fdHistoryDate='';window.fdHistoryLimit=200;
+ renderHistoryResults();
+};
+window.fdHistoryMore=()=>{window.fdHistoryLimit=Math.min(2000,window.fdHistoryLimit+200);renderHistoryResults();};
 const onFormInput=e=>{
  const el=e.target;if(!el?.closest?.('#app'))return;
  if(tab==='log'&&(editId||window.fdLogStage?.()==='record'))collectDraft();

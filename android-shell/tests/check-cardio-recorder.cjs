@@ -21,7 +21,12 @@ function field(id) {
 }
 
 function boot() {
-  const window = { Capacitor: { Plugins: { Steps: { status: async () => ({ ...snapshot }) } } } };
+  const events = new Map();
+  const window = {
+    Capacitor: { Plugins: { Steps: { status: async () => ({ ...snapshot }) } } },
+    addEventListener: (name, run) => events.set(name, run),
+    recordSaved: () => events.get('fitnessdex:saved')()
+  };
   class TestDate extends Date { static now() { return now; } }
   vm.runInNewContext(script, {
     window, Date: TestDate, document: { addEventListener() {} }, setInterval() {},
@@ -57,14 +62,24 @@ async function test() {
   assert.equal(session.elapsedMs, 180000);
   assert.equal(field('extra').value, '3');
 
-  const total = {}, reopen = {};
-  recorder.fdCardioHome(snapshot, total, reopen);
-  assert.equal(total.textContent, '240 in sessions · 170 other steps');
+  const reopen = {};
+  let historyScans = 0;
+  logs.reduce = function (...args) {
+    historyScans++;
+    return Array.prototype.reduce.apply(this, args);
+  };
+  assert.equal(recorder.fdCardioHome(snapshot,reopen,false),'');
+  assert.equal(historyScans,0);
+  assert.equal(recorder.fdCardioHome(snapshot,reopen,true),'240 in sessions · 170 other steps');
+  assert.equal(recorder.fdCardioHome(snapshot,reopen,true),'240 in sessions · 170 other steps');
+  assert.equal(historyScans,1,'Repeated Home reads must reuse the previous saved steps total');
   logs.push({ at: session.id, cardioSteps: { total: session.total, today: session.today, day: session.day, source: session.source } });
-  recorder.fdCardioHome(snapshot, total, reopen);
-  assert.equal(total.textContent, '240 in sessions · 170 other steps');
+  assert.equal(recorder.fdCardioHome(snapshot,reopen,true),'240 in sessions · 170 other steps');
   assert.equal(reopen.hidden, true);
   assert.equal(draft.size, 0);
+  logs[0].cardioSteps.today = 200;
+  recorder.recordSaved();
+  assert.equal(recorder.fdCardioHome(snapshot,reopen,true),'200 in sessions · 210 other steps');
 
   await recorder.fdCardioAction('start');
   now = Date.parse('2026-11-18T00:01:00Z');
@@ -80,4 +95,65 @@ async function test() {
   assert.equal(recorder.fdCardioForSave(walk), null);
   console.log('PASS: cardio timer recovery, pause/resume steps, midnight, and no double counting after save');
 }
-test().catch(error => { console.error(error); process.exitCode = 1; });
+async function testHomeRefresh() {
+  const source = fs.readFileSync(path.join(__dirname, '../src/native-steps.js'), 'utf8');
+  const nodes = new Map();
+  const reads = [];
+  function node(key) {
+    if (!nodes.has(key)) {
+      let text = '';
+      nodes.set(key,{
+        open:false, hidden:false, writes:0,
+        querySelector:node,
+        addEventListener(name,run) { this[name] = run; },
+        get textContent() { return text; },
+        set textContent(value) { this.writes++;text = value; }
+      });
+    }
+    return nodes.get(key);
+  }
+  node('.nav button.active').dataset = {tab:'home'};
+  let refresh;
+  const current = {...snapshot,today:200,running:true,enabled:true};
+  vm.runInNewContext(source,{
+    window:{
+      Capacitor:{Plugins:{Steps:{
+        status:() => new Promise(resolve => reads.push(resolve)),
+        disable:async () => ({...current,today:205,running:false,enabled:false})
+      }}},
+      fdCardioHome:(_state,_resume,open) => open ? '50 in sessions · 150 other steps' : ''
+    },
+    document:{querySelector:node,addEventListener() {}},
+    MutationObserver:class { observe() {} },
+    setInterval:run => { refresh = run; }
+  });
+  async function finishRead(state) {
+    reads.shift()(state);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+
+  refresh();
+  assert.equal(reads.length,1,'Only one Home status check should be in flight');
+  await finishRead(current);
+  const output = node('output');
+  const breakdown = node('#fd-step-breakdown');
+  assert.equal(output.textContent,'200');
+  assert.equal(breakdown.writes,0,'The closed breakdown should not be updated');
+  refresh();
+  await finishRead(current);
+  assert.equal(output.writes,1,'The same step count should not be redrawn');
+
+  const details = node('.fd-step-details');
+  details.open = true;
+  details.toggle();
+  await finishRead(current);
+  assert.match(breakdown.textContent,/50 in sessions/);
+  refresh();
+  await node('#fd-toggle-steps').click();
+  await finishRead(current);
+  assert.equal(output.textContent,'205','An earlier reading should not replace a newer toggle result');
+  assert.equal(node('#fd-toggle-steps').textContent,'Enable steps');
+  console.log('PASS: Home steps avoid repeat draws and ignore older readings after a toggle.');
+}
+
+test().then(testHomeRefresh).catch(error => { console.error(error); process.exitCode = 1; });

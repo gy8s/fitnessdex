@@ -224,6 +224,28 @@ cvWin.fdUndoLastLog();
 assert(!cvApp.state().logs.some(l=>l.at===loggedId),'Undo failed to remove the latest saved log');
 assert.equal(cvApp.state().logs.length,211,'Undo must preserve earlier exercises');
 assert(cvApp.validBackup(cvApp.state()),'Undo produced an invalid backup');
+cvApp.navigate('history');
+const historyPage=cv.doc.getElementById('app').innerHTML;
+const historySearch=cv.doc.getElementById('fd-history-query');
+const historyResults=cv.doc.getElementById('fd-history-results');
+const historyLogs=cvApp.state().logs;
+let historyCopies=0;
+historyLogs.slice=function(...args){historyCopies++;return Array.prototype.slice.apply(this,args);};
+historySearch.value='older walking';
+cvWin.fdHistoryApply();
+assert.match(historyResults.innerHTML,/210 matching records/);
+historySearch.value='older walking record 209';
+cvWin.fdHistoryApply();
+assert.match(historyResults.innerHTML,/1 matching records/);
+assert.match(historyResults.innerHTML,/deleteLog\('older-walk-209'\)/);
+assert.equal(cv.doc.getElementById('app').innerHTML,historyPage,'Filtering History must keep the search form and tools in place');
+assert.equal(historyCopies,0,'Filtering History must reuse the sorted records');
+cvWin.fdHistoryReset();
+assert.equal(historySearch.value,'');
+assert.match(historyResults.innerHTML,/Show next 200 records/);
+cvWin.fdHistoryMore();
+assert.doesNotMatch(historyResults.innerHTML,/Show next 200 records/);
+delete historyLogs.slice;
 console.log('Convenience smoke checks passed: repeat, draft, full-history search, save and undo.');
 
 const held=(id,value,age,side)=>{

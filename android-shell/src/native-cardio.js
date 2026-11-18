@@ -13,6 +13,12 @@
     session = null;
   }
   let busy = false;
+  let logList, logCount, checkedSession, savedSteps;
+
+  function clearHistoryCache() {
+    checkedSession = null;
+    savedSteps = null;
+  }
 
   function store(next) {
     try {
@@ -93,7 +99,14 @@
   }
 
   function recover() {
-    if (session && S.logs.some(log => log.at === session.id)) {
+    if (logList !== S.logs || logCount !== S.logs.length) {
+      logList = S.logs;
+      logCount = S.logs.length;
+      clearHistoryCache();
+    }
+    if (!session || checkedSession === session.id) return;
+    checkedSession = session.id;
+    if (logList.some(log => log.at === session.id)) {
       session = null;
       try { localStorage.removeItem(storageKey); } catch {}
     }
@@ -169,23 +182,26 @@
     if (session && choose(session.exercise)) refreshControls();
   };
 
-  window.fdCardioHome = (snapshot, output, resume) => {
+  window.fdCardioHome = (snapshot, resume, showBreakdown) => {
     recover();
-    resume.hidden = !session;
-    if (!snapshot.available) {
-      output.textContent = '';
-      return;
+    if (resume.hidden !== !session) resume.hidden = !session;
+    if (!showBreakdown || !snapshot.available) return '';
+    if (!savedSteps || savedSteps.day !== snapshot.day || savedSteps.source !== snapshot.source) {
+      const total = logList.reduce((sum, log) => {
+        const steps = log.cardioSteps;
+        return steps && steps.day === snapshot.day && steps.source === snapshot.source ? sum + steps.today : sum;
+      }, 0);
+      savedSteps = { day: snapshot.day, source: snapshot.source, total };
     }
-    const saved = S.logs.reduce((sum, log) => sum + (log.cardioSteps?.day === snapshot.day
-      && log.cardioSteps.source === snapshot.source ? log.cardioSteps.today : 0), 0);
     const current = session ? counts(session, snapshot) : null;
-    const inSessions = Math.min(snapshot.today, saved
+    const inSessions = Math.min(snapshot.today, savedSteps.total
       + (current?.source === snapshot.source ? current.today : 0));
-    output.textContent = snapshot.today > 0 || current?.measured
+    return snapshot.today > 0 || current?.measured
       ? inSessions.toLocaleString() + ' in sessions · ' + (snapshot.today - inSessions).toLocaleString() + ' other steps'
       : '';
   };
 
+  window.addEventListener('fitnessdex:saved', clearHistoryCache);
   document.addEventListener('visibilitychange', refresh);
   setInterval(refresh, 1000);
 })();

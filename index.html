@@ -215,8 +215,8 @@ function loadState(){
   return parsed;
 }
 let S=loadState(), tab='home', cat='All', search='', chosen='e004', editId=null, activeSessionId=null, chosenTime=localTime(new Date()), messageQueue=[];
-const CACHE = {stats:{},logs:{},completed:null,earned:null};
-function resetDerived(){CACHE.stats={};CACHE.logs={};CACHE.completed=null;CACHE.earned=null;}
+const CACHE = {stats:{},logs:{},completed:null,earned:null,history:null};
+function resetDerived(){CACHE.stats={};CACHE.logs={};CACHE.completed=null;CACHE.earned=null;CACHE.history=null;}
 const DIFFICULTY = {'e001':0.42,'e002':0.6,'e003':0.68,'e004':1,'e005':1.12,'e006':1.35,'e007':1.2,'e008':1.65,'e009':1.75,'e053':1.6,'e054':2.1,'e011':0.7,'e012':0.78,'e013':1.2,'e014':1.5,'e015':1.8,'e016':2.2,'e060':0.65,'e061':0.6,'e062':1.1,'e074':0.65,'e075':0.85,'e076':1.1,'e077':1.7};
 const DISCOVERY_BASELINE = {'e045':{kind:'distance',minimum:0.5,unit:'km'},'e046':{kind:'distance',minimum:0.5,unit:'km'},'e047':{kind:'distance',minimum:0.5,unit:'km'},'e048':{kind:'distance',minimum:2,unit:'km'},'e049':{kind:'distance',minimum:2,unit:'km'},'e050':{kind:'minutes',minimum:5,unit:'min'},'e051':{kind:'minutes',minimum:5,unit:'min'},'e052':{kind:'minutes',minimum:2,unit:'min'}};
 const CARDIO_VENUE_IDS=new Set(['e050','e051','e121','e122','e123','e124','e125','e126']);
@@ -1114,13 +1114,20 @@ function logDescription(l){const e=ex(l.id);if(!e)return 'Unknown exercise';cons
  const pace=isFootCardio(l.id)&&x.distance>0&&x.minutes>0?Math.round(60*x.minutes/x.distance):null;
  return `${round(x.distance,2)} km${x.minutes?` · ${round(x.minutes,1)} min`:''}${recorded?` · ${recorded.total.toLocaleString()} steps`:''}${pace!==null?` · ${Math.floor(pace/60)}:${String(pace%60).padStart(2,'0')}/km`:''}`;
 }
-function history(){
+function historyResults(){
  const q=String(window.fdHistoryQuery||'').toLocaleLowerCase().trim(),date=String(window.fdHistoryDate||'');
- const all=S.logs.slice().sort((a,b)=>logWhen(b)-logWhen(a));
+ const all=CACHE.history??(CACHE.history=S.logs.slice().sort((a,b)=>logWhen(b)-logWhen(a)));
  const matching=all.filter(l=>(!date||l.date===date)&&(!q||[ex(l.id)?.name||'',l.id,l.notes||''].some(v=>String(v).toLocaleLowerCase().includes(q))));
  const logs=matching.slice(0,Math.min(2000,window.fdHistoryLimit||200));
+ return `${(q||date||matching.length>logs.length)?`<p class="hint">${matching.length} matching records${matching.length>logs.length?' · Showing '+logs.length:''}</p>`: ''}<div class="stack fd-history-entries">${logs.map(l=>`<div class="entry"><div><div class="name">${esc(ex(l.id)?.name||l.id)} <span class="pill">${esc(l.date)}</span></div><div class="sub">${esc(logDescription(l))}${ms(l.performedAt)>Date.now()?' · FUTURE':''}</div></div><div class="row"><button class="small" onclick="editLog('${esc(logId(l))}')">Edit</button><button class="small" onclick="deleteLog('${esc(logId(l))}')">Delete</button></div></div>`).join('')||`<p class="muted">${q||date?"No matching exercise records.":"No exercise records yet."}</p>`}</div>${matching.length>logs.length?'<button class="small fd-history-more" onclick="fdHistoryMore()">Show next 200 records</button>':''}`;
+}
+function renderHistoryResults(){
+ const target=$('fd-history-results');
+ if(target)target.innerHTML=historyResults();
+}
+function history(){
  return `<div class="card fd-history"><div class="fd-history-title"><h2>History &amp; data</h2><p>${S.logs.length} exercise records · ${(S.v5?.workouts||[]).filter(w=>S.logs.some(l=>l.sessionId===w.id)).length} confirmed workouts</p></div><button type="button" class="small fd-history-tools-link" onclick="openHistoryTools()">Data tools</button>
- <div class="fd-history-filters"><label>Search exercises<input id="fd-history-query" type="search" placeholder="Exercise name or notes" value="${esc(window.fdHistoryQuery||'')}" oninput="fdHistoryApply()"></label><label>Date<input id="fd-history-date" type="date" value="${esc(window.fdHistoryDate||'')}" onchange="fdHistoryApply()"></label><button onclick="fdHistoryReset()">Clear filters</button></div>${(q||date||matching.length>logs.length)?`<p class="hint">${matching.length} matching records${matching.length>logs.length?' · Showing '+logs.length:''}</p>`: ''}<div class="stack fd-history-entries">${logs.map(l=>`<div class="entry"><div><div class="name">${esc(ex(l.id)?.name||l.id)} <span class="pill">${esc(l.date)}</span></div><div class="sub">${esc(logDescription(l))}${ms(l.performedAt)>Date.now()?' · FUTURE':''}</div></div><div class="row"><button class="small" onclick="editLog('${esc(logId(l))}')">Edit</button><button class="small" onclick="deleteLog('${esc(logId(l))}')">Delete</button></div></div>`).join('')||`<p class="muted">${q||date?"No matching exercise records.":"No exercise records yet."}</p>`}</div>${matching.length>logs.length?'<button class="small fd-history-more" onclick="fdHistoryMore()">Show next 200 records</button>':''}
+ <div class="fd-history-filters"><label>Search exercises<input id="fd-history-query" type="search" maxlength="100" placeholder="Exercise name or notes" value="${esc(window.fdHistoryQuery||'')}" oninput="fdHistoryApply()"></label><label>Date<input id="fd-history-date" type="date" value="${esc(window.fdHistoryDate||'')}" onchange="fdHistoryApply()"></label><button onclick="fdHistoryReset()">Clear filters</button></div><div id="fd-history-results">${historyResults()}</div>
  <details id="fd-history-tools" class="fd-log-details fd-history-tools"><summary>Data &amp; backups</summary>
  <div class="row" style="justify-content:flex-start;flex-wrap:wrap"><button onclick="exportData()">Export complete backup</button><button onclick="exportPreMigration()">Download pre-migration backup</button><button onclick="exportPreV04()">Download pre-v0.4 backup</button><button onclick="restoreBeforeImport()">Restore pre-import save</button><button onclick="$('importFile').click()">Import validated backup</button><button onclick="addRecovery()">Record recovery day</button>${(S.recoveryDays||[]).includes(today())?`<button onclick="removeRecovery()">Remove today’s recovery mark</button>`:''}</div>${recoveryPanel()}<input id="importFile" type="file" accept="application/json,.json" hidden></details></div>`;
 }
