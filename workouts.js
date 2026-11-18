@@ -10,7 +10,10 @@
     return S.v5;
   }
   function confirmedWorkouts() { return model().workouts.filter(w => w && typeof w.id==='string' && typeof w.name==='string'); }
-  function namedWorkout(id) {return confirmedWorkouts().find(w=>w.id===id);}
+  function namedWorkout(id) {
+    if(!CACHE.workoutIndex)CACHE.workoutIndex=new Map(confirmedWorkouts().reverse().map(w=>[w.id,w]));
+    return CACHE.workoutIndex.get(id);
+  }
   function isInWorkout(l) {return !!(l.sessionId && namedWorkout(l.sessionId));}
   function timeOf(l) {return l?.performedAt ? new Date(l.performedAt).getTime() : NaN;}
   function validTime(l) {return Number.isFinite(timeOf(l));}
@@ -103,7 +106,16 @@
     return `<div class="fd-w-row"><div><b>${esc(ex(l.id)?.name||l.id)}</b><div class="fd-w-muted">${esc(l.date)} · ${validTime(l)?esc(localTime(new Date(l.performedAt))):'Time not recorded'} · ${esc(logDescription(l))}</div></div><div class="fd-w-controls"><button onclick="editLog('${esc(logId(l))}')">Edit</button>${grouped?`<button onclick="fdRemoveFromWorkout('${esc(logId(l))}')">Separate</button>`:''}</div></div>`;
   }
   function workoutsScreen(){
-    const workouts=confirmedWorkouts().map(w=>({...w,rows:S.logs.filter(l=>l.sessionId===w.id).sort((a,b)=>timeOf(a)-timeOf(b))})).filter(w=>w.rows.length).sort((a,b)=>Math.max(...b.rows.map(timeOf))-Math.max(...a.rows.map(timeOf)));
+    const recordsByWorkout=new Map();
+    for(const log of S.logs){
+      if(!log.sessionId)continue;
+      if(!recordsByWorkout.has(log.sessionId))recordsByWorkout.set(log.sessionId,[]);
+      recordsByWorkout.get(log.sessionId).push(log);
+    }
+    const workouts=confirmedWorkouts().filter(w=>recordsByWorkout.has(w.id)).map(w=>{
+      const rows=recordsByWorkout.get(w.id).sort((a,b)=>timeOf(a)-timeOf(b));
+      return {...w,rows,latest:rows.reduce((last,row)=>Math.max(last,timeOf(row)),-Infinity)};
+    }).sort((a,b)=>b.latest-a.latest);
     const singles=standaloneRows().slice().sort((a,b)=>timeOf(b)-timeOf(a));
     if(!workouts.length&&!singles.length){
       return '<div class="fd-w-page"><div class="fd-w-hero"><h1>Workouts</h1></div><div class="card fd-w-empty"><p>Log activities to group them into a workout here.</p><button class="primary" onclick="navigate(\'log\')">Log an activity</button></div></div>';
@@ -115,15 +127,12 @@
   }
 
   window.fdWorkoutSelector=function(l){
-    const groups=confirmedWorkouts().filter(w=>S.logs.some(x=>x.sessionId===w.id&&x.date===(l?.date||today())));
+    const day=l?.date||today();
+    const sessions=new Set(S.logs.filter(row=>row.sessionId&&row.date===day).map(row=>row.sessionId));
+    const groups=confirmedWorkouts().filter(w=>sessions.has(w.id));
     const old=!!(l?.sessionId&&!groups.some(w=>w.id===l.sessionId));
     const selected=old?'legacy':groups.some(w=>w.id===l?.sessionId)?l.sessionId:groups.some(w=>w.id===activeSessionId)?activeSessionId:'standalone';
     return `<div class="field"><label>How to save this activity</label><select id="session"><option value="standalone" ${selected==='standalone'?'selected':''}>Standalone exercise (default)</option><option value="new">Start a workout</option>${old?'<option value="legacy" selected>Keep previous session assignment (older record)</option>':''}${groups.map(w=>`<option value="${esc(w.id)}" ${w.id===selected?'selected':''}>Add to ${esc(w.name)}</option>`).join('')}</select><p class="hint">Single sets and spontaneous exercise breaks count on their own. After 3 different exercises close together, FitnessDex can suggest a workout. Nothing is grouped without your approval.</p></div>`;
-  };
-  workoutGroups = function(rows){
-    const groups=new Map();
-    for(const l of rows){if(!namedWorkout(l.sessionId))continue;if(!groups.has(l.sessionId))groups.set(l.sessionId,[]);groups.get(l.sessionId).push(l);}
-    return [...groups.values()].filter(group=>new Set(group.map(l=>l.id)).size>=2||group.reduce((total,l)=>total+logMetrics(l).sets,0)>=3||group.some(l=>ex(l.id)?.cat==='Cardio'&&logMetrics(l).minutes>=20));
   };
   countSessions = function(rows){return new Set(rows.map(l=>namedWorkout(l.sessionId)?l.sessionId:'single-'+(logId(l)||l.date+'-'+l.id))).size;};
   const formerHistory=history;

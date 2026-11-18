@@ -85,7 +85,7 @@ function carePersist(mutate,message){
  if(!S.v9)S.v9=careBlank();
  mutate(S.v9);
  if(!validCareState(S.v9)){S=JSON.parse(before);toast('Invalid daily care entry. Nothing changed.');return false;}
- if(!save()){S=JSON.parse(before);return false;}
+ if(!save(true)){S=JSON.parse(before);return false;}
  resetDerived();render();if(message)toast(message);
  return true;
 }

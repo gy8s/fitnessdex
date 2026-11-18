@@ -20,8 +20,9 @@
       if (legacy !== null) this.setItem(key, legacy);
       return legacy;
     },
-    setItem(key, value) {
-      if (window.prompt('FitnessDexStorage:write:' + key, value) !== 'saved') {
+    setItem(key, value, refreshReminders = true) {
+      const command = key === 'fitnessdex-v01' && refreshReminders ? 'write-and-refresh:' : 'write:';
+      if (window.prompt('FitnessDexStorage:' + command + key, value) !== 'saved') {
         throw Error('Could not write the Android profile');
       }
       cache.set(key, value);

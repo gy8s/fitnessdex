@@ -16,7 +16,8 @@ function fixture() {
   const requests = [];
   const timers = new Map();
   const handlers = new Map();
-  const status = [];
+  const status = [], exports = [];
+  let exportSucceeds = true;
   let timerId = 0;
   let authChanged;
 
@@ -78,7 +79,14 @@ function fixture() {
       getItem:key => storage.get(key) ?? null,
       setItem:(key,value) => storage.set(key,value)
     },
-    validBackup:() => true,
+    validBackup:data => !!data&&!data.broken,
+    backupProblem:()=>'Saved workout is incomplete.',
+    exportBlob:async(content,name)=>{
+      exports.push({content,name});
+      return exportSucceeds;
+    },
+    today:()=> '2026-11-18',
+    confirm:()=>true,
     S:profile,
     setTimeout:callback => {
       timers.set(++timerId, callback);
@@ -99,6 +107,10 @@ function fixture() {
     saveLocally:() => handlers.get('fitnessdex:saved')(),
     reconnect:() => handlers.get('online')(),
     syncNow:() => section.querySelector('#fd-sync').onclick(),
+    choose:button => section.querySelector('#fd-extra').querySelector(button).onclick?.(),
+    canReplace:() => section.querySelector('#fd-extra').innerHTML.includes('id="fd-device"'),
+    setExportResult:result => { exportSucceeds=result; },
+    exports,
     async nextTimer() {
       const entry = timers.entries().next();
       if (entry.done) return;
@@ -128,12 +140,9 @@ async function switchDuringUpload() {
   await test.flush();
   assert.match(test.status(),/Cloud save up to date/);
 
-  const remote = row(test.profile);
   test.profile.logs.push({id:'second-workout'});
   test.saveLocally();
   await test.nextTimer();
-  test.take('read','first').resolve(remote);
-  await test.flush();
   const oldWrite = test.take('update','first');
 
   test.switchAccount('second');
@@ -148,8 +157,6 @@ async function switchDuringUpload() {
   secondRead.resolve({data:null});
   await test.flush();
   await test.nextTimer();
-  test.take('read','second').resolve({data:null});
-  await test.flush();
   const newWrite = test.take('insert','second');
   assert.equal(newWrite.data.save_data.logs.length,2);
   newWrite.resolve({data:[{updated_at:stamp}]});
@@ -201,8 +208,51 @@ async function retryFirstRead(){
   assert.match(test.status(),/Choose which to keep/,'Manual sync must respect a pending conflict');
 }
 
-switchDuringUpload().then(ignoreOldReadFailure).then(retryFirstRead).then(() => {
-  console.log('Cloud backup checks passed: account switching, reconnect, manual retry, and conflict protection.');
+async function recoverCloudConflict(){
+  const test=fixture();
+  const invalid={logs:[{id:'remote-only'}],broken:true};
+  test.switchAccount('first');await test.nextTimer();
+  test.take('read','first').resolve(row(invalid));
+  await test.flush();
+  assert.match(test.status(),/needs recovery/);
+  assert.equal(test.canReplace(),false);
+  test.setExportResult(false);
+  await test.choose('#fd-copy-cloud');
+  assert.equal(test.canReplace(),false,'Cancelling the export must leave the backup protected');
+  test.setExportResult(true);
+  await test.choose('#fd-copy-cloud');
+  assert.equal(test.canReplace(),true);
+  assert.deepEqual(JSON.parse(test.exports.at(-1).content),invalid);
+  test.choose('#fd-device');await test.nextTimer();
+  const guarded=test.take('update','first');
+  assert.equal(guarded.data.save_data.logs[0].id,'first-workout');
+  guarded.resolve({data:[]});
+  await test.flush();
+  // A concurrent write means the other device's newer backup must be checked.
+  test.take('read','first').resolve(row({logs:[{id:'concurrent-write'}]}));
+  await test.flush();
+  assert.match(test.status(),/Cloud changed elsewhere/);
+  test.choose('#fd-later');
+  test.syncNow();await test.nextTimer();
+  test.take('read','first').resolve(row({logs:[{id:'concurrent-write'}]}));
+  await test.flush();
+  assert.match(test.status(),/Choose which to keep/);
+  assert.equal(test.profile.logs[0].id,'first-workout');
+}
+
+async function firstInsertSeesOtherDevice(){
+  const test=fixture();
+  test.switchAccount('first');await test.nextTimer();
+  test.take('read','first').resolve({data:null});
+  await test.flush();await test.nextTimer();
+  test.take('insert','first').resolve({error:{code:'23505'}});
+  await test.flush();
+  test.take('read','first').resolve(row({logs:[{id:'first-remote-write'}]}));
+  await test.flush();
+  assert.match(test.status(),/Cloud changed elsewhere/);
+}
+switchDuringUpload().then(ignoreOldReadFailure).then(retryFirstRead).then(recoverCloudConflict).then(firstInsertSeesOtherDevice).then(() => {
+  console.log('Cloud backup checks passed: account switching, reconnect, backup recovery, and concurrent writes.');
 }).catch(error => {
   console.error(error);
   process.exitCode = 1;

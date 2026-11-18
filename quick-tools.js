@@ -3,7 +3,14 @@
 'use strict';
 const KEY='fitnessdex-quick-log-draft-v1';
 const html=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-const recent=()=>S.logs.filter(l=>!!ex(l.id)&&validDate(l.date)&&Number.isFinite(logWhen(l))&&logWhen(l)<=Date.now()+60000).sort((a,b)=>logWhen(b)-logWhen(a))[0]||null;
+function recent(){
+ let latest=null,latestTime=-Infinity;
+ for(const log of completedLogs()){
+  const time=logWhen(log);
+  if(time>latestTime){latest=log;latestTime=time;}
+ }
+ return latest;
+}
 function getDraft(){
  try{
   const raw=localStorage.getItem(KEY);if(!raw||raw.length>40000)return null;
@@ -90,20 +97,24 @@ window.fdUndoLastLog=()=>{
 };
 window.fdHistoryQuery='';
 window.fdHistoryDate='';
-window.fdHistoryLimit=200;
+window.fdHistoryPage=0;
 window.fdHistoryApply=()=>{
  const search=document.getElementById('fd-history-query'),date=document.getElementById('fd-history-date');
  window.fdHistoryQuery=(search?.value||'').slice(0,100);window.fdHistoryDate=date?.value||'';
- window.fdHistoryLimit=200;renderHistoryResults();
+ window.fdHistoryPage=0;renderHistoryResults();
 };
 window.fdHistoryReset=()=>{
  const search=document.getElementById('fd-history-query'),date=document.getElementById('fd-history-date');
  if(search)search.value='';
  if(date)date.value='';
- window.fdHistoryQuery='';window.fdHistoryDate='';window.fdHistoryLimit=200;
+ window.fdHistoryQuery='';window.fdHistoryDate='';window.fdHistoryPage=0;
  renderHistoryResults();
 };
-window.fdHistoryMore=()=>{window.fdHistoryLimit=Math.min(2000,window.fdHistoryLimit+200);renderHistoryResults();};
+window.fdHistoryPageBy=direction=>{
+ window.fdHistoryPage=Math.max(0,window.fdHistoryPage+(direction<0?-1:1));
+ renderHistoryResults();
+ document.getElementById('fd-history-results')?.scrollIntoView?.({block:'start'});
+};
 const onFormInput=e=>{
  const el=e.target;if(!el?.closest?.('#app'))return;
  if(tab==='log'&&(editId||window.fdLogStage?.()==='record'))collectDraft();

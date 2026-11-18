@@ -33,14 +33,15 @@ function boot(initial,cardioForSave,Clock=Date){
  const keys=new Map();
  if(initial)keys.set('fitnessdex-v01',JSON.stringify(initial));
  let failWrites=false, rejectProfileWrite=()=>false;
- const profileWrites=[];
+ const profileWrites=[], reminderWrites=[];
  const storage={
   getItem:key=>keys.get(key)??null,
-  setItem:(key,val)=>{
+  setItem:(key,val,refreshReminders)=>{
    if(key==='fitnessdex-v01'){
     const snapshot=JSON.parse(val);
     if(failWrites||rejectProfileWrite(snapshot))throw new Error('Simulated device quota error');
     profileWrites.push(snapshot);
+    reminderWrites.push(refreshReminders);
    }
    keys.set(key,String(val));
   },
@@ -64,7 +65,7 @@ function boot(initial,cardioForSave,Clock=Date){
  const app=fn(window,doc,storage,function Event(type){this.type=type;},m=>alerts.push(m),()=>true,console,Clock);
  const now=new Clock();
  for(const [id,val] of [['date',app.today()],['clock',app.localTime(now)],['notes',''],['session','standalone']])doc.getElementById(id).value=val;
- return {app,doc,keys,alerts,emitted,profileWrites,setFail:v=>{failWrites=v;},rejectWrite:fn=>{rejectProfileWrite=fn;}};
+ return {app,doc,keys,alerts,emitted,profileWrites,reminderWrites,setFail:v=>{failWrites=v;},rejectWrite:fn=>{rejectProfileWrite=fn;}};
 }
 function sample(){
  const now=new Date(),date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
@@ -83,6 +84,7 @@ b.setFail(false);b.app.submitLog();
 assert.equal(b.app.state().logs.length,2,'Successful save failed to add a real exercise record');
 assert(b.keys.has('fitnessdex-v01'),'Record not persisted to device');
 assert(b.emitted.includes('fitnessdex:saved'),'Successful save must dispatch sync event');
+assert.equal(b.reminderWrites.at(-1),false,'Ordinary activity saves must leave reminders alone');
 const added=b.app.state().logs.find(l=>l.at!=='old-workout-1');
 const beforeDelete=JSON.stringify(b.app.state());
 b.setFail(true);b.app.deleteLog(added.at);
@@ -93,6 +95,7 @@ assert(b.app.recoveryRows().length>0,'Pre-change recovery snapshot missing');
 b.app.restoreCheckpoint(0);
 assert.equal(b.app.state().logs.length,2,'Recovery checkpoint failed to restore deleted record');
 assert(b.app.validBackup(b.app.state()),'Recovery restored invalid data');
+assert.equal(b.reminderWrites.at(-1),true,'Recovering a profile must refresh reminders');
 
 const legacy=boot(sample());
 const oldProfile={logs:sample().logs};
@@ -103,6 +106,18 @@ legacy.app.restoreCheckpoint(0);
 assert.deepEqual(legacy.app.state().logs,oldProfile.logs);
 assert(legacy.app.validBackup(legacy.app.state()),'Legacy recovery must work before the app restarts');
 assert.deepEqual(JSON.parse(legacy.keys.get('fitnessdex-v01')),legacy.app.state());
+
+const importGuard=boot(sample());
+const malformed=sample();
+malformed.v5.workouts=[null];
+const unmodifiedImportSave=importGuard.keys.get('fitnessdex-v01');
+assert.equal(importGuard.app.validBackup(malformed),false);
+assert(importGuard.app.validBackup({logs:malformed.logs}),'Backups from before workout grouping must still load');
+const malformedJSON=JSON.stringify(malformed);
+importGuard.app.importData({size:malformedJSON.length,text:async()=>malformedJSON}).then(()=>{
+ assert.match(importGuard.alerts.at(-1),/Saved workout 1.*incomplete/);
+ assert.equal(importGuard.keys.get('fitnessdex-v01'),unmodifiedImportSave,'Invalid nested data must not reach disk');
+}).catch(error=>{console.error(error);process.exitCode=1;});
 
 const swim=boot(null);
 swim.app.choose('e051');
@@ -248,7 +263,7 @@ function bootConvenience(extraLogs=[]){
  const win={handlers:{},addEventListener(k,cb){this.handlers[k]=cb},scrollTo(){},dispatchEvent(){}};
  const modules=['workouts.js','habits.js','log-flow.js','ui-shell.js','campaigns.js','progression.js','set-ui.js','daily-care.js','quick-tools.js'];
  const code='const queueMicrotask=fn=>{};\n'+codeScripts[0]+'\n'+codeScripts[1]+'\n'+modules.map(read).join('\n')+
-  '\nreturn {state:()=>S,tab:()=>tab,history,navigate,choose,submitLog,validBackup,prefillSets};';
+  '\nreturn {state:()=>S,tab:()=>tab,history,navigate,choose,submitLog,validBackup,prefillSets,timeTrackTotals,logsInWindow,resetDerived};';
  const app=new Function('window','document','localStorage','alert','confirm','Event','console','performance',code)(win,doc,localStorage,
   msg=>{throw Error('Unexpected alert: '+msg)},()=>true,function Event(type){this.type=type},console,{now:()=>elapsed});
  return {app,win,doc,keys,date,advance:ms=>{elapsed+=ms}};
@@ -297,10 +312,49 @@ assert.equal(cv.doc.getElementById('app').innerHTML,historyPage,'Filtering Histo
 assert.equal(historyCopies,0,'Filtering History must reuse the sorted records');
 cvWin.fdHistoryReset();
 assert.equal(historySearch.value,'');
-assert.match(historyResults.innerHTML,/Show next 200 records/);
-cvWin.fdHistoryMore();
-assert.doesNotMatch(historyResults.innerHTML,/Show next 200 records/);
+assert.match(historyResults.innerHTML,/Page 1 of 2/);
+cvWin.fdHistoryPageBy(1);
+assert.match(historyResults.innerHTML,/Page 2 of 2/);
+assert.doesNotMatch(historyResults.innerHTML,/>Next<\/button>/);
+cvWin.fdHistoryPageBy(-1);
+assert.match(historyResults.innerHTML,/Page 1 of 2/);
 delete historyLogs.slice;
+const originalHistory=historyLogs.slice();
+for(let i=0;i<1900;i++){
+ const row=originalHistory[0];
+ const date=new Date(2020,0,1+i%70,9);
+ historyLogs.push({...row,date:date.toLocaleDateString('sv-SE'),performedAt:date.toISOString(),at:'older-page-'+i,notes:'Long history'});
+}
+cvApp.navigate('history');
+cvWin.fdHistoryPage=9;
+cvWin.fdHistoryPageBy(1);
+assert.match(historyResults.innerHTML,/Page 11 of 11/);
+assert.match(historyResults.innerHTML,/Showing 2001–2111/);
+assert.doesNotMatch(historyResults.innerHTML,/>Next<\/button>/);
+cvWin.fdHistoryReset();
+
+const date=new Date(2025,8,10,7);
+const day=date.toLocaleDateString('sv-SE');
+const nextDate=new Date(2025,8,11,8,55);
+const at=(id,mode,key,d,extra)=>({id,mode,at:key,date:d.toLocaleDateString('sv-SE'),performedAt:d.toISOString(),...extra});
+cvApp.state().logs=[
+ at('e025','sets','standalone',date,{sets:[{weight:60,reps:5},{weight:60,reps:5},{weight:60,reps:5}]}),
+ at('e045','distance','cardio',nextDate,{value:2,minutes:20}),
+ at('e031','sets','at-deadline',new Date(2025,8,12,9),{sets:[{weight:60,reps:5},{weight:60,reps:5},{weight:60,reps:5}]}),
+ at('e051','duration','backdated-swim',new Date(2025,8,10,8),{value:21,stroke:'Breaststroke'}),
+ at('e123','duration','first-swim',new Date(2025,8,10,7,30),{value:20}),
+ {id:'e025',mode:'sets',at:'no-time',date:day,sets:[{weight:60,reps:5},{weight:60,reps:5},{weight:60,reps:5}]}
+];
+cvApp.resetDerived();
+assert.equal(cvApp.timeTrackTotals()['workout-before-09'],2,'Standalone working sets and 20 minutes of cardio qualify');
+assert.equal(cvApp.timeTrackTotals()['workout-before-10'],3,'An activity at exactly 09:00 can qualify before 10:00');
+const issue=new Date(2025,8,10,7,30).toISOString(), deadline=new Date(2025,8,10,9).toISOString();
+assert.deepEqual(cvApp.logsInWindow({issuedAt:issue,periodStart:issue,periodEnd:deadline,ex:'e123',category:'Cardio'}).map(row=>row.at),
+ ['backdated-swim','first-swim'],'Date index must preserve stored order and aliases');
+assert.deepEqual(cvApp.logsInWindow({issuedAt:issue,periodStart:issue,periodEnd:deadline,ex:'e123'},new Date(2025,8,10,8).getTime()).map(row=>row.at),
+ ['first-swim'],'The end timestamp remains exclusive');
+cvApp.state().logs=originalHistory;
+cvApp.resetDerived();
 console.log('Convenience smoke checks passed: repeat, draft, full-history search, save and undo.');
 
 const held=(id,value,age,side)=>{

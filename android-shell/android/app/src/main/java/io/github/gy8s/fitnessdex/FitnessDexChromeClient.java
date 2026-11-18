@@ -18,10 +18,12 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 final class FitnessDexChromeClient extends BridgeWebChromeClient {
     private static final String READ = "FitnessDexStorage:read:";
     private static final String WRITE = "FitnessDexStorage:write:";
+    private static final String WRITE_AND_REFRESH = "FitnessDexStorage:write-and-refresh:";
     private static final Set<String> PROFILE_KEYS = new HashSet<>(Arrays.asList(
         "fitnessdex-v01",
         "fitnessdex-v01-pre-v03-backup",
@@ -34,6 +36,8 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
         ReminderScheduler.SETTINGS
     ));
     private static final Executor STORAGE_WORKER = Executors.newSingleThreadExecutor();
+    private static final Executor REMINDER_WORKER = Executors.newSingleThreadExecutor();
+    private static final AtomicBoolean REMINDER_QUEUED = new AtomicBoolean();
     private final android.content.Context context;
     private final File files;
 
@@ -46,12 +50,14 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
     @Override
     public boolean onJsPrompt(WebView view, String url, String message, String value, JsPromptResult result) {
         boolean reading = message != null && message.startsWith(READ);
-        if (!reading && (message == null || !message.startsWith(WRITE))) {
+        boolean refreshReminders = message != null && message.startsWith(WRITE_AND_REFRESH);
+        if (!reading && !refreshReminders && (message == null || !message.startsWith(WRITE))) {
             return super.onJsPrompt(view, url, message, value, result);
         }
 
         Uri source = Uri.parse(url == null ? "" : url);
-        String key = message.substring((reading ? READ : WRITE).length());
+        String prefix = reading ? READ : refreshReminders ? WRITE_AND_REFRESH : WRITE;
+        String key = message.substring(prefix.length());
         if (!"https".equals(source.getScheme()) || !"localhost".equals(source.getHost())
                 || (source.getPort() != -1 && source.getPort() != 443)
                 || (!PROFILE_KEYS.contains(key) && !key.matches("fitnessdex-cloud-sync-[a-f0-9-]{36}"))) {
@@ -69,8 +75,8 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
                     reply = read(target);
                 } else {
                     write(target, value);
-                    if ("fitnessdex-v01".equals(key) || ReminderScheduler.SETTINGS.equals(key)) {
-                        STORAGE_WORKER.execute(() -> ReminderScheduler.schedule(context));
+                    if ((refreshReminders && "fitnessdex-v01".equals(key)) || ReminderScheduler.SETTINGS.equals(key)) {
+                        requestReminderRefresh();
                     }
                     reply = "saved";
                 }
@@ -84,6 +90,15 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
             });
         });
         return true;
+    }
+
+    private void requestReminderRefresh() {
+        if (!REMINDER_QUEUED.compareAndSet(false, true)) return;
+        REMINDER_WORKER.execute(() -> {
+            // A care write during scheduling may queue another pass over the latest state.
+            REMINDER_QUEUED.set(false);
+            ReminderScheduler.schedule(context);
+        });
     }
 
     private String read(File target) throws IOException {

@@ -167,7 +167,8 @@ const TIME_TRACKS = [
 const TIME_TRACK_BY_ID=Object.fromEntries(TIME_TRACKS.map(x=>[x.id,x]));
 const $ = id => document.getElementById(id);
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const ex = id => DATA.find(e=>e.id===id);
+const exerciseById = new Map(DATA.map(e=>[e.id,e]));
+const ex = id => exerciseById.get(id);
 const n = x => Number.isFinite(Number(x)) ? Number(x) : 0;
 const round = (v,d=1) => Math.round(v*10**d)/10**d;
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
@@ -211,6 +212,8 @@ function completeProfile(parsed){
   if(!Array.isArray(parsed.v3.completed))parsed.v3.completed=[];
   if(!Number.isSafeInteger(parsed.v3.nextSerial))parsed.v3.nextSerial=0;
   if(!parsed.v4||typeof parsed.v4!=='object')parsed.v4={hunts:[],lastResult:null};
+  const last=parsed.v4.lastResult;
+  if(last&&(!Array.isArray(last.challengeNames)||!Array.isArray(last.milestones)))parsed.v4.lastResult=null;
   if(!Array.isArray(parsed.v4.hunts))parsed.v4.hunts=[];
   parsed.v4.hunts=unique(parsed.v4.hunts.filter(id=>typeof id==='string' && DATA.some(e=>e.id===id))).slice(0,5);
   if(!parsed.v5||typeof parsed.v5!=='object')parsed.v5={workouts:[],dismissed:[]};
@@ -220,8 +223,13 @@ function completeProfile(parsed){
   return parsed;
 }
 let S=loadState(), tab='home', cat='All', search='', chosen='e004', editId=null, activeSessionId=null, chosenTime=localTime(new Date()), messageQueue=[];
-const CACHE = {stats:{},logs:{},completed:null,earned:null,history:null};
-function resetDerived(){CACHE.stats={};CACHE.logs={};CACHE.completed=null;CACHE.earned=null;CACHE.history=null;}
+const CACHE = {};
+function resetDerived(){
+ CACHE.stats={};CACHE.logs={};CACHE.completed=null;CACHE.history=null;
+ CACHE.earned=null;CACHE.challengeIndex=null;CACHE.validChallenges=new WeakMap();
+ CACHE.workoutIndex=null;
+}
+resetDerived();
 const DIFFICULTY = {'e001':0.42,'e002':0.6,'e003':0.68,'e004':1,'e005':1.12,'e006':1.35,'e007':1.2,'e008':1.65,'e009':1.75,'e053':1.6,'e054':2.1,'e011':0.7,'e012':0.78,'e013':1.2,'e014':1.5,'e015':1.8,'e016':2.2,'e060':0.65,'e061':0.6,'e062':1.1,'e074':0.65,'e075':0.85,'e076':1.1,'e077':1.7};
 const DISCOVERY_BASELINE = {'e045':{kind:'distance',minimum:0.5,unit:'km'},'e046':{kind:'distance',minimum:0.5,unit:'km'},'e047':{kind:'distance',minimum:0.5,unit:'km'},'e048':{kind:'distance',minimum:2,unit:'km'},'e049':{kind:'distance',minimum:2,unit:'km'},'e050':{kind:'minutes',minimum:5,unit:'min'},'e051':{kind:'minutes',minimum:5,unit:'min'},'e052':{kind:'minutes',minimum:2,unit:'min'}};
 const CARDIO_VENUE_IDS=new Set(['e050','e051','e121','e122','e123','e124','e125','e126']);
@@ -233,9 +241,9 @@ function matchesExercise(l,id){return l.id===id || CARDIO_PARENT[l.id]===id || (
 function tryStandard(e){if(DISCOVERY_BASELINE[e.id])return DISCOVERY_BASELINE[e.id];if(e.mode==='bodysets')return {kind:'reps',minimum:3,unit:'reps'};if(e.mode==='sets')return {kind:'weighted_sets',minimum:1,unit:'set'};if(e.mode==='time')return {kind:'longest_hold',minimum:10,unit:'s continuous'};if(e.mode==='duration')return {kind:'minutes',minimum:5,unit:'min'};if(e.mode==='distance')return {kind:'distance',minimum:0.5,unit:'km'};return {kind:'first_try',minimum:1,unit:'attempt'};}
 function estimatedMinutes(e,goal){if(!e)return 10;if(e.mode==='sets')return 15;if(e.mode==='bodysets')return Math.max(2,Math.ceil(goal/15)*2);if(e.mode==='time')return Math.max(3,Math.ceil(goal/60)+2);if(e.mode==='range')return 10;if(e.mode==='duration')return Math.ceil(goal);if(e.mode==='distance')return Math.max(5,Math.ceil(goal*(e.name.includes('Walking')?12:e.name.includes('Cycling')?4:7)));return 10;}
 
-function save(){
+function save(refreshReminders=false){
  if(migrationError)return false;
- try{localStorage.setItem(K,JSON.stringify(S));}
+ try{localStorage.setItem(K,JSON.stringify(S),refreshReminders);}
  catch(e){alert('FitnessDex could not save. Your changes are still on this screen; nothing new was written. Export a backup or free storage.');return false;}
  window.fdSaveStatus?.('device');
  try{window.dispatchEvent(new Event('fitnessdex:saved'));}catch(e){console.warn('Cloud notification unavailable; device record was saved.',e);}
@@ -261,7 +269,7 @@ function restoreCheckpoint(index){
  if(!confirm('Restore records from '+new Date(row.at).toLocaleString('en-GB')+' ('+row.label+')? This will replace current progress.'))return;
  if(!checkpoint('Before recovery restore'))return;
  const before=JSON.stringify(S);S=completeProfile(previous);resetDerived();
- if(!save()){S=JSON.parse(before);resetDerived();return;}
+ if(!save(true)){S=JSON.parse(before);resetDerived();return;}
  render();toast('Earlier data restored. Cloud sync may ask you to choose which version to keep.');
 }
 function recoveryPanel(){
@@ -277,7 +285,7 @@ window.fdSaveStatus=function(kind){
 window.fdSyncStatus=function(message){
  if(/Cloud save up to date|Cloud progress loaded|Saved to cloud ✓|Cloud progress restored/.test(message))window.fdSaveStatus('synced');
  else if(/saving to cloud|checking your cloud|uploading|New activity found|More local changes pending/i.test(message))window.fdSaveStatus('syncing');
- else if(/paused|conflict|different progress|unavailable|pending:|failed|could not|error/i.test(message))window.fdSaveStatus('attention');
+ else if(/paused|conflict|different progress|needs recovery|unavailable|pending:|failed|could not|error/i.test(message))window.fdSaveStatus('attention');
  else window.fdSaveStatus('device');
 };
 function logWhen(l){
@@ -340,9 +348,30 @@ function periodInfo(type,now=new Date()){
  if(type==='monthly')end.setMonth(end.getMonth()+1);
  return {key:type+':'+stamp(start),start:start.toISOString(),end:end.toISOString(),title:{daily:'Daily','48h':'Two-day',weekly:'Weekly',monthly:'Monthly event'}[type]};
 }
+function logTimeIndex(){
+ if(!CACHE.challengeIndex){
+  CACHE.challengeIndex=completedLogs()
+   .map((log,order)=>({log,order,time:logWhen(log)})).sort((a,b)=>a.time-b.time);
+ }
+ return CACHE.challengeIndex;
+}
+function timeIndexStart(rows,time){
+ let low=0,high=rows.length;
+ while(low<high){
+  const middle=Math.floor((low+high)/2);
+  if(rows[middle].time<time)low=middle+1;
+  else high=middle;
+ }
+ return low;
+}
 function logsInWindow(ch,until=Date.now()+1){
-  const start=Math.max(ms(ch.issuedAt),ms(ch.periodStart)),end=Math.min(ms(ch.periodEnd),until);
-  return completedLogs().filter(l=>{const t=logWhen(l);return t>=start&&t<end&&(!ch.ex||matchesExercise(l,ch.ex))&&(!ch.category||ch.category===ex(l.id)?.cat);});
+ const start=Math.max(ms(ch.issuedAt),ms(ch.periodStart)),end=Math.min(ms(ch.periodEnd),until);
+ if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start)return [];
+ const rows=logTimeIndex();
+ // Preserve stored order for backdated entries and equal timestamps.
+ return rows.slice(timeIndexStart(rows,start),timeIndexStart(rows,end))
+  .filter(({log})=>(!ch.ex||matchesExercise(log,ch.ex))&&(!ch.category||ch.category===ex(log.id)?.cat))
+  .sort((a,b)=>a.order-b.order).map(row=>row.log);
 }
 function countSessions(rows){return new Set(rows.map(l=>l.sessionId||'legacy-'+l.date+'-'+(ex(l.id)?.cat||''))).size;}
 function recordedLocalTime(l){
@@ -375,39 +404,35 @@ function workoutGroups(rows){
  });
 }
 function timeTrackTotals(rows=completedLogs()){
- const result=Object.fromEntries(TIME_TRACKS.map(track=>[track.id,0]));
- const timed=rows.filter(l=>recordedLocalTime(l));
- const full=workoutGroups(timed);
- for(const track of TIME_TRACKS){
-  if(track.scope==='Spread2'||track.scope==='Spread3'){
-   const slots=new Map();
-   for(const l of timed){const time=recordedLocalTime(l);const hour=time.getHours();
-    // Early / daytime / evening. A day with 2 or 3 different slots counts once.
-    const slot=hour<10?'morning':hour<17?'daytime':'evening';
-    if(!slots.has(l.date))slots.set(l.date,new Set());slots.get(l.date).add(slot);
-   }
-   result[track.id]=[...slots.values()].filter(set=>set.size>=(track.scope==='Spread2'?2:3)).length;
-   continue;
+ const qualifying=Object.fromEntries(TIME_TRACKS.map(track=>[track.id,new Set()]));
+ const workoutTracks=TIME_TRACKS.filter(track=>track.scope==='Workout');
+ const categoryTracks=new Map(CATS.map(category=>[category,TIME_TRACKS.filter(track=>track.scope===category)]));
+ const times=new Map(),slots=new Map();
+ for(const log of rows){
+  const time=recordedLocalTime(log);if(!time)continue;
+  times.set(log,time);
+  for(const track of categoryTracks.get(ex(log.id)?.cat)||[]){
+   if(inTimeWindow(time,track))qualifying[track.id].add(log.date);
   }
-  const qualifyingDays=new Set();
-  if(track.scope==='Workout'){
-   for(const group of full){
-    const times=group.map(recordedLocalTime);
-    // The whole recorded workout must fall on the appropriate side of the cutoff.
-    if(times.every(time=>inTimeWindow(time,track)))qualifyingDays.add(group[0].date);
-   }
-  }else{
-   for(const l of timed){
-    if(ex(l.id)?.cat===track.scope && inTimeWindow(recordedLocalTime(l),track))qualifyingDays.add(l.date);
-   }
-  }
-  result[track.id]=qualifyingDays.size;
+  const hour=time.getHours(),slot=hour<10?'morning':hour<17?'daytime':'evening';
+  if(!slots.has(log.date))slots.set(log.date,new Set());
+  slots.get(log.date).add(slot);
  }
- return result;
+ for(const group of workoutGroups([...times.keys()])){
+  for(const track of workoutTracks){
+   // The whole workout must be on the qualifying side of the cutoff.
+   if(group.every(log=>inTimeWindow(times.get(log),track)))qualifying[track.id].add(group[0].date);
+  }
+ }
+ for(const [date,parts] of slots){
+  if(parts.size>=2)qualifying['spread-two'].add(date);
+  if(parts.size>=3)qualifying['spread-three'].add(date);
+ }
+ return Object.fromEntries(TIME_TRACKS.map(track=>[track.id,qualifying[track.id].size]));
 }
 
 function progressValue(ch,until=Date.now()+1){
- const rows=logsInWindow(ch,until),met=rows.map(logMetrics);
+ const rows=logsInWindow(ch,until),metrics=()=>rows.map(logMetrics);
  switch(ch.kind){
   case 'first_try':{
    const eligible=rows.filter(l=>!completedLogs().some(z=>matchesExercise(z,ch.ex||l.id) && logWhen(z)<ms(ch.issuedAt)));
@@ -417,19 +442,24 @@ function progressValue(ch,until=Date.now()+1){
   case 'discovery':return unique(rows.map(l=>l.id).filter(id=>!completedLogs().some(z=>z.id===id&&logWhen(z)<ms(ch.issuedAt)))).length;
   case 'variety':return unique(rows.map(l=>l.id)).length;
   case 'category_sessions':case 'weighted_sessions':return countSessions(rows);
-  case 'weighted_sets':return met.reduce((a,x)=>a+x.sets,0);
+  case 'weighted_sets':return metrics().reduce((a,x)=>a+x.sets,0);
   case 'weighted_reps_at_load':return rows.flatMap(l=>l.sets||[]).filter(s=>n(s.weight)>=ch.load).reduce((a,s)=>a+n(s.reps),0);
-  case 'reps':return met.reduce((a,x)=>a+x.reps,0);
-  case 'consecutive':return Math.max(0,...met.map(x=>x.bestReps));
-  case 'longest_hold':return Math.max(0,...met.map(x=>x.seconds));
-  case 'total_hold_seconds':case 'seconds':return met.reduce((a,x)=>a+x.seconds,0);
-  case 'distance':return met.reduce((a,x)=>a+x.distance,0);
-  case 'minutes':return met.reduce((a,x)=>a+x.minutes,0);
+  case 'reps':return metrics().reduce((a,x)=>a+x.reps,0);
+  case 'consecutive':return Math.max(0,...metrics().map(x=>x.bestReps));
+  case 'longest_hold':return Math.max(0,...metrics().map(x=>x.seconds));
+  case 'total_hold_seconds':case 'seconds':return metrics().reduce((a,x)=>a+x.seconds,0);
+  case 'distance':return metrics().reduce((a,x)=>a+x.distance,0);
+  case 'minutes':return metrics().reduce((a,x)=>a+x.minutes,0);
   case 'time_slot':return timeTrackTotals(rows)[ch.trackId]||0;
   default:return 0;
  }
 }
-function challengeValid(ch){return progressValue(ch,ms(ch.completedAt)+1000)+1e-8>=ch.goal;}
+function challengeValid(ch){
+ if(!CACHE.validChallenges.has(ch)){
+  CACHE.validChallenges.set(ch,progressValue(ch,ms(ch.completedAt)+1000)+1e-8>=ch.goal);
+ }
+ return CACHE.validChallenges.get(ch);
+}
 function reconcileCompleted(){
  let affected=0;const keep=[];
  for(const ch of S.v3.completed){if(challengeValid(ch))keep.push(ch);else {affected++; if(ms(ch.periodEnd)>Date.now()&&!S.v3.active.some(a=>a.cid===ch.cid)){
@@ -1133,15 +1163,21 @@ function historyResults(){
  const q=String(window.fdHistoryQuery||'').toLocaleLowerCase().trim(),date=String(window.fdHistoryDate||'');
  const all=CACHE.history??(CACHE.history=S.logs.slice().sort((a,b)=>logWhen(b)-logWhen(a)));
  const matching=all.filter(l=>(!date||l.date===date)&&(!q||[ex(l.id)?.name||'',l.id,l.notes||''].some(v=>String(v).toLocaleLowerCase().includes(q))));
- const logs=matching.slice(0,Math.min(2000,window.fdHistoryLimit||200));
- return `${(q||date||matching.length>logs.length)?`<p class="hint">${matching.length} matching records${matching.length>logs.length?' · Showing '+logs.length:''}</p>`: ''}<div class="stack fd-history-entries">${logs.map(l=>`<div class="entry"><div><div class="name">${esc(ex(l.id)?.name||l.id)} <span class="pill">${esc(l.date)}</span></div><div class="sub">${esc(logDescription(l))}${ms(l.performedAt)>Date.now()?' · FUTURE':''}</div></div><div class="row"><button class="small" onclick="editLog('${esc(logId(l))}')">Edit</button><button class="small" onclick="deleteLog('${esc(logId(l))}')">Delete</button></div></div>`).join('')||`<p class="muted">${q||date?"No matching exercise records.":"No exercise records yet."}</p>`}</div>${matching.length>logs.length?'<button class="small fd-history-more" onclick="fdHistoryMore()">Show next 200 records</button>':''}`;
+ const pageSize=200,lastPage=Math.max(0,Math.ceil(matching.length/pageSize)-1);
+ const page=Math.min(lastPage,Math.max(0,window.fdHistoryPage||0));
+ window.fdHistoryPage=page;
+ const offset=page*pageSize,logs=matching.slice(offset,offset+pageSize);
+ const paging=lastPage?`<div class="row fd-history-paging"><button onclick="fdHistoryPageBy(-1)" ${page===0?'disabled':''}>Previous</button><span>Page ${page+1} of ${lastPage+1}</span>${page<lastPage?'<button onclick="fdHistoryPageBy(1)">Next</button>':''}</div>`:'';
+ return `${(q||date||matching.length>logs.length)?`<p class="hint">${matching.length} matching records${lastPage?' · Showing '+(offset+1)+'–'+(offset+logs.length):''}</p>`: ''}<div class="stack fd-history-entries">${logs.map(l=>`<div class="entry"><div><div class="name">${esc(ex(l.id)?.name||l.id)} <span class="pill">${esc(l.date)}</span></div><div class="sub">${esc(logDescription(l))}${ms(l.performedAt)>Date.now()?' · FUTURE':''}</div></div><div class="row"><button class="small" onclick="editLog('${esc(logId(l))}')">Edit</button><button class="small" onclick="deleteLog('${esc(logId(l))}')">Delete</button></div></div>`).join('')||`<p class="muted">${q||date?"No matching exercise records.":"No exercise records yet."}</p>`}</div>${paging}`;
 }
 function renderHistoryResults(){
  const target=$('fd-history-results');
  if(target)target.innerHTML=historyResults();
 }
 function history(){
- return `<div class="card fd-history"><div class="fd-history-title"><h2>History &amp; data</h2><p>${S.logs.length} exercise records · ${(S.v5?.workouts||[]).filter(w=>S.logs.some(l=>l.sessionId===w.id)).length} confirmed workouts</p></div><button type="button" class="small fd-history-tools-link" onclick="openHistoryTools()">Data tools</button>
+ const sessions=new Set(S.logs.map(log=>log.sessionId));
+ const workoutCount=(S.v5?.workouts||[]).filter(w=>w&&sessions.has(w.id)).length;
+ return `<div class="card fd-history"><div class="fd-history-title"><h2>History &amp; data</h2><p>${S.logs.length} exercise records · ${workoutCount} confirmed workouts</p></div><button type="button" class="small fd-history-tools-link" onclick="openHistoryTools()">Data tools</button>
  <div class="fd-history-filters"><label>Search exercises<input id="fd-history-query" type="search" maxlength="100" placeholder="Exercise name or notes" value="${esc(window.fdHistoryQuery||'')}" oninput="fdHistoryApply()"></label><label>Date<input id="fd-history-date" type="date" value="${esc(window.fdHistoryDate||'')}" onchange="fdHistoryApply()"></label><button onclick="fdHistoryReset()">Clear filters</button></div><div id="fd-history-results">${historyResults()}</div>
  <details id="fd-history-tools" class="fd-log-details fd-history-tools"><summary>Data &amp; backups</summary>
  <div class="row" style="justify-content:flex-start;flex-wrap:wrap"><button onclick="exportData()">Export complete backup</button><button onclick="exportPreMigration()">Download pre-migration backup</button><button onclick="exportPreV04()">Download pre-v0.4 backup</button><button onclick="restoreBeforeImport()">Restore pre-import save</button><button onclick="$('importFile').click()">Import validated backup</button><button onclick="addRecovery()">Record recovery day</button>${(S.recoveryDays||[]).includes(today())?`<button onclick="removeRecovery()">Remove today’s recovery mark</button>`:''}</div>${recoveryPanel()}<input id="importFile" type="file" accept="application/json,.json" hidden></details></div>`;
@@ -1162,7 +1198,7 @@ function addRecovery(){if(!confirm('Record today as a recovery day? This maintai
  S.recoveryDays=Array.isArray(S.recoveryDays)?S.recoveryDays:[];
  const before=JSON.stringify(S);if(!S.recoveryDays.includes(today()))S.recoveryDays.push(today());resetDerived();if(!save()){S=JSON.parse(before);resetDerived();return;}render();toast('Recovery day recorded · streak preserved');}
 function removeRecovery(){const before=JSON.stringify(S);S.recoveryDays=(S.recoveryDays||[]).filter(d=>d!==today());if(!save()){S=JSON.parse(before);return;}render();toast('Recovery mark removed.');}
-function exportBlob(content,name){const blob=new Blob([content],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function exportBlob(content,name){const blob=new Blob([content],{type:'application/json'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return true;}
 function exportData(){exportBlob(JSON.stringify(snapshotForExport(),null,2),'FitnessDex_v04_backup_'+today()+'.json');}
 function exportPreMigration(){const raw=localStorage.getItem(PRE_MIGRATION);if(!raw){toast('No pre-v0.3 backup exists in this browser.');return;}exportBlob(raw,'FitnessDex_pre_v03_original.json');}
 function exportPreV04(){const raw=localStorage.getItem(PRE_V04);if(!raw)return toast('No older v0.4 migration snapshot here.');exportBlob(raw,'FitnessDex_pre_v04_original.json');}
@@ -1172,7 +1208,7 @@ function restoreBeforeImport(){
  if(!validBackup(old))return alert(backupProblem(old)||'Restore snapshot failed validation. Current data remains unchanged.');
  if(!confirm('Restore the save from before your last import? Export your current data first if needed.'))return;
  if(!checkpoint('Before pre-import restore'))return;
- const before=JSON.stringify(S);S=completeProfile(old);resetDerived();if(!save()){S=JSON.parse(before);resetDerived();return;}render();toast('Previous import snapshot restored.');
+ const before=JSON.stringify(S);S=completeProfile(old);resetDerived();if(!save(true)){S=JSON.parse(before);resetDerived();return;}render();toast('Previous import snapshot restored.');
 }
 function isSafeEntry(entry){return !entryProblem(entry);}
 function entryProblem(l){
@@ -1199,8 +1235,26 @@ function entryProblem(l){
  if(l.lengths!=null&&(!Number.isFinite(Number(l.lengths))||Number(l.lengths)<0||Number(l.lengths)>2000))return 'Enter between 0 and 2,000 pool lengths.';
  return '';
 }
+function workoutBackupProblem(state){
+ if(state==null)return '';
+ if(typeof state!=='object'||Array.isArray(state))return 'The backup workout section has an unexpected format.';
+ if(state.workouts==null)return '';
+ if(!Array.isArray(state.workouts))return 'The backup workout list has an unexpected format.';
+ const seen=new Set();
+ for(const [index,workout] of state.workouts.entries()){
+  const number=index+1;
+  if(!workout||typeof workout.id!=='string'||!workout.id.trim()||typeof workout.name!=='string'){
+   return `Saved workout ${number} in the backup is incomplete.`;
+  }
+  if(seen.has(workout.id))return `Saved workout ${number} in the backup has a duplicate ID.`;
+  seen.add(workout.id);
+ }
+ return '';
+}
 function backupProblem(data){
  if(!Array.isArray(data?.logs))return '';
+ const workoutProblem=workoutBackupProblem(data.v5);
+ if(workoutProblem)return workoutProblem+' Current data remains as it was.';
  const index=data.logs.findIndex(l=>!isSafeEntry(l));
  if(index<0)return '';
  const entry=data.logs[index],exercise=entry&&ex(entry.id)?.name,date=entry&&validDate(entry.date)?entry.date:'';
@@ -1308,6 +1362,7 @@ function validCareState(v){
  return true;
 }
 function validBackup(obj){
+ if(workoutBackupProblem(obj?.v5))return false;
  if(obj?.v9 && !validCareState(obj.v9))return false;
  if(obj?.v8 && !validProgressionState(obj.v8))return false;
  if(obj?.v7 && !validCampaignState(obj.v7))return false;
@@ -1331,7 +1386,7 @@ async function importData(file){if(!file)return;if(file.size>10000000){alert('Ba
  try{localStorage.setItem(PRE_IMPORT,JSON.stringify(S));}catch(e){alert('Could not protect current data. Import cancelled.');return;}
  const next=completeProfile(data);
  next.v3.completed=next.v3.completed.map(c=>({...c,rewardXP:rewardFor(c)}));
- const before=JSON.stringify(S);S=next;resetDerived();reconcileCompleted();ensureBoard();if(!save()){S=JSON.parse(before);resetDerived();return;}render();toast('Validated backup imported · saved data restored.');
+ const before=JSON.stringify(S);S=next;resetDerived();reconcileCompleted();ensureBoard();if(!save(true)){S=JSON.parse(before);resetDerived();return;}render();toast('Validated backup imported · saved data restored.');
 }
 function lifetimeBadgeProgress(){
  const items=[];
