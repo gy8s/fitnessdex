@@ -32,10 +32,18 @@ new vm.Script(sw,{filename:'sw.js'});
 function boot(initial,cardioForSave){
  const keys=new Map();
  if(initial)keys.set('fitnessdex-v01',JSON.stringify(initial));
- let failWrites=false;
+ let failWrites=false, rejectProfileWrite=()=>false;
+ const profileWrites=[];
  const storage={
   getItem:key=>keys.get(key)??null,
-  setItem:(key,val)=>{if(failWrites&&key==='fitnessdex-v01')throw new Error('Simulated device quota error');keys.set(key,String(val));},
+  setItem:(key,val)=>{
+   if(key==='fitnessdex-v01'){
+    const snapshot=JSON.parse(val);
+    if(failWrites||rejectProfileWrite(snapshot))throw new Error('Simulated device quota error');
+    profileWrites.push(snapshot);
+   }
+   keys.set(key,String(val));
+  },
   removeItem:key=>keys.delete(key)
  };
  function node(){return {value:'',innerHTML:'',style:{},dataset:{},classList:{toggle(){}},addEventListener(){},focus(){},scrollIntoView(){},setAttribute(){},textContent:''};}
@@ -56,7 +64,7 @@ function boot(initial,cardioForSave){
  const app=fn(window,doc,storage,function Event(type){this.type=type;},m=>alerts.push(m),()=>true,console);
  const now=new Date();
  for(const [id,val] of [['date',app.today()],['clock',app.localTime(now)],['notes',''],['session','standalone']])doc.getElementById(id).value=val;
- return {app,doc,keys,alerts,emitted,setFail:v=>{failWrites=v;}};
+ return {app,doc,keys,alerts,emitted,profileWrites,setFail:v=>{failWrites=v;},rejectWrite:fn=>{rejectProfileWrite=fn;}};
 }
 function sample(){
  const now=new Date(),date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
@@ -85,6 +93,44 @@ assert(b.app.recoveryRows().length>0,'Pre-change recovery snapshot missing');
 b.app.restoreCheckpoint(0);
 assert.equal(b.app.state().logs.length,2,'Recovery checkpoint failed to restore deleted record');
 assert(b.app.validBackup(b.app.state()),'Recovery restored invalid data');
+
+const challengeStart=new Date(Date.now()-2*60*60*1000).toISOString();
+const challengeProfile=sample();
+challengeProfile.logs=[];
+challengeProfile.v3.active.push({
+ cid:'save-regression',type:'weekly',kind:'reps',ex:'e004',goal:8,unit:'reps',label:'Save regression',
+ periodKey:'weekly:save-regression',periodStart:challengeStart,issuedAt:challengeStart,
+ periodEnd:new Date(Date.now()+24*60*60*1000).toISOString(),slot:0
+});
+const challenge=boot(challengeProfile);
+const challengeActivity=new Date(Date.now()-60*1000);
+const challengeDate=challengeActivity.getFullYear()+'-'+String(challengeActivity.getMonth()+1).padStart(2,'0')+'-'+String(challengeActivity.getDate()).padStart(2,'0');
+challenge.doc.getElementById('date').value=challengeDate;
+challenge.doc.getElementById('clock').value=challenge.app.localTime(challengeActivity);
+const priorProfile=challenge.keys.get('fitnessdex-v01');
+const priorState=JSON.stringify(challenge.app.state());
+challenge.profileWrites.length=0;
+challenge.emitted.length=0;
+challenge.rejectWrite(snapshot=>Boolean(snapshot.v4.lastResult));
+challenge.app.submitLog();
+assert(challenge.alerts.length,'The failed workout save should be reported');
+assert.equal(JSON.stringify(challenge.app.state()),priorState,'Failed challenge save should roll back the workout and reward');
+assert.equal(challenge.keys.get('fitnessdex-v01'),priorProfile,'No intermediate workout or challenge reward should reach storage');
+assert.equal(challenge.profileWrites.length,0,'A failed workout should commit no profile snapshots');
+assert.deepEqual(challenge.emitted,[],'A failed workout should emit no cloud sync event');
+challenge.rejectWrite(()=>false);
+challenge.app.submitLog();
+assert.equal(challenge.profileWrites.length,1,'One workout and its rewards should commit together');
+assert.deepEqual(challenge.emitted,['fitnessdex:saved']);
+const savedChallengeProfile=JSON.parse(challenge.keys.get('fitnessdex-v01'));
+assert.equal(savedChallengeProfile.logs.length,1);
+assert(savedChallengeProfile.v3.completed.some(c=>c.cid==='save-regression'&&c.rewardXP===85));
+assert.equal(savedChallengeProfile.v4.lastResult.logId,savedChallengeProfile.logs[0].at);
+assert(savedChallengeProfile.v4.lastResult.challengeNames.includes('Save regression'));
+assert.equal(JSON.stringify(challenge.app.state()),JSON.stringify(savedChallengeProfile));
+const reopenedChallenge=boot(savedChallengeProfile);
+assert.equal(reopenedChallenge.app.state().logs.length,1);
+assert(reopenedChallenge.app.state().v3.completed.some(c=>c.cid==='save-regression'));
 
 const empty=boot(null);
 assert.equal(empty.app.state().logs.length,0,'Existing empty profile broken');

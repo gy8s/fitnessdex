@@ -257,7 +257,7 @@ function restoreCheckpoint(index){
  if(!checkpoint('Before recovery restore'))return;
  const before=JSON.stringify(S);S=previous;resetDerived();
  if(!save()){S=JSON.parse(before);resetDerived();return;}
- ensureBoard();render();toast('Earlier data restored. Cloud sync may ask you to choose which version to keep.');
+ render();toast('Earlier data restored. Cloud sync may ask you to choose which version to keep.');
 }
 function recoveryPanel(){
  const rows=recoveryRows();
@@ -607,7 +607,7 @@ function ensureBoard(){
  for(const type of WINDOWS){const p=periodInfo(type);const rows=S.v3.active.filter(c=>c.periodKey===p.key);
   for(let i=rows.length;i<counts[type];i++)if(assignChallenge(type,i))changed=true;
  }
- if(changed)save();
+ return changed;
 }
 function rewardFor(ch){if(ch.kind==='first_try')return 28;const base={daily:25,'48h':45,weekly:85,monthly:120}[ch.type]||25;return Math.round(base*(ch.difficulty==='Event'?1.25:1));}
 function claimReady(){
@@ -620,7 +620,8 @@ function claimReady(){
      S.v3.completed.push(complete);unlocked.push(complete);
    }
  }
- if(unlocked.length){ensureBoard();save();}
+ // Include replacement challenges in the caller's save with the activity and rewards.
+ ensureBoard();
  return unlocked;
 }
 function allMilestones(e){
@@ -1325,7 +1326,11 @@ function achievements(){
 function render(){
  resetDerived();
  if(migrationError){$('app').innerHTML=`<div class="notice"><b>Save protection:</b> ${esc(migrationError)}</div>`;return;}
- ensureBoard();
+ const previousActive=S.v3.active.slice(),previousSerial=S.v3.nextSerial;
+ if(ensureBoard()&&!save()){
+  S.v3.active=previousActive;
+  S.v3.nextSerial=previousSerial;
+ }
  $('app').innerHTML=tab==='home'?home():tab==='dex'?dex():tab==='log'?logForm():tab==='achievements'?achievements():tab==='habits'?(window.fdHabitsView?.()||'<p>Loading habit tracker…</p>'):tab==='campaigns'?(window.fdCampaignsView?.()||'<p>Loading campaigns…</p>'):tab==='progression'?(window.fdProgressionView?.()||'<p>Loading progression…</p>'):tab==='care'?(window.fdCareView?.()||'<p>Loading daily care…</p>'):history();
  if(tab==='dex'&&dexFamily&&!search.trim())layoutDexLinks();
  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));

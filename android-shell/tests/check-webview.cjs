@@ -579,7 +579,7 @@ async function findTarget() {
       }
       more('History & data');
       const history = document.querySelector('#app .stack')?.textContent || '';
-      const historySummary = document.querySelector('#app .card .row')?.textContent || '';
+      const historySummary = document.querySelector('#app .fd-history-title p')?.textContent || '';
       more('Daily care');
       const care = document.querySelector('#app .fd-care-page')?.textContent || '';
       document.querySelector('.fd-care-option[onclick="fdCareSupplements()"]')?.click();
