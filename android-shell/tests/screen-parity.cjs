@@ -26,6 +26,12 @@ function inspectScreen(screen) {
       button.querySelector('strong')?.textContent.trim() === screen.option)?.click();
   }
   const header = document.querySelector('body > header').getBoundingClientRect();
+  const home = app.querySelector('.fd-landing-hero');
+  const primary = home?.querySelector('.fd-landing-primary');
+  const progress = home?.querySelector('.fd-level-bar');
+  const fullWidthAction = primary && progress && home.clientWidth - parseFloat(getComputedStyle(home).paddingLeft)
+    - parseFloat(getComputedStyle(home).paddingRight) - primary.offsetWidth <= 1 &&
+    Math.abs(primary.offsetWidth - progress.offsetWidth) <= 1;
   const tabs = [...nav.querySelectorAll('button')];
   const allTabsReachable = tabs.every(button => {
     const rect = button.getBoundingClientRect();
@@ -38,9 +44,10 @@ function inspectScreen(screen) {
     controls: [...app.querySelectorAll('button')].filter(button => button.offsetHeight > 0).length,
     tabs: tabs.map(button => button.textContent.trim()),
     allTabsReachable,
+    fullWidthAction: Boolean(fullWidthAction),
     activeTab: nav.querySelector('button[aria-current=page]')?.dataset.tab,
     headerVisible: header.top >= 0 && header.bottom <= innerHeight,
-    fitsWidth: document.documentElement.scrollWidth <= innerWidth + 1,
+    fitsWidth: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
     width: innerWidth,
     height: innerHeight
   };
@@ -54,6 +61,7 @@ function verifyScreen(screen, state) {
   assert.equal(state.activeTab, screen.tab, screen.name + ' has no accessible current tab');
   assert(state.allTabsReachable, screen.name + ' has obstructed navigation');
   assert(state.headerVisible, screen.name + ' header is outside the viewport');
+  if (screen.name === 'home') assert(state.fullWidthAction, 'Home action or XP bar does not fill Training');
   assert(state.fitsWidth, screen.name + ' overflows at ' + state.width + 'px');
 }
 

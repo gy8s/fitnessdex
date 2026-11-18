@@ -274,8 +274,8 @@ assert.equal(overview.app.state().logs.length,beforeCopy);
 overview.app.choose('e085');
 assert.doesNotMatch(overviewPage(),/fd-copy-last-hold/);
 const historyMarkup=overview.app.history();
-assert(historyMarkup.indexOf('fd-history-query')<historyMarkup.indexOf('class="stack"'));
-assert(historyMarkup.indexOf('class="stack"')<historyMarkup.indexOf('id="fd-history-tools"'));
+assert(historyMarkup.indexOf('fd-history-query')<historyMarkup.indexOf('fd-history-entries'));
+assert(historyMarkup.indexOf('fd-history-entries')<historyMarkup.indexOf('id="fd-history-tools"'));
 assert.match(historyMarkup,/<details id="fd-history-tools" class="fd-log-details fd-history-tools">/);
 console.log('Exercise selection checks passed: skill paths, last and best, exact-side timed copies, and strength/bodyweight copies.');
 

@@ -85,6 +85,19 @@ async function main(output) {
     }
     await fs.writeFile(path.join(visualDir, 'web-screen-parity.json'), JSON.stringify(parity, null, 2));
     console.log('PASS: captured web reference screens at 360px and 411px');
+    await page.setViewportSize({ width:320, height:870 });
+    await page.locator('nav.nav button[data-tab=log]').click();
+    await page.getByRole('button', { name:/Weights/ }).click();
+    await page.getByRole('searchbox', { name:'Search exercises' }).fill('Back squat');
+    await page.getByRole('button', { name:/Back squat/ }).click();
+    await page.getByRole('button', { name:/Just log sets and reps/ }).click();
+    await page.getByText('More details', { exact:false }).click();
+    for (const selector of ['.fd-entry-card', '#date', '#clock', '.nav']) {
+      const control = await page.locator(selector).boundingBox();
+      assert(control && control.x + control.width <= 321, selector + ' overflows with Log details open');
+    }
+    await page.screenshot({ path:path.join(visualDir, 'web-320-strength-details.png') });
+    console.log('PASS: open strength form and navigation fit at 320px');
     await page.goto(origin + '/test-profile');
 
     const profile = testProfile();

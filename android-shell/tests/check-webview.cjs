@@ -405,7 +405,7 @@ async function findTarget() {
       const state = JSON.parse(fdProfileStorage.getItem(key) || '{}');
       const snapshots = JSON.parse(fdProfileStorage.getItem('fitnessdex-recovery-checkpoints-v1') || '[]');
       const hasRecovery = snapshots.some(x => { try { return JSON.parse(x.data).logs?.some(l => l.id === 'e045' && l.value === 1.6); } catch { return false; } });
-      return {count:state.logs?.length,hasRecovery,historyEmpty:(document.querySelector('#app .stack')?.textContent || '').includes('No matching exercise records.')};
+      return {count:state.logs?.length,hasRecovery,historyEmpty:(document.querySelector('#app .stack')?.textContent || '').includes('No exercise records yet.')};
     })())`;
     const info = JSON.parse(await inspect(await findTarget(), expression));
     console.log('Disposable walk deletion:', JSON.stringify(info));
@@ -425,7 +425,7 @@ async function findTarget() {
       const history = [...document.querySelectorAll('#app button.fd-option')].find(b => b.textContent.includes('History & data'));
       if (!history) return {ready:true,error:'History option missing'};
       history.click();
-      return {ready:true,count:state.logs?.length,hasRecovery:snapshots.some(x => {try{return JSON.parse(x.data).logs?.some(l=>l.id==='e045'&&l.value===1.6)}catch{return false}}),historyEmpty:(document.querySelector('#app .stack')?.textContent||'').includes('No matching exercise records.')};
+      return {ready:true,count:state.logs?.length,hasRecovery:snapshots.some(x => {try{return JSON.parse(x.data).logs?.some(l=>l.id==='e045'&&l.value===1.6)}catch{return false}}),historyEmpty:(document.querySelector('#app .stack')?.textContent||'').includes('No exercise records yet.')};
     })())`;
     let info;
     for (let attempt = 0; attempt < 25; attempt++) {
