@@ -25,7 +25,7 @@ function draw(){
  if(uid){
    controls.innerHTML='<span style="color:#adc0d5;font-size:12px">'+esc(email)+'</span><button style="'+buttonStyle+'" id="fd-sync">Sync now</button><button style="'+buttonStyle+'" id="fd-logout">Sign out</button>';
    section.querySelector('#fd-sync').onclick=()=>{dirty=true;queue(0)};
-   section.querySelector('#fd-logout').onclick=async()=>{paused=true;clearTimeout(timer);await client.auth.signOut();uid=null;email='';serverStamp=null;choice=false;dirty=false;paused=false;setStatus('Signed out. This device still has your saved progress.');};
+   section.querySelector('#fd-logout').onclick=signOut;
  } else {
    controls.innerHTML='<button style="'+buttonStyle+'" id="fd-login">Connect cloud save</button>';
    section.querySelector('#fd-login').onclick=emailForm;
@@ -69,21 +69,42 @@ function remember(stamp){
  try{localStorage.setItem(STORAGE+uid,fingerprint(S))}catch(e){}
  dirty=false;
 }
-async function readCloud(){
- const r=await client.from('fitnessdex_saves').select('save_data,updated_at').eq('user_id',uid).maybeSingle();
+async function readCloud(account){
+ const r=await client.from('fitnessdex_saves').select('save_data,updated_at').eq('user_id',account).maybeSingle();
  if(r.error)throw r.error;
  if(r.data && !validBackup(r.data.save_data))throw Error('Cloud record could not be validated');
  return r.data;
 }
-async function authChanged(session){
- const newUid=session?.user?.id||null;
- if(uid===newUid && newUid)return;
- epoch++;const mine=epoch;
- uid=newUid;email=session?.user?.email||'';serverStamp=null;choice=false;paused=false;dirty=false;clearTimeout(timer);
- if(!uid){setStatus('Local saving only. Sign in to back up online.');return;}
- busy=true;setStatus('Signed in. Checking your cloud progress...');
+async function signOut(){
+ const mine=epoch, wasPaused=paused;
+ paused=true;clearTimeout(timer);
  try{
-  const row=await readCloud();if(mine!==epoch)return;
+  const result=await client.auth.signOut();
+  if(mine!==epoch)return;
+  if(result.error)throw result.error;
+  authChanged(null);
+ }catch(e){
+  if(mine!==epoch)return;
+  paused=wasPaused;
+  setStatus('Could not sign out: '+(e.message||'connection error'));
+  if(dirty&&!paused)queue(0);
+ }
+}
+function authChanged(session){
+ const account=session?.user?.id||null;
+ if(uid===account && account)return;
+ const mine=++epoch;
+ uid=account;email=session?.user?.email||'';serverStamp=null;cloudData=null;cloudStamp=null;
+ choice=false;paused=false;dirty=false;busy=Boolean(account);clearTimeout(timer);
+ if(!uid){setStatus('Local saving only. Sign in to back up online.');return;}
+ setStatus('Signed in. Checking your cloud progress...');
+ // Invalidate old requests now, and read outside Supabase's auth callback.
+ setTimeout(()=>checkCloud(account,mine),0);
+}
+async function checkCloud(account,mine){
+ if(mine!==epoch)return;
+ try{
+  const row=await readCloud(account);if(mine!==epoch)return;
   cloudData=row?.save_data||null;cloudStamp=row?.updated_at||null;
   const localFp=fingerprint(S),remoteFp=fingerprint(cloudData);
   let last=null;try{last=localStorage.getItem(STORAGE+uid)}catch(e){}
@@ -94,16 +115,19 @@ async function authChanged(session){
   }else if(last===remoteFp && last!==localFp){
     serverStamp=cloudStamp;dirty=true;setStatus('New activity found on this device. Saving...');
   }else{choice=true;paused=true;setStatus('Both this device and cloud contain different progress. Choose which to keep.');}
- }catch(e){paused=true;setStatus('Cloud unavailable: '+(e.message||'connection error')+'. Device save is safe.');}
- finally{busy=false;draw();if(dirty&&!paused)queue(0);}
+ }catch(e){
+  if(mine===epoch){paused=true;setStatus('Cloud unavailable: '+(e.message||'connection error')+'. Device save is safe.');}
+ }finally{
+  if(mine===epoch){busy=false;draw();if(dirty&&!paused)queue(0);}
+ }
 }
 async function upload(){
  if(!uid||paused||choice||busy||!dirty||!navigator.onLine)return;
+ const account=uid, mine=epoch;
  busy=true;setStatus('Saving to cloud...');
- const mine=epoch;
  const snapshot=JSON.parse(JSON.stringify(S));
  try{
-  const remote=await readCloud();if(mine!==epoch)return;
+  const remote=await readCloud(account);if(mine!==epoch||paused)return;
   if(remote && (!serverStamp||remote.updated_at!==serverStamp)){
     cloudData=remote.save_data;cloudStamp=remote.updated_at;paused=true;choice=true;
     setStatus('Cloud changed elsewhere. Choose which progress to keep.');return;
@@ -111,18 +135,22 @@ async function upload(){
   const stamp=new Date(Math.max(Date.now(),serverStamp?Date.parse(serverStamp)+2:0)).toISOString();
   let r;
   if(remote){
-    r=await client.from('fitnessdex_saves').update({save_data:snapshot,updated_at:stamp}).eq('user_id',uid).eq('updated_at',remote.updated_at).select('updated_at');
-    if(!r.error&&r.data?.length!==1)throw Error('Concurrent update detected; nothing overwritten.');
+    r=await client.from('fitnessdex_saves').update({save_data:snapshot,updated_at:stamp}).eq('user_id',account).eq('updated_at',remote.updated_at).select('updated_at');
   }else{
-    r=await client.from('fitnessdex_saves').insert({user_id:uid,save_data:snapshot,updated_at:stamp}).select('updated_at');
+    r=await client.from('fitnessdex_saves').insert({user_id:account,save_data:snapshot,updated_at:stamp}).select('updated_at');
   }
+  if(mine!==epoch)return;
   if(r.error)throw r.error;
+  if(remote&&r.data?.length!==1)throw Error('Concurrent update detected; nothing overwritten.');
   serverStamp=r.data?.[0]?.updated_at||stamp;
   try{localStorage.setItem(STORAGE+uid,fingerprint(snapshot))}catch(e){}
   dirty=fingerprint(S)!==fingerprint(snapshot);
   setStatus(dirty?'Cloud saved. More local changes pending…':'Saved to cloud ✓');
- }catch(e){dirty=true;setStatus('Cloud save pending: '+(e.message||'connection issue')+'. Workouts remain on this device.');}
- finally{busy=false;if(dirty&&!paused&&navigator.onLine)queue(7000);}
+ }catch(e){
+  if(mine===epoch){dirty=true;setStatus('Cloud save pending: '+(e.message||'connection issue')+'. Workouts remain on this device.');}
+ }finally{
+  if(mine===epoch){busy=false;if(dirty&&!paused&&navigator.onLine)queue(7000);}
+ }
 }
 function queue(delay=1600){if(!uid||paused||choice)return;clearTimeout(timer);timer=setTimeout(upload,delay);}
 window.addEventListener('fitnessdex:saved',()=>{if(uid&&!paused){dirty=true;queue();}});
@@ -132,6 +160,6 @@ client=window.supabase.createClient(URL,KEY,{auth:{autoRefreshToken:true,persist
 window.fdCloudClient=()=>client;
 draw();
 client.auth.onAuthStateChange((event,session)=>{
- if(['INITIAL_SESSION','SIGNED_IN','SIGNED_OUT'].includes(event))setTimeout(()=>authChanged(session),0);
+ if(['INITIAL_SESSION','SIGNED_IN','SIGNED_OUT'].includes(event))authChanged(session);
 });
 })();

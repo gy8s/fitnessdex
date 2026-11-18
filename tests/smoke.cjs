@@ -536,3 +536,4 @@ function checkCampaignReturns(){
  console.log('Campaign checks passed: short pauses, repeats, deloads, baseline, recovery, restart and compatible saves.');
 }
 checkCampaignReturns();
+require('./cloud-sync.cjs');
