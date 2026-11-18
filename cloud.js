@@ -15,6 +15,7 @@ const esc = s => String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 const fingerprint = s => JSON.stringify({logs:s?.logs||[],claimed:s?.claimed||[],recoveryDays:s?.recoveryDays||[],active:s?.v3?.active||[],completed:s?.v3?.completed||[],hunts:s?.v4?.hunts||[],serial:s?.v3?.nextSerial||0,workouts:s?.v5?.workouts||[],dismissed:s?.v5?.dismissed||[],habits:{baselineWeek:{alcohol:s?.v6?.baselineWeek?.alcohol??null,smoking:s?.v6?.baselineWeek?.smoking??null,takeaway:s?.v6?.baselineWeek?.takeaway??null},days:s?.v6?.days||[],awards:s?.v6?.awards||[]},campaigns:s?.v7?.campaigns||[],progression:{tracks:s?.v8?.tracks||[],sessions:s?.v8?.sessions||[]},dailyCare:{water:{baseGoal:s?.v9?.water?.baseGoal??2000,goals:s?.v9?.water?.goals||[],entries:s?.v9?.water?.entries||[]},supplements:{items:s?.v9?.supplements?.items||[],taken:s?.v9?.supplements?.taken||[]}}});
 const meaningful = s => !!(s?.logs?.length || s?.claimed?.length || s?.recoveryDays?.length || s?.v3?.completed?.length || s?.v4?.hunts?.length || s?.v5?.workouts?.length || s?.v6?.days?.length || s?.v6?.awards?.length || Object.values(s?.v6?.baselineWeek||{}).some(x=>x!=null) || s?.v7?.campaigns?.length || s?.v8?.tracks?.length || s?.v8?.sessions?.length || s?.v9?.water?.entries?.length || s?.v9?.water?.goals?.length || (s?.v9?.water?.baseGoal??2000)!==2000 || s?.v9?.supplements?.items?.length || s?.v9?.supplements?.taken?.length);
 let client, uid=null, email='', serverStamp=null, cloudData=null, cloudStamp=null, paused=false, choice=false, busy=false, dirty=false, timer=null, epoch=0;
+let cloudCheckFailed=false;
 let status='Saved on this device. Sign in for automatic cloud backups.';
 const buttonStyle='background:#27344a;border:1px solid #3b4c64;color:#fff;padding:7px 10px;border-radius:8px;cursor:pointer;margin:3px;font:inherit';
 function setStatus(msg){status=msg;window.fdSyncStatus?.(msg);draw();}
@@ -24,7 +25,7 @@ function draw(){
  const controls=section.querySelector('#fd-controls');
  if(uid){
    controls.innerHTML='<span style="color:#adc0d5;font-size:12px">'+esc(email)+'</span><button style="'+buttonStyle+'" id="fd-sync">Sync now</button><button style="'+buttonStyle+'" id="fd-logout">Sign out</button>';
-   section.querySelector('#fd-sync').onclick=()=>{dirty=true;queue(0)};
+   section.querySelector('#fd-sync').onclick=syncNow;
    section.querySelector('#fd-logout').onclick=signOut;
  } else {
    controls.innerHTML='<button style="'+buttonStyle+'" id="fd-login">Connect cloud save</button>';
@@ -55,10 +56,7 @@ function askChoice(){
 function restoreCloud(data){
  if(!data||!validBackup(data)){setStatus('Cloud data failed validation. Nothing was overwritten.');return false;}
  try{localStorage.setItem(BACKUP,JSON.stringify(S))}catch(e){setStatus('Cannot back up your current save. Cloud restore cancelled.');return false;}
- const next={...blankState(),...data};
- next.claimed=Array.isArray(next.claimed)?next.claimed:[];
- next.v3=next.v3||{active:[],completed:[],nextSerial:0};
- next.v4=next.v4||{hunts:[],lastResult:null};
+ const next=completeProfile(JSON.parse(JSON.stringify(data)));
  const before=JSON.stringify(S);
  paused=true;S=next;resetDerived();reconcileCompleted();ensureBoard();
  const ok=save();if(!ok){S=JSON.parse(before);resetDerived();}render();paused=false;
@@ -72,7 +70,7 @@ function remember(stamp){
 async function readCloud(account){
  const r=await client.from('fitnessdex_saves').select('save_data,updated_at').eq('user_id',account).maybeSingle();
  if(r.error)throw r.error;
- if(r.data && !validBackup(r.data.save_data))throw Error('Cloud record could not be validated');
+ if(r.data && !validBackup(r.data.save_data))throw Error(backupProblem(r.data.save_data)||'Cloud record could not be validated');
  return r.data;
 }
 async function signOut(){
@@ -95,11 +93,22 @@ function authChanged(session){
  if(uid===account && account)return;
  const mine=++epoch;
  uid=account;email=session?.user?.email||'';serverStamp=null;cloudData=null;cloudStamp=null;
- choice=false;paused=false;dirty=false;busy=Boolean(account);clearTimeout(timer);
+ choice=false;paused=false;cloudCheckFailed=false;dirty=false;busy=false;clearTimeout(timer);
  if(!uid){setStatus('Local saving only. Sign in to back up online.');return;}
- setStatus('Signed in. Checking your cloud progress...');
  // Invalidate old requests now, and read outside Supabase's auth callback.
+ startCloudCheck(mine);
+}
+function startCloudCheck(mine=epoch){
+ if(!uid||busy||choice)return;
+ const account=uid;
+ busy=true;paused=false;cloudCheckFailed=false;
+ clearTimeout(timer);
+ setStatus('Checking your cloud progress...');
  setTimeout(()=>checkCloud(account,mine),0);
+}
+function syncNow(){
+ if(cloudCheckFailed){startCloudCheck();return;}
+ if(!busy&&!paused&&!choice){dirty=true;queue(0);}
 }
 async function checkCloud(account,mine){
  if(mine!==epoch)return;
@@ -116,7 +125,7 @@ async function checkCloud(account,mine){
     serverStamp=cloudStamp;dirty=true;setStatus('New activity found on this device. Saving...');
   }else{choice=true;paused=true;setStatus('Both this device and cloud contain different progress. Choose which to keep.');}
  }catch(e){
-  if(mine===epoch){paused=true;setStatus('Cloud unavailable: '+(e.message||'connection error')+'. Device save is safe.');}
+  if(mine===epoch){paused=true;cloudCheckFailed=true;setStatus('Cloud unavailable: '+(e.message||'connection error')+'. Device save is safe.');}
  }finally{
   if(mine===epoch){busy=false;draw();if(dirty&&!paused)queue(0);}
  }
@@ -154,7 +163,7 @@ async function upload(){
 }
 function queue(delay=1600){if(!uid||paused||choice)return;clearTimeout(timer);timer=setTimeout(upload,delay);}
 window.addEventListener('fitnessdex:saved',()=>{if(uid&&!paused){dirty=true;queue();}});
-window.addEventListener('online',()=>{if(dirty)queue(500);});
+window.addEventListener('online',()=>{if(cloudCheckFailed)startCloudCheck();else if(dirty)queue(500);});
 if(!window.supabase?.createClient){draw();return;}
 client=window.supabase.createClient(URL,KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}});
 window.fdCloudClient=()=>client;

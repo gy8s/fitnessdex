@@ -76,7 +76,7 @@ html = replaceOnce(html, '<div id="app"></div>',
 html = replaceOnce(html, '<script defer src="./notifications.js"></script>',
   '<script defer src="./native-cardio.js"></script><script defer src="./native-steps.js"></script><script defer src="./notifications.js"></script>',
   'Load the Android steps adapter');
-html = replaceOnce(html, '<span class="pill">v0.8.9</span>', '<span class="pill">v0.8.24</span>',
+html = replaceOnce(html, '<span class="pill">v0.8.9</span>', '<span class="pill">v0.8.25</span>',
   'Show the Android release version');
 fs.writeFileSync(indexFile, html);
 for (const adapter of ['native-profile-storage.js', 'native-backup.js', 'native-cloud.js', 'native-reminders.js', 'native-cardio.js', 'native-steps.js']) {

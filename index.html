@@ -190,10 +190,19 @@ function loadState(){
     migrationError='An existing save has an unexpected format. It has not been overwritten.';
     return blankState();
   }
-  if(raw&&!localStorage.getItem(PRE_V04)){try{localStorage.setItem(PRE_V04,raw);}catch(e){migrationError='Could not protect the old save before v0.4. Export your data first.';}}
-  if (raw && !localStorage.getItem(PRE_MIGRATION)) {
-    try {localStorage.setItem(PRE_MIGRATION,raw);}catch(e){migrationError='Could not make automatic migration backup; export manually before adding records.';}
+  if(raw){
+    try{if(!localStorage.getItem(PRE_V04))localStorage.setItem(PRE_V04,raw);}
+    catch(e){migrationError='Could not protect the old save before v0.4. Export your data first.';}
+    try{if(!localStorage.getItem(PRE_MIGRATION))localStorage.setItem(PRE_MIGRATION,raw);}
+    catch(e){migrationError='Could not make automatic migration backup; export manually before adding records.';}
   }
+  if(parsed.v6 && !validHabitState(parsed.v6)){migrationError='Habit records have an unexpected format. Nothing has been overwritten.';return blankState();}
+  if(parsed.v7 && !validCampaignState(parsed.v7)){migrationError='Campaign data is not in the expected format. Nothing has been overwritten.';return blankState();}
+  if(parsed.v8 && !validProgressionState(parsed.v8)){migrationError='Progression data is not in the expected format. Nothing has been overwritten.';return blankState();}
+  if(parsed.v9 && !validCareState(parsed.v9)){migrationError='Daily care data is not in the expected format. Nothing has been overwritten.';return blankState();}
+  return completeProfile(parsed);
+}
+function completeProfile(parsed){
   parsed.claimed=Array.isArray(parsed.claimed)?parsed.claimed:[];
   parsed.assign=(parsed.assign&&typeof parsed.assign==='object')?parsed.assign:{};
   parsed.tally=(parsed.tally&&typeof parsed.tally==='object')?parsed.tally:{};
@@ -207,11 +216,7 @@ function loadState(){
   if(!parsed.v5||typeof parsed.v5!=='object')parsed.v5={workouts:[],dismissed:[]};
   if(!Array.isArray(parsed.v5.workouts))parsed.v5.workouts=[];
   if(!Array.isArray(parsed.v5.dismissed))parsed.v5.dismissed=[];
-  if(parsed.v6 && !validHabitState(parsed.v6)){migrationError='Habit records have an unexpected format. Nothing has been overwritten.';return blankState();}
-  if(!parsed.v6)parsed.v6={baselineWeek:{alcohol:null,smoking:null,takeaway:null},days:[],awards:[]};
-  if(parsed.v7 && !validCampaignState(parsed.v7)){migrationError='Campaign data is not in the expected format. Nothing has been overwritten.';return blankState();}
-  if(parsed.v8 && !validProgressionState(parsed.v8)){migrationError='Progression data is not in the expected format. Nothing has been overwritten.';return blankState();}
-  if(parsed.v9 && !validCareState(parsed.v9)){migrationError='Daily care data is not in the expected format. Nothing has been overwritten.';return blankState();}
+  if(!parsed.v6)parsed.v6=blankState().v6;
   return parsed;
 }
 let S=loadState(), tab='home', cat='All', search='', chosen='e004', editId=null, activeSessionId=null, chosenTime=localTime(new Date()), messageQueue=[];
@@ -252,10 +257,10 @@ function restoreCheckpoint(index){
  const rows=recoveryRows(),row=rows[index];
  if(!row)return toast('That recovery snapshot is unavailable.');
  let previous;try{previous=JSON.parse(row.data);}catch(e){return alert('Recovery snapshot cannot be read. No changes made.');}
- if(!validBackup(previous))return alert('Recovery snapshot did not pass validation. No changes made.');
+ if(!validBackup(previous))return alert(backupProblem(previous)||'Recovery snapshot did not pass validation. No changes made.');
  if(!confirm('Restore records from '+new Date(row.at).toLocaleString('en-GB')+' ('+row.label+')? This will replace current progress.'))return;
  if(!checkpoint('Before recovery restore'))return;
- const before=JSON.stringify(S);S=previous;resetDerived();
+ const before=JSON.stringify(S);S=completeProfile(previous);resetDerived();
  if(!save()){S=JSON.parse(before);resetDerived();return;}
  render();toast('Earlier data restored. Cloud sync may ask you to choose which version to keep.');
 }
@@ -335,7 +340,7 @@ function periodInfo(type,now=new Date()){
  if(type==='monthly')end.setMonth(end.getMonth()+1);
  return {key:type+':'+stamp(start),start:start.toISOString(),end:end.toISOString(),title:{daily:'Daily','48h':'Two-day',weekly:'Weekly',monthly:'Monthly event'}[type]};
 }
-function logsInWindow(ch,until=Date.now()){
+function logsInWindow(ch,until=Date.now()+1){
   const start=Math.max(ms(ch.issuedAt),ms(ch.periodStart)),end=Math.min(ms(ch.periodEnd),until);
   return completedLogs().filter(l=>{const t=logWhen(l);return t>=start&&t<end&&(!ch.ex||matchesExercise(l,ch.ex))&&(!ch.category||ch.category===ex(l.id)?.cat);});
 }
@@ -401,7 +406,7 @@ function timeTrackTotals(rows=completedLogs()){
  return result;
 }
 
-function progressValue(ch,until=Date.now()){
+function progressValue(ch,until=Date.now()+1){
  const rows=logsInWindow(ch,until),met=rows.map(logMetrics);
  switch(ch.kind){
   case 'first_try':{
@@ -585,10 +590,12 @@ function rerollChallenge(cid){
  const replacement=selectCandidate(old.type,old.slot||0);
  // Keep old active during selection so its exact identity cannot be immediately repeated.
  if(!replacement)return toast('No different suitable challenge is currently available.');
+ const before=JSON.stringify(S.v3);
  S.v3.active=S.v3.active.filter(c=>c.cid!==cid);
  const p=periodInfo(old.type),now=new Date().toISOString();
  S.v3.active.push({...replacement,cid:'c'+(++S.v3.nextSerial)+'-'+uid(),type:old.type,periodKey:p.key,periodStart:p.start,periodEnd:p.end,issuedAt:now,slot:old.slot||0});
- save();render();toast('Challenge replaced · no penalty.');
+ if(!save()){S.v3=JSON.parse(before);return;}
+ render();toast('Challenge replaced · no penalty.');
 }
 function assignChallenge(type,slot){
  const selected=selectCandidate(type,slot);if(!selected)return false;
@@ -805,7 +812,8 @@ function toggleHunt(id){
  S.v4=S.v4||{hunts:[],lastResult:null};const h=S.v4.hunts||[];
  if(h.includes(id))S.v4.hunts=h.filter(x=>x!==id);
  else if(h.length<5)S.v4.hunts=[...h,id];else return toast('Five targets already pinned. Unpin one first.');
- save();render();
+ if(!save()){S.v4.hunts=h;return;}
+ render();
 }
 function nextTarget(id){
  const e=ex(id),options=allMilestones(e).filter(m=>m.limits.some(t=>t>m.value));
@@ -826,7 +834,13 @@ function resultPanel(){
  const r=S.v4?.lastResult;if(!r||!S.logs.some(l=>logId(l)===r.logId))return '';
  return `<div class="result-panel"><div class="row"><h2>Session results · ${esc(r.exercise)}</h2><button class="small" onclick="dismissResult()">Dismiss ×</button></div><p class="muted">${esc(r.summary)}</p><p><b>${r.xpGain>=0?'+':''}${r.xpGain} XP</b> · ${r.challengeNames.length} challenge${r.challengeNames.length===1?'':'s'} · ${r.milestones.length} milestone${r.milestones.length===1?'':'s'}</p>${r.challengeNames.length?`<b>Challenges completed</b><ul>${r.challengeNames.slice(0,6).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}${r.milestones.length?`<b>New achievements</b><ul>${r.milestones.slice(0,8).map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}<div class="result-actions"><button onclick="navigate('achievements')">View achievements</button><button onclick="navigate('home')">See next challenges</button></div></div>`;
 }
-function dismissResult(){if(S.v4)S.v4.lastResult=null;save();render();}
+function dismissResult(){
+ if(!S.v4?.lastResult)return;
+ const previous=S.v4.lastResult;
+ S.v4.lastResult=null;
+ if(!save()){S.v4.lastResult=previous;return;}
+ render();
+}
 
 function home(){
  const xp=playerXP(), seen=achievementCounts(), st=streakMetrics(), attributes=Object.entries(attrXP()).sort((a,b)=>b[1]-a[1]), dailies=dailyAwardTotals()[today()]||0;
@@ -1057,7 +1071,7 @@ function prefillSets(){
 function cancelEdit(){editId=null;render();}
 function submitLog(){if(migrationError){alert(migrationError);return;}
  const e=ex(chosen),date=$('date').value,clock=$('clock').value,notes=$('notes').value,existing=editId?S.logs.find(x=>logId(x)===editId):null;
- if(!e||!validDate(date)||!/^\d{2}:\d{2}$/.test(clock))return alert('Enter a valid date and time.');
+ if(!e||!validDate(date)||!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(clock))return alert('Enter a valid date and time.');
  const cardio = !existing ? window.fdCardioForSave?.(e) : null;
  if(cardio&&!cardio.finished)return alert('Tap Finish before saving the session.');
  const current=new Date(), originalTime=existing?.performedAt?localTime(new Date(existing.performedAt)):null;
@@ -1082,10 +1096,11 @@ function submitLog(){if(migrationError){alert(migrationError);return;}
    if(e.mode==='distance')entry.minutes=extra===''?null:Number(extra);else entry.distance=extra===''?null:Number(extra);
  }
  if(cardio){
-  if(entry.value<0.001||entry.value>1000||!entry.minutes||entry.minutes>1440)return alert('Check distance and active minutes before saving.');
+  if(!entry.minutes)return alert('Enter active minutes before saving.');
   if(cardio.total!==null)entry.cardioSteps={total:cardio.total,today:cardio.today,day:cardio.day,source:cardio.source};
  }
- if(e.mode==='duration'&&(e.id==='e051'||['e121','e122','e123','e124'].includes(e.id))){entry.stroke=STROKE_BY_ID[e.id]||($('stroke')?.value||'');entry.lengths=$('lengths').value===''?null:n($('lengths').value);}
+ if(e.mode==='duration'&&(e.id==='e051'||['e121','e122','e123','e124'].includes(e.id))){entry.stroke=STROKE_BY_ID[e.id]||($('stroke')?.value||'');entry.lengths=$('lengths').value===''?null:Number($('lengths').value);}
+ const problem=entryProblem(entry);if(problem)return alert(problem);
  const preChange=JSON.stringify(S),previousEdit=editId,previousSession=activeSessionId;
  if(existing&&!checkpoint('Before editing '+e.name))return;
  const session=$('session').value;entry.sessionId=session==='standalone'?null:session==='legacy'?(existing?.sessionId||null):session==='new'?'w-'+uid():session;
@@ -1154,29 +1169,43 @@ function exportPreV04(){const raw=localStorage.getItem(PRE_V04);if(!raw)return t
 function restoreBeforeImport(){
  const raw=localStorage.getItem(PRE_IMPORT);if(!raw)return toast('No previous import snapshot is stored here.');
  let old;try{old=JSON.parse(raw)}catch(e){return alert('Restore snapshot is not readable. Current data remains unchanged.');}
- if(!validBackup(old))return alert('Restore snapshot failed validation. Current data remains unchanged.');
+ if(!validBackup(old))return alert(backupProblem(old)||'Restore snapshot failed validation. Current data remains unchanged.');
  if(!confirm('Restore the save from before your last import? Export your current data first if needed.'))return;
  if(!checkpoint('Before pre-import restore'))return;
- const before=JSON.stringify(S);S=old;resetDerived();if(!save()){S=JSON.parse(before);resetDerived();return;}render();toast('Previous import snapshot restored.');
+ const before=JSON.stringify(S);S=completeProfile(old);resetDerived();if(!save()){S=JSON.parse(before);resetDerived();return;}render();toast('Previous import snapshot restored.');
 }
-function isSafeEntry(l){
- if(!l||typeof l!=='object'||!ex(l.id)||!validDate(l.date))return false;
- const e=ex(l.id);if(l.mode!==e.mode && !(l.mode==='reps'&&e.mode==='bodysets'))return false;
- if(l.performedAt && (!Number.isFinite(ms(l.performedAt))||Math.abs(ms(l.performedAt)-ms(l.date+'T12:00:00'))>48*3600000))return false;
- if(l.notes && (typeof l.notes!=='string'||l.notes.length>1000))return false;
+function isSafeEntry(entry){return !entryProblem(entry);}
+function entryProblem(l){
+ const exercise=l&&ex(l.id);
+ if(!exercise||!validDate(l.date))return 'Check the exercise and date.';
+ if(l.mode!==exercise.mode && !(l.mode==='reps'&&exercise.mode==='bodysets'))return 'This exercise uses a different type of result.';
+ if(l.performedAt && (!Number.isFinite(ms(l.performedAt))||Math.abs(ms(l.performedAt)-ms(l.date+'T12:00:00'))>48*3600000))return 'Check the time this exercise was recorded.';
+ if(l.notes && (typeof l.notes!=='string'||l.notes.length>1000))return 'Notes must be 1,000 characters or fewer.';
  if(l.cardioSteps!=null){
   const steps=l.cardioSteps;
   if(!isFootCardio(l.id)||!Number.isSafeInteger(steps.total)||!Number.isSafeInteger(steps.today)
-   ||steps.today<0||steps.today>steps.total||!validDate(steps.day)||!/^[a-f0-9-]{36}$/.test(steps.source))return false;
+   ||steps.today<0||steps.today>steps.total||!validDate(steps.day)||!/^[a-f0-9-]{36}$/.test(steps.source))return 'Recorded steps are invalid.';
  }
- if(['sets','bodysets'].includes(l.mode))return Array.isArray(l.sets)&&l.sets.length>0&&l.sets.length<=100&&l.sets.every(s=>(l.mode!=='sets'||typeof s.weight==='number'&&Number.isFinite(s.weight)&&s.weight>0&&s.weight<=1000)&&typeof s.reps==='number'&&Number.isInteger(s.reps)&&s.reps>0&&s.reps<=1000);
- if(typeof l.value!=='number'||!Number.isFinite(l.value))return false;
- const bounds={reps:[1,100000],time:[1,86400],range:[-100,200],distance:[0.001,1000],duration:[.1,1440]};const [lo,hi]=bounds[l.mode]||[0,1e6];
- if(l.value<lo||l.value>hi)return false;
- if(l.minutes!=null&&(!Number.isFinite(l.minutes)||l.minutes<0||l.minutes>1440))return false;
- if(l.distance!=null&&(!Number.isFinite(l.distance)||l.distance<0||l.distance>1000))return false;
- if(l.lengths!=null&&(!Number.isInteger(Number(l.lengths))||Number(l.lengths)<0||Number(l.lengths)>2000))return false;
- return true;
+ if(['sets','bodysets'].includes(l.mode)){
+  if(!Array.isArray(l.sets)||!l.sets.length||l.sets.length>100)return 'Enter 1 to 100 completed sets.';
+  if(!l.sets.every(s=>s&&(l.mode!=='sets'||Number.isFinite(s.weight)&&s.weight>0&&s.weight<=1000)&&Number.isInteger(s.reps)&&s.reps>0&&s.reps<=1000))return 'Use 1 to 1,000 whole reps and, for weighted sets, a weight above 0 and up to 1,000 kg.';
+  return '';
+ }
+ const bounds={reps:[1,100000,'reps'],time:[1,86400,'seconds'],range:[-100,200,'cm'],distance:[0.001,1000,'km'],duration:[0.1,1440,'minutes']};
+ const [lo,hi,unit]=bounds[l.mode]||[0,1e6,''];
+ if(!Number.isFinite(l.value)||l.value<lo||l.value>hi)return `Enter a result between ${lo} and ${hi} ${unit}.`;
+ if(l.minutes!=null&&(!Number.isFinite(l.minutes)||l.minutes<0||l.minutes>1440))return 'Enter optional duration between 0 and 1,440 minutes.';
+ if(l.distance!=null&&(!Number.isFinite(l.distance)||l.distance<0||l.distance>1000))return 'Enter optional distance between 0 and 1,000 km.';
+ if(l.lengths!=null&&(!Number.isFinite(Number(l.lengths))||Number(l.lengths)<0||Number(l.lengths)>2000))return 'Enter between 0 and 2,000 pool lengths.';
+ return '';
+}
+function backupProblem(data){
+ if(!Array.isArray(data?.logs))return '';
+ const index=data.logs.findIndex(l=>!isSafeEntry(l));
+ if(index<0)return '';
+ const entry=data.logs[index],exercise=entry&&ex(entry.id)?.name,date=entry&&validDate(entry.date)?entry.date:'';
+ const detail=[exercise,date].filter(Boolean).join(', ');
+ return `Backup record ${index+1}${detail?' ('+detail+')':''} needs correcting. ${entryProblem(entry)} Open History & data on the device that made this backup, edit the record, then export it again. Current data remains as it was.`;
 }
 function validHabitState(v){
  if(!v||typeof v!=='object'||!v.baselineWeek||typeof v.baselineWeek!=='object'||!Array.isArray(v.days)||!Array.isArray(v.awards))return false;
@@ -1295,14 +1324,13 @@ function validBackup(obj){
 }
 async function importData(file){if(!file)return;if(file.size>10000000){alert('Backup exceeds 10 MB; not imported.');return;}
  let data;try{data=JSON.parse(await file.text());}catch(e){alert('Not valid JSON. No data was changed.');return;}
- if(!validBackup(data)){alert('This file is not a recognised valid FitnessDex backup. No data was changed.');return;}
+ if(!validBackup(data)){alert(backupProblem(data)||'This file is not a recognised valid FitnessDex backup. No data was changed.');return;}
  const msg=`Replace ${S.logs.length} current records with ${data.logs.length} imported records? A local copy of the current data will be retained first.`;
  if(!confirm(msg))return;
  if(!checkpoint('Before data import'))return;
  try{localStorage.setItem(PRE_IMPORT,JSON.stringify(S));}catch(e){alert('Could not protect current data. Import cancelled.');return;}
- const next={...blankState(),...data,claimed:Array.isArray(data.claimed)?data.claimed:[],assign:data.assign||{},tally:data.tally||{},v3:data.v3||{active:[],completed:[],nextSerial:0},v4:data.v4||{hunts:[],lastResult:null}};
+ const next=completeProfile(data);
  next.v3.completed=next.v3.completed.map(c=>({...c,rewardXP:rewardFor(c)}));
- next.v4.hunts=unique((Array.isArray(next.v4.hunts)?next.v4.hunts:[]).filter(id=>!!ex(id))).slice(0,5);
  const before=JSON.stringify(S);S=next;resetDerived();reconcileCompleted();ensureBoard();if(!save()){S=JSON.parse(before);resetDerived();return;}render();toast('Validated backup imported · saved data restored.');
 }
 function lifetimeBadgeProgress(){

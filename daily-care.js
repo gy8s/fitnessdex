@@ -12,9 +12,10 @@ const amount=(d,m=care())=>drinks(d,m).reduce((sum,e)=>sum+e.ml,0);
 const fmt=x=>x>=1000?(x/1000).toLocaleString('en-GB',{maximumFractionDigits:2})+' L':x+' ml';
 const atTime=x=>new Date(x).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 const waterMet=(d,m=care())=>amount(d,m)>=waterGoal(d,m);
-function spaced(d,m=care()){
- const stamps=drinks(d,m).filter(x=>x.ml>=150).map(x=>Date.parse(x.at));
- if(!waterMet(d,m)||stamps.length<3)return false;
+const spaced=(d,m=care())=>waterMet(d,m)&&spacedDrinks(drinks(d,m));
+function spacedDrinks(rows){
+ const stamps=rows.filter(x=>x.ml>=150).map(x=>Date.parse(x.at)).sort((a,b)=>a-b);
+ if(stamps.length<3)return false;
  for(let i=0;i<stamps.length-2;i++)for(let j=i+1;j<stamps.length-1;j++){
   if(stamps[j]-stamps[i]<3600000)continue;
   if(stamps.some((x,k)=>k>j&&x-stamps[j]>=3600000&&x-stamps[i]>=10800000))return true;
@@ -52,11 +53,23 @@ function scheduledStreak(ds,m){
  return best;
 }
 function careRewards(m=care()){
- const dates=new Set([...m.water.entries.map(x=>x.date),...m.supplements.taken.map(x=>x.date)]);
+ const waterByDay=new Map();
+ for(const entry of m.water.entries){
+  if(!waterByDay.has(entry.date))waterByDay.set(entry.date,[]);
+  waterByDay.get(entry.date).push(entry);
+ }
+ const dates=new Set([...waterByDay.keys(),...m.supplements.taken.map(x=>x.date)]);
+ const goals=new Map(m.water.goals.map(x=>[x.date,x.ml]));
+ const currentDay=today();
  let xp=0;const waterDays=[],supplementDays=[];
  for(const day of dates){
-  if(day>today())continue;
-  if(waterMet(day,m)){waterDays.push(day);xp+=10;if(spaced(day,m))xp+=5;if(waterGoal(day,m)>=2500)xp+=5;}
+  if(day>currentDay)continue;
+  const rows=waterByDay.get(day)||[],goal=goals.get(day)||m.water.baseGoal;
+  if(rows.reduce((sum,entry)=>sum+entry.ml,0)>=goal){
+   waterDays.push(day);xp+=10;
+   if(spacedDrinks(rows))xp+=5;
+   if(goal>=2500)xp+=5;
+  }
   const check=checkIns(day,m);
   if(check.all){supplementDays.push(day);xp+=5;if(check.onTime)xp+=2;}
  }

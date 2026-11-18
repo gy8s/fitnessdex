@@ -4,8 +4,10 @@
   const reminders = window.Capacitor?.Plugins?.Reminders;
   let permission = 'default';
   const update = result => {
-    permission = result.permission;
-    if (tab === 'notifications') render();
+    if (permission !== result.permission) {
+      permission = result.permission;
+      if (tab === 'notifications') window.fdRefreshReminderPermission?.();
+    }
     return permission;
   };
   if (reminders) {

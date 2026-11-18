@@ -143,6 +143,17 @@ render=function(){
  }
  previousRender();
 };
+window.fdRefreshReminderPermission=()=>{
+ const fields=['fd-reminder-water','fd-reminder-supp',...[0,1,2].map(i=>'fd-reminder-slot-'+i)];
+ const drafts=fields.map(id=>document.getElementById(id)).filter(Boolean).map(input=>({
+  id:input.id,value:input.value,checked:input.checked
+ }));
+ render();
+ for(const draft of drafts){
+  const input=document.getElementById(draft.id);
+  if(input){input.value=draft.value;input.checked=draft.checked;}
+ }
+};
 function openSection(section){
  if(section==='water')window.fdCareWater?.();
  else if(section==='supplements')window.fdCareSupplements?.();

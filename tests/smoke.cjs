@@ -29,7 +29,7 @@ assert(read('push-client.js').includes('fdPushBackgroundTest'),'Queued server pu
 assert(sw.includes("self.addEventListener('notificationclick'"),'Notifications must navigate correctly when tapped');
 new vm.Script(sw,{filename:'sw.js'});
 
-function boot(initial,cardioForSave){
+function boot(initial,cardioForSave,Clock=Date){
  const keys=new Map();
  if(initial)keys.set('fitnessdex-v01',JSON.stringify(initial));
  let failWrites=false, rejectProfileWrite=()=>false;
@@ -58,11 +58,11 @@ function boot(initial,cardioForSave){
  };
  const emitted=[],alerts=[];
  const window={scrollTo(){},dispatchEvent(e){emitted.push(e.type)},fdCardioForSave:cardioForSave};
- const fn=new Function('window','document','localStorage','Event','alert','confirm','console',
+ const fn=new Function('window','document','localStorage','Event','alert','confirm','console','Date',
   codeScripts[0]+'\n'+codeScripts[1]+
-  '\nreturn {state:()=>S,save,choose,openDexFamily,openPathNode,submitLog,deleteLog,checkpoint,recoveryRows,restoreCheckpoint,validBackup,editLog,today,localTime};');
- const app=fn(window,doc,storage,function Event(type){this.type=type;},m=>alerts.push(m),()=>true,console);
- const now=new Date();
+  '\nreturn {state:()=>S,save,choose,openDexFamily,openPathNode,submitLog,deleteLog,checkpoint,recoveryRows,restoreCheckpoint,validBackup,editLog,toggleHunt,logsInWindow,importData,today,localTime};');
+ const app=fn(window,doc,storage,function Event(type){this.type=type;},m=>alerts.push(m),()=>true,console,Clock);
+ const now=new Clock();
  for(const [id,val] of [['date',app.today()],['clock',app.localTime(now)],['notes',''],['session','standalone']])doc.getElementById(id).value=val;
  return {app,doc,keys,alerts,emitted,profileWrites,setFail:v=>{failWrites=v;},rejectWrite:fn=>{rejectProfileWrite=fn;}};
 }
@@ -93,6 +93,61 @@ assert(b.app.recoveryRows().length>0,'Pre-change recovery snapshot missing');
 b.app.restoreCheckpoint(0);
 assert.equal(b.app.state().logs.length,2,'Recovery checkpoint failed to restore deleted record');
 assert(b.app.validBackup(b.app.state()),'Recovery restored invalid data');
+
+const legacy=boot(sample());
+const oldProfile={logs:sample().logs};
+legacy.keys.set('fitnessdex-recovery-checkpoints-v1',JSON.stringify([{
+ at:new Date().toISOString(),label:'Old app version',data:JSON.stringify(oldProfile)
+}]));
+legacy.app.restoreCheckpoint(0);
+assert.deepEqual(legacy.app.state().logs,oldProfile.logs);
+assert(legacy.app.validBackup(legacy.app.state()),'Legacy recovery must work before the app restarts');
+assert.deepEqual(JSON.parse(legacy.keys.get('fitnessdex-v01')),legacy.app.state());
+
+const swim=boot(null);
+swim.app.choose('e051');
+for(const [field,value] of [['value','20'],['extra','0.05'],['lengths','2.5']])swim.doc.getElementById(field).value=value;
+swim.app.submitLog();
+const swimSnapshot=JSON.parse(swim.keys.get('fitnessdex-v01'));
+assert.equal(swimSnapshot.logs[0].lengths,2.5);
+assert(swim.app.validBackup(swimSnapshot),'A fractional pool length must survive backup validation');
+swim.doc.getElementById('extra').value='1001';
+swim.app.submitLog();
+assert.match(swim.alerts.at(-1),/optional distance/);
+assert.equal(swim.app.state().logs.length,1,'The logger must reject entries that cannot be restored');
+const badBackup=structuredClone(swimSnapshot);
+badBackup.logs[0].distance=1001;
+const badText=JSON.stringify(badBackup);
+swim.app.importData({size:badText.length,text:async()=>badText}).then(()=>{
+ assert.match(swim.alerts.at(-1),/Backup record 1 \(Swimming.*optional distance/);
+ assert.equal(swim.keys.get('fitnessdex-v01'),JSON.stringify(swimSnapshot));
+}).catch(error=>{console.error(error);process.exitCode=1;});
+
+const pin=boot(null);
+pin.setFail(true);
+pin.app.toggleHunt('e004');
+assert.deepEqual(pin.app.state().v4.hunts,[],'Failed pin must roll back');
+pin.setFail(false);
+pin.app.toggleHunt('e004');
+assert.deepEqual(JSON.parse(pin.keys.get('fitnessdex-v01')).v4.hunts,['e004']);
+
+const exactTime=new Date();
+exactTime.setHours(12,0,0,0);
+class FixedClock extends Date {
+ constructor(...args){super(...(args.length?args:[exactTime.getTime()]));}
+ static now(){return exactTime.getTime();}
+}
+const timingStart=new Date(+exactTime-3600000).toISOString();
+const timingProfile=sample();
+timingProfile.logs=[];
+const timingChallenge={cid:'same-time',type:'weekly',kind:'reps',ex:'e004',goal:8,unit:'reps',label:'Same time',
+ periodKey:'weekly:same-time',periodStart:timingStart,issuedAt:timingStart,
+ periodEnd:new Date(+exactTime+1).toISOString(),slot:0};
+timingProfile.v3.active.push(timingChallenge);
+const timing=boot(timingProfile,null,FixedClock);
+timing.app.submitLog();
+assert(timing.app.state().v3.completed.some(c=>c.cid==='same-time'),'Count a workout saved in the same millisecond');
+assert.equal(timing.app.logsInWindow({...timingChallenge,periodEnd:exactTime.toISOString()}).length,0,'The exact deadline stays excluded');
 
 const challengeStart=new Date(Date.now()-2*60*60*1000).toISOString();
 const challengeProfile=sample();

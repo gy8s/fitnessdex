@@ -62,9 +62,10 @@ function fixture() {
     } };
   }
 
+  const section=element();
   vm.runInNewContext(fs.readFileSync('cloud.js','utf8'), {
     document:{
-      querySelector:element, createElement:element,
+      querySelector:() => section, createElement:() => section,
       getElementById:() => ({ insertAdjacentElement() {} })
     },
     window:{
@@ -96,6 +97,8 @@ function fixture() {
         account ? {user:{id:account,email:account+'@example.test'}} : null);
     },
     saveLocally:() => handlers.get('fitnessdex:saved')(),
+    reconnect:() => handlers.get('online')(),
+    syncNow:() => section.querySelector('#fd-sync').onclick(),
     async nextTimer() {
       const entry = timers.entries().next();
       if (entry.done) return;
@@ -174,8 +177,32 @@ async function ignoreOldReadFailure() {
   assert.match(test.status(),/Cloud save up to date/);
 }
 
-switchDuringUpload().then(ignoreOldReadFailure).then(() => {
-  console.log('Cloud backup checks passed: switching accounts, signing back in, and saving under the current account.');
+async function retryFirstRead(){
+  const test=fixture();
+  test.switchAccount('first');
+  await test.nextTimer();
+  test.take('read','first').resolve({error:new Error('Offline')});
+  await test.flush();
+  assert.match(test.status(),/Cloud unavailable/);
+
+  test.reconnect();
+  await test.nextTimer();
+  test.take('read','first').resolve({error:new Error('Still offline')});
+  await test.flush();
+
+  test.syncNow();
+  test.syncNow();
+  await test.nextTimer();
+  test.take('read','first').resolve(row({logs:[{id:'other-device'}]}));
+  await test.flush();
+  assert.match(test.status(),/Choose which to keep/,'Retry must still ask about different progress');
+  assert.equal(test.profile.logs[0].id,'first-workout');
+  test.syncNow();
+  assert.match(test.status(),/Choose which to keep/,'Manual sync must respect a pending conflict');
+}
+
+switchDuringUpload().then(ignoreOldReadFailure).then(retryFirstRead).then(() => {
+  console.log('Cloud backup checks passed: account switching, reconnect, manual retry, and conflict protection.');
 }).catch(error => {
   console.error(error);
   process.exitCode = 1;
