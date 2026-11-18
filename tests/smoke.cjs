@@ -400,3 +400,93 @@ function verifyReminders(){
  })();
 }
 verifyReminders().catch(e=>{console.error(e);process.exitCode=1;});
+
+function checkCampaignReturns(){
+ const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value));
+ const validator=codeScripts[1].split('function validCampaignState(')[1].split('function validProgressionState(')[0];
+ function fixture(){
+  let day='2026-07-29',canSave=true;
+  const date=()=>day,window={scrollTo(){}};
+  const model={v7:{campaigns:[{id:'run5k',started:'2026-07-01',managed:true}]},logs:[]};
+  const validate=new Function('validDate','today','return function validCampaignState('+validator)(validDate,date);
+  const run=new Function('window','S','today','validDate','logWhen','logMetrics','n','ex','save','validCampaignState','confirm','navigate','render','toast','choose','tab',
+   read('campaigns.js')+'\nreturn window;');
+  run(window,model,date,validDate,log=>Date.parse(log.date),log=>({distance:log.value}),Number,id=>({name:id,mode:id==='e046'?'distance':'bodysets'}),()=>canSave,validate,()=>true,()=>{},()=>{},()=>{},()=>{},'campaigns');
+  function log(date,id='e046'){
+   model.logs.push({id,date,value:1});
+  }
+  for(const dates of [['01','03','05'],['08','10','12'],['15','17','19'],['22','24','26']]){
+   dates.forEach(d=>log('2026-07-'+d));
+   log('2026-07-'+dates[0],'e109');
+  }
+  window.fdCampaignOpen('run5k');
+  const body=()=>window.fdCampaignsView();
+  const act=name=>{
+   window['fdCampaign'+name]('run5k');
+   assert(validate(JSON.parse(JSON.stringify(model.v7))),name+' generated invalid campaign data');
+  };
+  return {model,log,body,act,setDay:d=>{day=d;},failSave:()=>{canSave=false;},validate};
+ }
+
+ const brief=fixture();
+ assert.match(brief.body(),/4\/16/);
+ brief.act('Pause');
+ brief.setDay('2026-08-02');brief.act('Resume');
+ assert.match(brief.body(),/This week/);
+ assert.match(brief.body(),/5<\/strong><span>Current \/ final week/);
+ assert.match(brief.body(),/1\/4<\/strong><span>Chapter medals/);
+ assert.equal(brief.model.logs.length,16);
+
+ const repeated=fixture();
+ repeated.act('Pause');repeated.setDay('2026-08-05');
+ assert.match(repeated.body(),/Repeat week 4/);
+ repeated.act('Resume');
+ assert.match(repeated.body(),/4<\/strong><span>Current \/ final week/);
+ repeated.log('2026-08-05');repeated.log('2026-08-05','e109');repeated.log('2026-08-07');repeated.log('2026-08-09');
+ repeated.setDay('2026-08-09');
+ assert.match(repeated.body(),/4\/16/,'Repeating an earned week must not credit it twice');
+
+ const deload=fixture();
+ deload.act('Pause');deload.setDay('2026-08-12');deload.act('Resume');
+ assert.match(deload.body(),/Return week/);
+ deload.setDay('2026-08-19');
+ assert.match(deload.body(),/This week/);
+ assert.match(deload.body(),/4<\/strong><span>Current \/ final week/);
+
+ const baseline=fixture();
+ baseline.act('Pause');baseline.setDay('2026-08-26');baseline.act('Resume');
+ assert.match(baseline.body(),/Log baseline/);
+ baseline.act('BaselineDone');
+ assert.match(baseline.body(),/Log baseline/,'A baseline must have a real session');
+ baseline.log('2026-08-26');
+ assert.match(baseline.body(),/Begin return week/);
+ baseline.act('BaselineDone');assert.match(baseline.body(),/Return week/);
+
+ const missed=fixture();
+ missed.setDay('2026-08-03');missed.log('2026-08-03');
+ assert.match(missed.body(),/Return needed/,'Logging again cannot silently skip a full missed training week');
+
+ const planned=fixture();
+ planned.act('Recovery');planned.setDay('2026-08-04');
+ assert.match(planned.body(),/Recovery week/);
+ planned.setDay('2026-08-05');
+ assert.match(planned.body(),/5<\/strong><span>Current \/ final week/);
+ assert.match(planned.body(),/This week/);
+ assert.match(planned.body(),/4\/16/);
+
+ const ended=fixture();
+ ended.act('End');assert.match(ended.body(),/>Ended<\/h2>/);
+ ended.act('Restart');assert.match(ended.body(),/Restart scheduled/);
+ ended.setDay('2026-07-30');
+ assert.match(ended.body(),/0\/16/);
+ assert.match(ended.body(),/4 qualifying weeks in earlier attempts/);
+ assert.match(ended.body(),/1\/4<\/strong><span>Chapter medals/);
+
+ const legacy=fixture();
+ assert(legacy.validate({campaigns:[{id:'run5k',started:'2026-07-01'}]}));
+ assert(!legacy.validate({campaigns:[{id:'run5k',started:'2026-07-01',breaks:[{from:'2026-07-29',resumed:'2026-07-28'}]}]}));
+ legacy.failSave();legacy.act('Pause');
+ assert.equal(legacy.model.v7.campaigns[0].breaks,undefined,'Failed storage write must restore campaign state');
+ console.log('Campaign checks passed: short pauses, repeats, deloads, baseline, recovery, restart and compatible saves.');
+}
+checkCampaignReturns();

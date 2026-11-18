@@ -35,6 +35,7 @@ body[data-fd-tab="history"] footer{display:block;max-width:1180px;margin:12px au
 .fd-campaign-phase p,.fd-campaign-panel p{margin:0;color:#b3c9d7;font-size:12px;line-height:1.6}
 .fd-campaign-panel{display:grid;gap:13px}.fd-campaign-panel h2{font-size:16px;margin:0}
 .fd-campaign-main{padding:14px;font-weight:700;width:100%}
+.fd-campaign-panel>button,.fd-campaign-detail>button,.fd-campaign-disclosure button{min-height:44px}
 .fd-campaign-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .fd-campaign-stats>div{background:#192c3d;border:1px solid #345065;border-radius:10px;padding:12px 7px;display:grid;gap:6px;text-align:center}
 .fd-campaign-stats strong{font-size:20px;color:#aaf0d7}.fd-campaign-stats span{font-size:11px;color:#b3c6d5}

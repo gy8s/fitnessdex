@@ -1190,9 +1190,37 @@ function validHabitState(v){
 }
 function validCampaignState(v){
  if(!v||typeof v!=='object'||!Array.isArray(v.campaigns)||v.campaigns.length>7)return false;
- const ids=new Set();
+ const lengths={arms:12,core:12,squat:52,deadlift:52,swim:26,run5k:16,grip:12};
+ const addDays=(date,days)=>new Date(Date.parse(date+'T00:00:00Z')+days*86400000).toISOString().slice(0,10);
+ const now=today(),limit=addDays(now,1),ids=new Set();
  for(const row of v.campaigns){
-  if(!row||!['arms','core','squat','deadlift','swim','run5k','grip'].includes(row.id)||ids.has(row.id)||!validDate(row.started)||row.started>today())return false;
+  if(!row||!Object.hasOwn(lengths,row.id)||ids.has(row.id)||!validDate(row.started)||row.started>now)return false;
+  if(row.managed!==undefined&&typeof row.managed!=='boolean')return false;
+  if(row.ended!==undefined&&(!validDate(row.ended)||row.ended<row.started||row.ended>now))return false;
+  if(row.breaks!==undefined&&(!Array.isArray(row.breaks)||row.breaks.length>1000))return false;
+  let next=row.started;
+  for(const [i,gap] of (row.breaks||[]).entries()){
+   if(!gap||!validDate(gap.from)||gap.from<next||gap.from>limit)return false;
+   if(gap.mode!==undefined&&!['planned','deload','baseline','restart'].includes(gap.mode))return false;
+   const week=gap.week;
+   if(week!==undefined&&(!Number.isInteger(week)||week<0||week>=lengths[row.id]))return false;
+   if(gap.reached!==undefined&&(!Number.isInteger(gap.reached)||gap.reached<0||gap.reached>lengths[row.id]))return false;
+   const {resumed,baselineDone}=gap;
+   if(resumed===undefined){
+    if(i!==row.breaks.length-1||gap.mode!==undefined||week!==undefined||baselineDone!==undefined)return false;
+    continue;
+   }
+   if(!validDate(resumed)||resumed<gap.from)return false;
+   if(gap.mode==='planned'){
+    if(resumed!==addDays(gap.from,7)||week!==undefined)return false;
+   }else if(gap.mode==='restart'){
+    if(resumed>limit||week!==0)return false;
+   }else if(resumed>now)return false;
+   if(['deload','baseline'].includes(gap.mode)&&week===undefined)return false;
+   if(baselineDone!==undefined&&(gap.mode!=='baseline'||!validDate(baselineDone)||baselineDone<resumed||baselineDone>now))return false;
+   if(gap.mode==='baseline'&&baselineDone===undefined&&i!==row.breaks.length-1)return false;
+   next=(gap.mode==='deload'||gap.mode==='baseline')?addDays(baselineDone||resumed,7):resumed;
+  }
   ids.add(row.id);
  }
  return true;
