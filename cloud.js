@@ -12,10 +12,11 @@ section.id = 'fitnessdex-cloud';
 section.style.cssText = 'margin:10px auto 14px;padding:12px 16px;border:1px solid #2a3950;border-radius:12px;background:#151d2c;color:#f2f5f9;font:14px system-ui,sans-serif';
 document.getElementById('app')?.insertAdjacentElement('afterend', section);
 const esc = s => String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fingerprint = s => JSON.stringify({logs:s?.logs||[],claimed:s?.claimed||[],recoveryDays:s?.recoveryDays||[],active:s?.v3?.active||[],completed:s?.v3?.completed||[],hunts:s?.v4?.hunts||[],serial:s?.v3?.nextSerial||0,workouts:s?.v5?.workouts||[],dismissed:s?.v5?.dismissed||[],habits:{baselineWeek:{alcohol:s?.v6?.baselineWeek?.alcohol??null,smoking:s?.v6?.baselineWeek?.smoking??null,takeaway:s?.v6?.baselineWeek?.takeaway??null},days:s?.v6?.days||[],awards:s?.v6?.awards||[]},campaigns:s?.v7?.campaigns||[],progression:{tracks:s?.v8?.tracks||[],sessions:s?.v8?.sessions||[]},dailyCare:{water:{baseGoal:s?.v9?.water?.baseGoal??2000,goals:s?.v9?.water?.goals||[],entries:s?.v9?.water?.entries||[]},supplements:{items:s?.v9?.supplements?.items||[],taken:s?.v9?.supplements?.taken||[]}}});
+const fingerprint = s => JSON.stringify({logs:s?.logs||[],claimed:s?.claimed||[],recoveryDays:s?.recoveryDays||[],active:s?.v3?.active||[],completed:s?.v3?.completed||[],hunts:s?.v4?.hunts||[],serial:s?.v3?.nextSerial||0,workouts:s?.v5?.workouts||[],dismissed:s?.v5?.dismissed||[],habits:{baselineWeek:{alcohol:s?.v6?.baselineWeek?.alcohol??null,smoking:s?.v6?.baselineWeek?.smoking??null,takeaway:s?.v6?.baselineWeek?.takeaway??null},days:s?.v6?.days||[],awards:s?.v6?.awards||[]},campaigns:s?.v7?.campaigns||[],progression:{tracks:s?.v8?.tracks||[],sessions:s?.v8?.sessions||[]},dailyCare:{water:{baseGoal:s?.v9?.water?.baseGoal??2000,goals:s?.v9?.water?.goals||[],entries:s?.v9?.water?.entries||[],baseGoalHistory:s?.v9?.water?.baseGoalHistory},supplements:{items:s?.v9?.supplements?.items||[],taken:s?.v9?.supplements?.taken||[]}}});
 const meaningful = s => !!(s?.logs?.length || s?.claimed?.length || s?.recoveryDays?.length || s?.v3?.completed?.length || s?.v4?.hunts?.length || s?.v5?.workouts?.length || s?.v6?.days?.length || s?.v6?.awards?.length || Object.values(s?.v6?.baselineWeek||{}).some(x=>x!=null) || s?.v7?.campaigns?.length || s?.v8?.tracks?.length || s?.v8?.sessions?.length || s?.v9?.water?.entries?.length || s?.v9?.water?.goals?.length || (s?.v9?.water?.baseGoal??2000)!==2000 || s?.v9?.supplements?.items?.length || s?.v9?.supplements?.taken?.length);
 let client, uid=null, email='', serverStamp=null, cloudData=null, cloudStamp=null, paused=false, choice=false, busy=false, dirty=false, timer=null, epoch=0;
 let cloudCheckFailed=false, choiceDeferred=false, cloudInvalid=false, savedInvalidCopy=false;
+let pendingWrite=null;
 let status='Saved on this device. Sign in for automatic cloud backups.';
 const buttonStyle='background:#27344a;border:1px solid #3b4c64;color:#fff;padding:7px 10px;border-radius:8px;cursor:pointer;margin:3px;font:inherit';
 function setStatus(msg){status=msg;window.fdSyncStatus?.(msg);draw();}
@@ -143,6 +144,7 @@ function authChanged(session){
  if(uid===account && account)return;
  const mine=++epoch;
  uid=account;email=session?.user?.email||'';serverStamp=null;cloudData=null;cloudStamp=null;
+ pendingWrite=null;
  choice=false;paused=false;cloudCheckFailed=false;choiceDeferred=false;cloudInvalid=false;savedInvalidCopy=false;dirty=false;busy=false;clearTimeout(timer);
  if(!uid){setStatus('Local saving only. Sign in to back up online.');return;}
  // Invalidate old requests now, and read outside Supabase's auth callback.
@@ -185,12 +187,39 @@ async function checkCloud(account,mine){
   if(mine===epoch){busy=false;draw();if(dirty&&!paused)queue(0);}
  }
 }
+// JSONB can return object properties in a different order from the request.
+function sameSnapshot(left,right){
+ if(left===right)return true;
+ if(!left||!right||typeof left!=='object'||typeof right!=='object'||Array.isArray(left)!==Array.isArray(right))return false;
+ const keys=Object.keys(left);
+ return keys.length===Object.keys(right).length&&keys.every(key=>Object.hasOwn(right,key)&&sameSnapshot(left[key],right[key]));
+}
+function acknowledgeUpload(stamp,snapshot){
+ serverStamp=stamp;
+ const uploaded=fingerprint(snapshot);
+ try{localStorage.setItem(STORAGE+uid,uploaded)}catch(e){}
+ dirty=fingerprint(S)!==uploaded;
+ setStatus(dirty?'Cloud saved. More local changes pending…':'Saved to cloud ✓');
+}
 async function upload(){
  if(!uid||paused||choice||busy||!dirty||!navigator.onLine)return;
  const account=uid, mine=epoch;
  busy=true;setStatus('Saving to cloud...');
- const snapshot=JSON.parse(JSON.stringify(S));
  try{
+  if(pendingWrite){
+   const previous=pendingWrite;
+   const remote=await readCloud(account);
+   if(mine!==epoch||paused)return;
+   pendingWrite=null;
+   if(remote&&Date.parse(remote.updated_at)===Date.parse(previous.stamp)&&sameSnapshot(previous.snapshot,remote.save_data)){
+    acknowledgeUpload(remote.updated_at,previous.snapshot);
+    if(!dirty)return;
+   }else if(remote&&remote.updated_at!==serverStamp){
+    offerCloudChoice(remote,'Cloud changed elsewhere. Choose which progress to keep.');
+    return;
+   }else if(!remote)serverStamp=null;
+  }
+  const snapshot=JSON.parse(JSON.stringify(S));
   if(!validBackup(snapshot)){
    dirty=false;
    setStatus('Device backup could not be validated. '+(backupProblem(snapshot)||'Your device save is still available.'));
@@ -198,15 +227,16 @@ async function upload(){
   }
   const expected=serverStamp;
   const stamp=new Date(Math.max(Date.now(),expected?Date.parse(expected)+2:0)).toISOString();
-  // The timestamp guard makes the common path a single write. Read the
-  // remote save only if another device changed or created it.
+  // Keep the common path to a single guarded write.
   const table=client.from('fitnessdex_saves');
+  pendingWrite={stamp,snapshot};
   const r=expected
    ? await table.update({save_data:snapshot,updated_at:stamp}).eq('user_id',account).eq('updated_at',expected).select('updated_at')
    : await table.insert({user_id:account,save_data:snapshot,updated_at:stamp}).select('updated_at');
   if(mine!==epoch||paused)return;
   const createdElsewhere=!expected&&r.error?.code==='23505';
   if(r.error&&!createdElsewhere)throw r.error;
+  pendingWrite=null;
   if(createdElsewhere||r.data?.length!==1){
    const remote=await readCloud(account);
    if(mine!==epoch||paused)return;
@@ -217,10 +247,7 @@ async function upload(){
    }
    return;
   }
-  serverStamp=r.data?.[0]?.updated_at||stamp;
-  try{localStorage.setItem(STORAGE+uid,fingerprint(snapshot))}catch(e){}
-  dirty=fingerprint(S)!==fingerprint(snapshot);
-  setStatus(dirty?'Cloud saved. More local changes pending…':'Saved to cloud ✓');
+  acknowledgeUpload(r.data[0].updated_at||stamp,snapshot);
  }catch(e){
   if(mine===epoch){dirty=true;setStatus('Cloud save pending: '+(e.message||'connection issue')+'. Workouts remain on this device.');}
  }finally{

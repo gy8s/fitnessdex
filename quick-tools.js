@@ -33,6 +33,7 @@ function collectDraft(){
  const draft={id:chosen,editId:editId||null,at:new Date().toISOString(),fields,sets:rows,copiedSide:window.fdCopiedLogSide?.()||null};
  try{const value=JSON.stringify(draft);if(value.length<=40000)localStorage.setItem(KEY,value);}catch(e){}
 }
+window.fdSaveQuickDraft=collectDraft;
 window.fdClearQuickDraft=(id,logEditId)=>{
  if(id){
   const saved=getDraft();

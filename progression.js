@@ -31,7 +31,17 @@ const model=()=>S.v8&&Array.isArray(S.v8.tracks)&&Array.isArray(S.v8.sessions)?S
 const byTrack=id=>model().tracks.find(x=>x.id===id);
 const variants=id=>{const e=ex(id);return e?DATA.filter(x=>x.cat===e.cat&&x.family===e.family&&x.mode===e.mode):[];};
 const trackSessions=id=>model().sessions.filter(s=>s.trackId===id).sort((a,b)=>Date.parse(a.completedAt)-Date.parse(b.completedAt));
-const refLog=id=>S.logs.find(l=>logId(l)===id);
+function refLog(id){
+ if(!CACHE.progressionLogs){
+  const index=new Map();
+  for(const log of S.logs){
+   const key=logId(log);
+   if(!index.has(key))index.set(key,log);
+  }
+  CACHE.progressionLogs=index;
+ }
+ return CACHE.progressionLogs.get(id);
+}
 const settledSession=s=>Array.isArray(s.setRefs)&&s.setRefs.some(r=>refLog(r.logId)?.sets?.[r.setIndex]);
 const sessions=id=>trackSessions(id).filter(settledSession);
 const readSet=r=>refLog(r.logId)?.sets?.[r.setIndex];
@@ -136,7 +146,7 @@ function historyChart(t){
 }
 function hub(){
  const t=byTrack(view.id);if(!t)return list();
- const done=sessions(t.id),badges=awards().filter(x=>x.earned);
+ const done=sessions(t.id),allAwards=awards(),badges=allAwards.filter(x=>x.earned);
  const best=observedBest(t.baseId),primary=metricsFor(t,t.baseId);
  const supports=plateau(t,t.baseId)?support(t):[];
  return '<section class="fd-p-page"><button class="fd-p-back" onclick="fdProgBack()">‹ Progressions</button>'+
@@ -145,12 +155,12 @@ function hub(){
   (draft?.trackId===t.id?'<button class="fd-p-primary" onclick="fdProgResume()">Resume unfinished session</button>':draft?'<div class="fd-p-support"><strong>Another session is unfinished</strong><p>You can resume it or discard that unsaved draft before starting here.</p><button onclick="fdProgResume()">Resume unfinished session</button><button onclick="fdProgDiscardDraft()">Discard unfinished draft</button></div>':'<button class="fd-p-primary" onclick="fdProgBegin()">Begin next session</button>')+
   '<p class="fd-p-help">Targets increase after two successful sessions of each variation. Three difficult sessions can ease the targets. Switching variations does not erase progress.</p>'+
   (supports.length?'<div class="fd-p-support"><strong>Possible plateau</strong><p>Several comparable attempts have not improved. Try one optional supporting exercise, or take an easier session.</p><button onclick="fdProgSupport(\''+supports[0].id+'\')">Try '+escP(supports[0].name)+'</button></div>':'')+
-  '<details class="fd-p-fold"><summary>Persistence awards · '+badges.length+' earned</summary>'+awardRows()+'</details>'+
+ '<details class="fd-p-fold"><summary>Persistence awards · '+badges.length+' earned</summary>'+awardRows(allAwards)+'</details>'+
   '<details class="fd-p-fold"><summary>Performance history</summary>'+historyChart(t)+'</details>'+
   '<details class="fd-p-fold"><summary>Training balance & rest</summary>'+  '<label for="fd-p-focus-update">Training focus</label><select id="fd-p-focus-update">'+Object.keys(FOCI).map(x=>'<option value="'+x+'" '+(x===t.focus?'selected':'')+'>'+FOCI[x]+'</option>').join('')+'</select>'+  '<label for="fd-p-variant-update">Practice variation</label><select id="fd-p-variant-update">'+variants(t.baseId).filter(x=>x.id!==t.baseId).map(x=>'<option value="'+x.id+'" '+(x.id===t.variantId?'selected':'')+'>'+escP(x.name)+'</option>').join('')+'</select>'+  '<label for="fd-p-count-update">Sets per session</label><select id="fd-p-count-update">'+[3,5].map(x=>'<option value="'+x+'" '+(x===t.setCount?'selected':'')+'>'+x+' sets</option>').join('')+'</select>'+  '<label for="fd-p-rest-update">Rest timer</label><select id="fd-p-rest-update">'+[60,90,120,180].map(x=>'<option value="'+x+'" '+(x===t.restSec?'selected':'')+'>'+x+' seconds</option>').join('')+'</select>'+  '<button onclick="fdProgUpdatePlan()">Save plan settings</button><button onclick="fdProgNewTrack()">Start a separate progression</button></details></section>';
 }
-function awardRows(){
- return BADGES.map((a,i)=>{const x=awards()[i];return '<div class="fd-p-award"><span class="'+(x.earned?'earned':'')+'">'+(x.earned?'◆':'○')+'</span><div><b>'+a.name+'</b><small>'+a.detail+'</small></div></div>';}).join('');
+function awardRows(items=awards()){
+ return items.map(x=>'<div class="fd-p-award"><span class="'+(x.earned?'earned':'')+'">'+(x.earned?'◆':'○')+'</span><div><b>'+x.name+'</b><small>'+x.detail+'</small></div></div>').join('');
 }
 function plan(t){
  const count=t.setCount||3,focus=t.focus,base=t.baseId,variant=t.variantId||base;

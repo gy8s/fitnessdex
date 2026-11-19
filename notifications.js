@@ -40,7 +40,7 @@ function inWindow(str){
 function waterPending(){
  const d=today(),w=S.v9?.water;
  if(!w)return true;
- const goal=w.goals?.find(x=>x.date===d)?.ml||w.baseGoal||2000;
+ const goal=window.fdCareWaterGoal?.(d)||w.goals?.find(x=>x.date===d)?.ml||w.baseGoal||2000;
  const rows=(w.entries||[]).filter(x=>x.date===d);
  if(rows.reduce((sum,x)=>sum+(Number(x.ml)||0),0)>=goal)return false;
  // Do not nudge just after someone has logged a drink.

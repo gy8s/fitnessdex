@@ -72,6 +72,24 @@ function sample(){
  return {logs:[{at:'old-workout-1',id:'e004',mode:'bodysets',date,performedAt:new Date().toISOString(),sets:[{reps:6}],notes:'original',sessionId:null}],
  claimed:[],assign:{},tally:{},v3:{active:[],completed:[],nextSerial:0},v4:{hunts:[],lastResult:null},v5:{workouts:[],dismissed:[]},v6:{baselineWeek:{alcohol:null,smoking:null,takeaway:null},days:[],awards:[]}};
 }
+const timerFinish=new Date(2026,10,19,12,30,45);
+const timerNow=new Date(2026,10,19,12,32,10);
+class TimerClock extends Date {
+ constructor(...args){super(...(args.length?args:[timerNow.getTime()]));}
+ static now(){return timerNow.getTime();}
+}
+for(const edited of [false,true]){
+ const timer=boot(null,()=>({id:'timed-walk',finished:true,total:null,finishedAt:timerFinish.getTime()}),TimerClock);
+ timer.app.choose('e045');
+ for(const [id,value] of Object.entries({date:'2026-11-19',clock:edited?'12:29':'12:30',value:'1.2',extra:'15',session:'standalone'}))
+  timer.doc.getElementById(id).value=value;
+ timer.app.submitLog();
+ const performed=timer.app.state().logs.at(-1).performedAt;
+ assert.equal(performed,(edited?new Date(2026,10,19,12,29):timerFinish).toISOString(),'Timed walks must preserve the exact finish or respect the manual edit');
+ const issued=new Date(2026,10,19,12,30,15).toISOString();
+ const hits=timer.app.logsInWindow({issuedAt:issued,periodStart:issued,periodEnd:timerNow.toISOString(),ex:'e045'});
+ assert.equal(hits.length,edited?0:1);
+}
 const b=boot(sample());
 assert.equal(b.app.state().logs.length,1,'Existing records did not load');
 assert(b.app.validBackup(b.app.state()),'Existing profile failed validation');
@@ -269,6 +287,54 @@ function bootConvenience(extraLogs=[]){
  return {app,win,doc,keys,date,advance:ms=>{elapsed+=ms}};
 }
 const convenience=bootConvenience(),cv=convenience,cvApp=cv.app,cvWin=cv.win;
+{
+ const edit=bootConvenience();
+ const rows=['8','12'].map((reps,i)=>{
+  const fields={'.reps':{value:reps},'.fd-set-mark':{classList:{toggle(){}},setAttribute(){}},'.fd-set-index':{textContent:String(i+1)}};
+  const row={classList:{toggle(){}},querySelector:selector=>fields[selector],remove(){rows.splice(rows.indexOf(row),1);}};
+  fields['.reps'].closest=()=>row;
+  return row;
+ });
+ const query=edit.doc.querySelectorAll.bind(edit.doc);
+ edit.doc.querySelectorAll=selector=>selector==='#setrows .setrow'?rows:query(selector);
+ edit.win.fdRepeatLast();
+ const saved=()=>JSON.parse(edit.keys.get('fitnessdex-quick-log-draft-v1')).sets.map(x=>x.reps);
+ assert.deepEqual(saved(),['8','12']);
+ edit.win.fdSetToggle({closest:()=>rows[0]});
+ assert.deepEqual(saved(),['','12'],'A cleared set must stay cleared after resuming');
+ edit.win.fdSetRemove({closest:()=>rows[1]});
+ assert.deepEqual(saved(),[''],'A removed set must stay removed after resuming');
+}
+{
+ const test=bootConvenience(),profile=test.app.state(),ui=test.win;
+ const localDay=offset=>{
+  const d=new Date();d.setDate(d.getDate()+offset);
+  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+ };
+ const days=Array.from({length:7},(_,i)=>localDay(i-7));
+ const at=(day,time)=>new Date(day+'T'+time+':00').toISOString();
+ const item={id:'supp-test',name:'Routine',note:'',time:'08:00',days:[0,1,2,3,4,5,6],createdAt:at(days[0],'00:00'),archivedAt:null};
+ profile.v9={
+  water:{baseGoal:2000,goals:[],entries:days.flatMap(day=>[0,1].map(i=>({id:'water-'+day+'-'+i,date:day,at:at(day,i?'14:00':'10:00'),ml:1000})))},
+  supplements:{items:[item],taken:days.map(day=>({id:'taken-'+day,supplementId:item.id,date:day,at:at(day,'08:00'),onTime:true}))}
+ };
+ assert(test.app.validBackup(profile),'Legacy Daily Care history must load');
+ const earned=ui.fdCareXP();
+ test.doc.getElementById('fd-care-basegoal').value='2500';ui.fdCareChangeDefault();
+ test.doc.getElementById('fd-care-basegoal').value='3000';ui.fdCareChangeDefault();
+ assert.equal(ui.fdCareWaterGoal(localDay(0)),2000);
+ assert.equal(ui.fdCareWaterGoal(localDay(1)),3000);
+ ui.fdCareEditSupp(item.id);
+ test.doc.getElementById('fd-care-name').value=item.name;
+ test.doc.getElementById('fd-care-time').value='';
+ for(let i=0;i<7;i++)test.doc.getElementById('fd-care-week-'+i).checked=i===6;
+ ui.fdCareSaveSupp();
+ assert.equal(ui.fdCareXP(),earned,'Updating a routine or default target must keep earned XP');
+ assert(test.app.validBackup(profile),'Daily Care timeline must export as a valid backup');
+ const invalid=structuredClone(profile);
+ invalid.v9.supplements.items[0].scheduleHistory[0].days=[7];
+ assert(!test.app.validBackup(invalid),'Malformed historic schedules must be rejected');
+}
 assert.equal(cvApp.state().logs.length,211,'Existing activity records lost on boot');
 assert(cv.doc.getElementById('app').innerHTML.includes('Repeat last activity'),'Recent exercise shortcut missing');
 cvWin.fdRepeatLast();

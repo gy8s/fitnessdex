@@ -223,6 +223,14 @@ public final class ReminderScheduler extends BroadcastReceiver {
     private static boolean waterPending(JSONObject water, String day, long now) {
         if (water == null) return true;
         int goal = water.optInt("baseGoal", 2000);
+        JSONArray defaults = rows(water, "baseGoalHistory");
+        for (int i = 0; i < defaults.length(); i++) {
+            JSONObject entry = defaults.optJSONObject(i);
+            if (entry != null && day.compareTo(entry.optString("before")) < 0) {
+                goal = entry.optInt("ml", goal);
+                break;
+            }
+        }
         JSONArray goals = rows(water, "goals");
         for (int i = 0; i < goals.length(); i++) {
             JSONObject entry = goals.optJSONObject(i);

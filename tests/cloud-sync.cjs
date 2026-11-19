@@ -251,8 +251,42 @@ async function firstInsertSeesOtherDevice(){
   await test.flush();
   assert.match(test.status(),/Cloud changed elsewhere/);
 }
-switchDuringUpload().then(ignoreOldReadFailure).then(retryFirstRead).then(recoverCloudConflict).then(firstInsertSeesOtherDevice).then(() => {
-  console.log('Cloud backup checks passed: account switching, reconnect, backup recovery, and concurrent writes.');
+async function recoverLostAcknowledgement(anotherDevice=false) {
+  const test=fixture();
+  test.switchAccount('first');await test.nextTimer();
+  test.take('read','first').resolve(row(test.profile));
+  await test.flush();
+
+  test.profile.logs.push({id:'second-workout',notes:'saved before losing the reply'});
+  test.saveLocally();await test.nextTimer();
+  const previous=test.take('update','first');
+  previous.resolve({error:new Error('Response lost')});
+  await test.flush();
+  assert.match(test.status(),/Cloud save pending/);
+
+  test.profile.logs.push({id:'third-workout'});
+  test.saveLocally();await test.nextTimer();
+  const cloudCopy=structuredClone(previous.data.save_data);
+  // JSONB can reorder object keys, and timestamps may use an equivalent offset.
+  cloudCopy.logs[1]={notes:cloudCopy.logs[1].notes,id:anotherDevice?'other-device':'second-workout'};
+  test.take('read','first').resolve({data:{
+    save_data:cloudCopy,updated_at:previous.data.updated_at.replace('Z','+00:00')
+  }});
+  await test.flush();
+  if(anotherDevice){
+    assert.match(test.status(),/Cloud changed elsewhere/);
+    assert.equal(test.profile.logs.length,3);
+    return;
+  }
+  const retry=test.take('update','first');
+  assert.equal(retry.data.save_data.logs.length,3);
+  retry.resolve({data:[{updated_at:retry.data.updated_at}]});
+  await test.flush();
+  assert.match(test.status(),/Saved to cloud/);
+}
+switchDuringUpload().then(ignoreOldReadFailure).then(retryFirstRead).then(recoverCloudConflict)
+ .then(firstInsertSeesOtherDevice).then(()=>recoverLostAcknowledgement()).then(()=>recoverLostAcknowledgement(true)).then(() => {
+  console.log('Cloud backup checks passed: account switching, reconnect, backup recovery, concurrent writes and lost upload replies.');
 }).catch(error => {
   console.error(error);
   process.exitCode = 1;

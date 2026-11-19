@@ -23,7 +23,7 @@ const changed = original
            '<button id="fd-toggle-steps" type="button" disabled>Enable steps</button>' +
            '<p id="fd-step-status" role="status" hidden></p>' +
            '<button id="fd-cardio-resume" type="button" hidden>Open current session</button></section><div id="app"></div>')
-  .replace('<span class="pill">v0.8.9</span>', '<span class="pill">v0.8.26</span>')
+  .replace('<span class="pill">v0.8.9</span>', '<span class="pill">v0.8.27</span>')
   .replace('<script defer src="./push-client.js"></script>', '')
   .replace('</script><script>\'use strict\';\n// FitnessDex v0.3',
            '</script><script src="./native-profile-storage.js"></script><script>\'use strict\';\n// FitnessDex v0.3')

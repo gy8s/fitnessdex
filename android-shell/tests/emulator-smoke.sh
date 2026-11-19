@@ -240,7 +240,7 @@ adb shell run-as "$PACKAGE" test ! -e files/fitnessdex-v01.json
 adb shell am force-stop "$PACKAGE"
 adb forward --remove tcp:9222
 adb install -r "$APK"
-adb shell dumpsys package "$PACKAGE" | grep -E 'versionCode=22([[:space:]]|$)'
+adb shell dumpsys package "$PACKAGE" | grep -E 'versionCode=23([[:space:]]|$)'
 adb shell am start -n "$PACKAGE/.MainActivity"
 forward_upgrade_probe
 node android-shell/tests/check-webview.cjs upgrade-verify "$UPGRADE_BASELINE"
