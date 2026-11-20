@@ -60,7 +60,7 @@ final class FitnessDexChromeClient extends BridgeWebChromeClient {
         String key = message.substring(prefix.length());
         if (!"https".equals(source.getScheme()) || !"localhost".equals(source.getHost())
                 || (source.getPort() != -1 && source.getPort() != 443)
-                || (!PROFILE_KEYS.contains(key) && !key.matches("fitnessdex-cloud-sync-[a-f0-9-]{36}"))) {
+                || (!PROFILE_KEYS.contains(key) && !key.matches("fitnessdex-cloud-sync-[a-f0-9-]{36}(-pending)?"))) {
             result.cancel();
             return true;
         }

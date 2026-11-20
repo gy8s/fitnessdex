@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
@@ -10,9 +11,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-function fixture() {
-  const profile = { logs:[{ id:'first-workout' }] };
-  const storage = new Map();
+function fixture(profile={ logs:[{ id:'first-workout' }] },storage=new Map()) {
   const requests = [];
   const timers = new Map();
   const handlers = new Map();
@@ -74,7 +73,11 @@ function fixture() {
       fdSyncStatus:message => status.push(message),
       addEventListener:(name,handler) => handlers.set(name,handler)
     },
-    navigator:{ onLine:true },
+    navigator:{ onLine:true }, TextEncoder,
+    crypto:{ subtle:{ async digest(algorithm,bytes){
+      assert.equal(algorithm,'SHA-256');
+      return createHash('sha256').update(bytes).digest();
+    } } },
     localStorage:{
       getItem:key => storage.get(key) ?? null,
       setItem:(key,value) => storage.set(key,value)
@@ -284,9 +287,39 @@ async function recoverLostAcknowledgement(anotherDevice=false) {
   await test.flush();
   assert.match(test.status(),/Saved to cloud/);
 }
+async function recoverAfterRestart(anotherDevice=false){
+  const storage=new Map();
+  const old=fixture(undefined,storage);
+  old.switchAccount('first');await old.nextTimer();
+  old.take('read','first').resolve(row(old.profile));
+  await old.flush();
+  old.profile.logs.push({id:'uploaded-workout',notes:'The database reordered these properties'});
+  old.saveLocally();await old.nextTimer();
+  const sent=old.take('update','first');
+  // The server commits the previous write after the process exits.
+  old.profile.logs.push({id:'locally-saved-workout'});
+  const reopened=fixture(structuredClone(old.profile),storage);
+  reopened.switchAccount('first');await reopened.nextTimer();
+  const remote=JSON.parse(JSON.stringify(sent.data.save_data));
+  remote.logs[1]={notes:remote.logs[1].notes,id:anotherDevice?'other-device':'uploaded-workout'};
+  reopened.take('read','first').resolve({data:{save_data:remote,updated_at:sent.data.updated_at.replace('Z','+00:00')}});
+  await reopened.flush();
+  if(anotherDevice){
+    assert.match(reopened.status(),/Choose which to keep/);
+    assert.equal(reopened.profile.logs.length,3);
+    return;
+  }
+  await reopened.nextTimer();
+  const update=reopened.take('update','first');
+  assert.equal(update.data.save_data.logs.at(-1).id,'locally-saved-workout');
+  update.resolve({data:[{updated_at:update.data.updated_at}]});
+  await reopened.flush();
+  assert.match(reopened.status(),/Saved to cloud/);
+}
 switchDuringUpload().then(ignoreOldReadFailure).then(retryFirstRead).then(recoverCloudConflict)
- .then(firstInsertSeesOtherDevice).then(()=>recoverLostAcknowledgement()).then(()=>recoverLostAcknowledgement(true)).then(() => {
-  console.log('Cloud backup checks passed: account switching, reconnect, backup recovery, concurrent writes and lost upload replies.');
+ .then(firstInsertSeesOtherDevice).then(()=>recoverLostAcknowledgement()).then(()=>recoverLostAcknowledgement(true))
+ .then(()=>recoverAfterRestart()).then(()=>recoverAfterRestart(true)).then(() => {
+  console.log('Cloud backup checks passed: account switching, lost upload replies, process restart and concurrent writes.');
 }).catch(error => {
   console.error(error);
   process.exitCode = 1;

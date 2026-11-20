@@ -227,7 +227,7 @@ const CACHE = {};
 function resetDerived(){
  CACHE.stats={};CACHE.logs={};CACHE.completed=null;CACHE.history=null;
  CACHE.earned=null;CACHE.challengeIndex=null;CACHE.validChallenges=new WeakMap();
- CACHE.workoutIndex=null;CACHE.progressionLogs=null;
+ CACHE.workoutIndex=null;CACHE.progressionLogs=null;CACHE.historicalTimeCounts=null;
 }
 resetDerived();
 const DIFFICULTY = {'e001':0.42,'e002':0.6,'e003':0.68,'e004':1,'e005':1.12,'e006':1.35,'e007':1.2,'e008':1.65,'e009':1.75,'e053':1.6,'e054':2.1,'e011':0.7,'e012':0.78,'e013':1.2,'e014':1.5,'e015':1.8,'e016':2.2,'e060':0.65,'e061':0.6,'e062':1.1,'e074':0.65,'e075':0.85,'e076':1.1,'e077':1.7};
@@ -559,7 +559,7 @@ function challengeCandidates(type){
   if(type==='weekly'||type==='monthly')candidates.push({ex:null,category,kind:'category_sessions',goal:type==='weekly'?2:3,unit:'workouts',label:`${category} · consistency`,difficulty:'Standard',theme:'consistency',weight:2,estMinutes:30});
  }
  // Calendar-time objectives: specific, measurable and repeated across different days.
- const historicalTimeCounts=timeTrackTotals();
+ const historicalTimeCounts=CACHE.historicalTimeCounts??(CACHE.historicalTimeCounts=timeTrackTotals());
  // Morning daily tasks are only offered while they are still possible today.
  // Late-evening tasks are gentle by default; challenging after-21:00 targets are not pushed.
  if(type==='daily'||type==='48h'||type==='weekly'){
@@ -1099,7 +1099,7 @@ function prefillSets(){
  area.dispatchEvent(new Event('input',{bubbles:true}));
 }
 function cancelEdit(){editId=null;render();}
-function submitLog(){if(migrationError){alert(migrationError);return;}
+function submitLog(onSaved){if(migrationError){alert(migrationError);return;}
  const e=ex(chosen),date=$('date').value,clock=$('clock').value,notes=$('notes').value,existing=editId?S.logs.find(x=>logId(x)===editId):null;
  if(!e||!validDate(date)||!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(clock))return alert('Enter a valid date and time.');
  const cardio = !existing ? window.fdCardioForSave?.(e) : null;
@@ -1145,10 +1145,13 @@ function submitLog(){if(migrationError){alert(migrationError);return;}
  if(existing){const i=S.logs.findIndex(l=>logId(l)===editId);if(i<0)return alert('Original record not found.');S.logs[i]=entry;editId=null;}
  else S.logs.push(entry);
  resetDerived();const revoked=reconcileCompleted();const claimed=claimReady();const newMilestones=earnedMilestones().filter(a=>!previousMilestones.has(a.id));
+ const draftToken=window.fdQuickDraftToken?.(chosen,previousEdit);
  S.v4=S.v4||{hunts:[],lastResult:null};S.v4.lastResult={logId:logId(entry),exercise:e.name,summary:logDescription(entry),xpGain:playerXP()-xpBefore,challengeNames:claimed.map(c=>c.label),milestones:newMilestones.map(m=>m.name+' · '+m.threshold+' '+m.unit)};
+ if(draftToken)S.v4.lastResult.draftToken=draftToken;
  if(!save()){S=JSON.parse(preChange);editId=previousEdit;activeSessionId=previousSession;resetDerived();return;}
  window.fdClearQuickDraft?.();
- tab='home';render();
+ if(onSaved)onSaved();
+ else{tab='home';render();}
  if(claimed.length)toast(`🏆 ${claimed.length} challenge${claimed.length===1?'':'s'} completed! ${claimed.map(c=>c.label).join(' · ')} · replacement${claimed.length===1?'':'s'} ready`);
  if(newMilestones.length)toast(`✨ ${newMilestones.length} new permanent milestone${newMilestones.length===1?'':'s'} unlocked! ${newMilestones.slice(0,2).map(m=>m.name+' '+m.threshold).join(' · ')}`);
  if(revoked)toast(`Record corrected. ${revoked} challenge reward${revoked===1?'':'s'} recalculated.`);

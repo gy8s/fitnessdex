@@ -6,10 +6,10 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import java.io.File;
 import java.io.FileInputStream;
@@ -269,8 +269,11 @@ public final class ReminderScheduler extends BroadcastReceiver {
         } else {
             notification = new Notification.Builder(context);
         }
-        Intent open = Intent.makeMainActivity(new ComponentName(context, MainActivity.class))
-            .putExtra(OPEN_SECTION, section);
+        Intent open = new Intent(context, MainActivity.class)
+            .setAction(OPEN)
+            .addCategory(Intent.CATEGORY_DEFAULT)
+            .setData(new Uri.Builder().scheme(context.getPackageName()).authority("reminder").appendPath(section).build())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent tap = PendingIntent.getActivity(context, id, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         notifications.notify(id, notification.setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle(title).setContentText(body).setContentIntent(tap).setAutoCancel(true).build());

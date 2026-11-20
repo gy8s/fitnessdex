@@ -257,13 +257,13 @@ console.log('FitnessDex smoke checks passed: version, PWA assets, JS syntax, old
 
 
 /* 0.8.2: exercise-copy, quick draft, undo and old-history regression. */
-function bootConvenience(extraLogs=[]){
+function bootConvenience(extraLogs=[],savedKeys){
  let elapsed=0;
  const now=new Date(),date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
  const entries=Array.from({length:210},(_,i)=>({at:'older-walk-'+i,id:'e045',mode:'distance',date,performedAt:new Date(Date.now()-(i+60)*60000).toISOString(),value:0.5,notes:'older walking record '+i}));
  entries.push({at:'recent-pushups',id:'e004',mode:'bodysets',date,performedAt:new Date(Date.now()-15000).toISOString(),sets:[{reps:7},{reps:6}],notes:'unique newest push-ups'});
  const seed={...sample(),logs:[...entries,...extraLogs]};
- const keys=new Map([['fitnessdex-v01',JSON.stringify(seed)]]),nodes=new Map();
+ const keys=savedKeys??new Map([['fitnessdex-v01',JSON.stringify(seed)]]),nodes=new Map();
  const fakeNode=id=>({id,value:'',checked:true,innerHTML:'',textContent:'',dataset:{},style:{},classList:{toggle(){},add(){},remove(){}},parentNode:{insertBefore(){}},addEventListener(){},appendChild(){},dispatchEvent(event){doc.handlers[event.type]?.({target:this})},focus(){},setSelectionRange(){},scrollIntoView(){},closest(){return true},setAttribute(){},options:[]});
  const appNode=fakeNode('app'),buttons=['home','log','dex','more'].map(tab=>({...fakeNode(tab),dataset:{tab}}));
  const doc={
@@ -287,6 +287,36 @@ function bootConvenience(extraLogs=[]){
  return {app,win,doc,keys,date,advance:ms=>{elapsed+=ms}};
 }
 const convenience=bootConvenience(),cv=convenience,cvApp=cv.app,cvWin=cv.win;
+function prepareSaveRegression(test){
+ test.win.fdRepeatLast();
+ const now=new Date();
+ test.doc.getElementById('date').value=test.date;
+ test.doc.getElementById('clock').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+ test.doc.getElementById('session').value='standalone';
+ test.doc.handlers.input({target:{closest:()=>true}});
+}
+{
+ const test=bootConvenience();
+ prepareSaveRegression(test);
+ let attempted=false;
+ test.win.dispatchEvent=event=>{
+  if(event.type==='fitnessdex:saved'&&!attempted){attempted=true;test.app.submitLog();}
+ };
+ test.app.submitLog();
+ test.app.submitLog();
+ assert(attempted,'The test must simulate a second Save during the first write');
+ assert.equal(test.app.state().logs.length,212,'Repeated saves must commit only one activity');
+}
+{
+ const test=bootConvenience();
+ prepareSaveRegression(test);
+ // Interrupt the process after the profile is written but before WebView removes its draft.
+ test.win.fdClearQuickDraft=()=>{throw Error('Simulated process exit');};
+ assert.throws(()=>test.app.submitLog(),/Simulated process exit/);
+ const reopened=bootConvenience([],test.keys);
+ assert.equal(reopened.app.state().logs.length,212,'The completed activity must survive reopening');
+ assert(!reopened.win.fdQuickDraftHome().includes('Unfinished activity'),'A committed activity must not be offered for replay');
+}
 {
  const edit=bootConvenience();
  const rows=['8','12'].map((reps,i)=>{

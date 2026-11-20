@@ -2,6 +2,7 @@ package io.github.gy8s.fitnessdex;
 
 import android.Manifest;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
@@ -65,15 +66,26 @@ public final class RemindersPlugin extends Plugin {
     @Override
     protected void handleOnNewIntent(Intent intent) {
         if (intent == null) return;
-        String key = ReminderScheduler.OPEN_SECTION;
+        String section;
         if (ReminderScheduler.OPEN.equals(intent.getAction())) {
-            key = "section"; // A notification posted by an earlier app build.
-        } else if (!Intent.ACTION_MAIN.equals(intent.getAction()) || !intent.hasCategory(Intent.CATEGORY_LAUNCHER)) {
+            Uri route = intent.getData();
+            if (route == null) {
+                section = intent.getStringExtra("section");
+            } else if (getContext().getPackageName().equals(route.getScheme())
+                    && "reminder".equals(route.getHost()) && route.getPathSegments().size() == 1) {
+                section = route.getLastPathSegment();
+            } else {
+                return;
+            }
+        } else if (Intent.ACTION_MAIN.equals(intent.getAction()) && intent.hasCategory(Intent.CATEGORY_LAUNCHER)) {
+            section = intent.getStringExtra(ReminderScheduler.OPEN_SECTION);
+        } else {
             return;
         }
-        String section = intent.getStringExtra(key);
         if (!"water".equals(section) && !"supplements".equals(section)) return;
-        intent.removeExtra(key);
+        intent.setData(null);
+        intent.removeExtra("section");
+        intent.removeExtra(ReminderScheduler.OPEN_SECTION);
         JSObject result = new JSObject();
         result.put("section", section);
         notifyListeners("open", result, true);

@@ -180,7 +180,12 @@ async function checkCloud(account,mine){
    else choice=true;
   }else if(last===remoteFp && last!==localFp){
     serverStamp=cloudStamp;dirty=true;setStatus('New activity found on this device. Saving...');
-  }else offerCloudChoice(row,'Both this device and cloud contain different progress. Choose which to keep.');
+  }else{
+   const ownWrite=await matchesUploadReceipt(row);
+   if(mine!==epoch||paused)return;
+   if(ownWrite)acknowledgeUpload(row.updated_at,row.save_data);
+   else offerCloudChoice(row,'Both this device and cloud contain different progress. Choose which to keep.');
+  }
  }catch(e){
   if(mine===epoch){paused=true;cloudCheckFailed=true;setStatus('Cloud unavailable: '+(e.message||'connection error')+'. Device save is safe.');}
  }finally{
@@ -193,6 +198,23 @@ function sameSnapshot(left,right){
  if(!left||!right||typeof left!=='object'||typeof right!=='object'||Array.isArray(left)!==Array.isArray(right))return false;
  const keys=Object.keys(left);
  return keys.length===Object.keys(right).length&&keys.every(key=>Object.hasOwn(right,key)&&sameSnapshot(left[key],right[key]));
+}
+async function uploadDigest(snapshot){
+ if(!globalThis.crypto?.subtle)return null;
+ // Object keys can arrive reordered from JSONB. Array order is part of the save.
+ const canonical=JSON.stringify(snapshot,(_,value)=>
+  value&&typeof value==='object'&&!Array.isArray(value)
+   ?Object.fromEntries(Object.keys(value).sort().map(key=>[key,value[key]]))
+   :value);
+ const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(canonical));
+ return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function matchesUploadReceipt(row){
+ try{
+  const receipt=JSON.parse(localStorage.getItem(STORAGE+uid+'-pending')||'null');
+  return /^[0-9a-f]{64}$/.test(receipt?.digest)&&Date.parse(receipt.stamp)===Date.parse(row.updated_at)
+   &&await uploadDigest(row.save_data)===receipt.digest;
+ }catch{return false;}
 }
 function acknowledgeUpload(stamp,snapshot){
  serverStamp=stamp;
@@ -227,6 +249,11 @@ async function upload(){
   }
   const expected=serverStamp;
   const stamp=new Date(Math.max(Date.now(),expected?Date.parse(expected)+2:0)).toISOString();
+  // Keep the write identity even if Android exits before the server replies.
+  let digest=null;
+  try{digest=await uploadDigest(snapshot);}catch{}
+  if(mine!==epoch||paused)return;
+  if(digest)try{localStorage.setItem(STORAGE+uid+'-pending',JSON.stringify({stamp,digest}));}catch{}
   // Keep the common path to a single guarded write.
   const table=client.from('fitnessdex_saves');
   pendingWrite={stamp,snapshot};

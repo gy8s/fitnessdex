@@ -29,6 +29,12 @@
                 <data android:scheme="io.github.gy8s.fitnessdex" android:host="auth" android:path="/callback" />
             </intent-filter>
 
+            <intent-filter>
+                <action android:name="io.github.gy8s.fitnessdex.OPEN_REMINDER" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="io.github.gy8s.fitnessdex" android:host="reminder" />
+            </intent-filter>
+
         </activity>
 
         <service android:name=".StepsService" android:exported="false"

@@ -5,6 +5,7 @@ let stage='type', category=null, family=null, query='', returnStage='variants';
 const baseNavigate=navigate, baseChoose=choose, baseSubmit=submitLog, baseEdit=editLog, baseDexRoot=openDexRoot;
 let holdStarted=null, holdTick=null, holdResult=null, holdSide=null;
 let undoCopy=null;
+let submitting=false;
 let logOrigin='home';
 const categoryNames={
  'Calisthenics':['◆','Bodyweight','Push-ups, pull-ups and core'],
@@ -441,7 +442,15 @@ window.fdAndroidBack=()=>{
  return true;
 };
 logForm=function(){return editId?record():stage==='type'?categories():stage==='find'?find():stage==='variants'?variants():stage==='method'?method():stage==='done'?done():record();};
-submitLog=function(){if(holdStarted!==null)return;const before=S.logs.length,wasEdit=!!editId;baseSubmit();if(!wasEdit&&S.logs.length>before){clearHoldTimer();undoCopy=null;stage='done';tab='log';render();top();}};
+submitLog=function(){
+ if(submitting||holdStarted!==null||tab!=='log'||!editId&&stage!=='record')return;
+ submitting=true;
+ try{
+  baseSubmit(editId?undefined:()=>{
+   clearHoldTimer();undoCopy=null;stage='done';tab='log';render();top();
+  });
+ }finally{submitting=false;}
+};
 const baseRender=render;
 render=function(){
  if(tab!=='log'||stage!=='record'||editId||migrationError)clearHoldTimer();

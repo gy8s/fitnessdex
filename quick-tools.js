@@ -2,6 +2,7 @@
 (()=>{
 'use strict';
 const KEY='fitnessdex-quick-log-draft-v1';
+const draftToken=d=>d.token||JSON.stringify([d.id,d.editId||null,d.at]);
 const html=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 function recent(){
  let latest=null,latestTime=-Infinity;
@@ -15,7 +16,11 @@ function getDraft(){
  try{
   const raw=localStorage.getItem(KEY);if(!raw||raw.length>40000)return null;
   const d=JSON.parse(raw);
-  if(!d||typeof d!=='object'||!ex(d.id)||typeof d.at!=='string'||!Number.isFinite(Date.parse(d.at))||Date.parse(d.at)>Date.now()+60000||!d.fields||typeof d.fields!=='object'||(d.editId&&!S.logs.some(x=>logId(x)===d.editId)))return null;
+  if(!d||typeof d!=='object'||!ex(d.id)||typeof d.at!=='string'||!Number.isFinite(Date.parse(d.at))||Date.parse(d.at)>Date.now()+60000||!d.fields||typeof d.fields!=='object'||!Array.isArray(d.sets)||(d.editId&&!S.logs.some(x=>logId(x)===d.editId)))return null;
+  if(S.v4?.lastResult?.draftToken===draftToken(d)){
+   localStorage.removeItem(KEY);
+   return null;
+  }
   return d;
  }catch(e){return null;}
 }
@@ -30,10 +35,14 @@ function collectDraft(){
   reps:row.reps.slice(0,9),
   weight:row.weight.slice(0,9)
  }));
- const draft={id:chosen,editId:editId||null,at:new Date().toISOString(),fields,sets:rows,copiedSide:window.fdCopiedLogSide?.()||null};
+ const draft={id:chosen,editId:editId||null,at:new Date().toISOString(),token:uid(),fields,sets:rows,copiedSide:window.fdCopiedLogSide?.()||null};
  try{const value=JSON.stringify(draft);if(value.length<=40000)localStorage.setItem(KEY,value);}catch(e){}
 }
 window.fdSaveQuickDraft=collectDraft;
+window.fdQuickDraftToken=(id,editing)=>{
+ const saved=getDraft();
+ if(saved&&saved.id===id&&(saved.editId||null)===(editing||null))return draftToken(saved);
+};
 window.fdClearQuickDraft=(id,logEditId)=>{
  if(id){
   const saved=getDraft();

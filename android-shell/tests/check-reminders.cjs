@@ -52,6 +52,19 @@ async function main() {
   execFileSync('python3', ['android-shell/tests/tap-android-ui.py', 'Allow'], { stdio:'inherit', timeout:30000 });
   await waitFor(() => JSON.parse(settings()).enabled, 'Opting in did not persist settings');
 
+  for (const background of [false,true]) {
+    await evaluate("fdReminderOpen(); window.fdAndroidReminders.test(false)");
+    const running = pid();
+    if (background) adb('shell','input','keyevent','KEYCODE_HOME');
+    adb('shell','cmd','statusbar','expand-notifications');
+    execFileSync('python3',['android-shell/tests/tap-android-ui.py','You will only be reminded about the routines you enable\\.','10','notification'],
+      {stdio:'inherit',timeout:30000});
+    await waitFor(() => evaluate("document.querySelector('.fd-care-page h1')?.textContent === 'Hydration'"),
+      'Water notification did not open Hydration with the app ' + (background ? 'in the background' : 'open'));
+    assert.equal(pid(),running,'Warm reminder tap should reuse the app process');
+  }
+  console.log('PASS: Water reminder opens Hydration with FitnessDex open and in the background');
+
   const schedule = blocked => evaluate(`(() => {
     const due = new Date(Date.now() + 60000);
     const at = localTime(due);
