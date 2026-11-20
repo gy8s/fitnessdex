@@ -228,6 +228,7 @@ function resetDerived(){
  CACHE.stats={};CACHE.logs={};CACHE.completed=null;CACHE.history=null;
  CACHE.earned=null;CACHE.challengeIndex=null;CACHE.validChallenges=new WeakMap();
  CACHE.workoutIndex=null;CACHE.progressionLogs=null;CACHE.historicalTimeCounts=null;
+ CACHE.activityWeeks=null;
 }
 resetDerived();
 const DIFFICULTY = {'e001':0.42,'e002':0.6,'e003':0.68,'e004':1,'e005':1.12,'e006':1.35,'e007':1.2,'e008':1.65,'e009':1.75,'e053':1.6,'e054':2.1,'e011':0.7,'e012':0.78,'e013':1.2,'e014':1.5,'e015':1.8,'e016':2.2,'e060':0.65,'e061':0.6,'e062':1.1,'e074':0.65,'e075':0.85,'e076':1.1,'e077':1.7};
@@ -770,15 +771,34 @@ function activityDates(){
  }
  return days;
 }
+function activityWeeks(){
+ if(CACHE.activityWeeks)return CACHE.activityWeeks;
+ const active=activityDates(),weekByDate=new Map();
+ const weekOf=day=>{
+  if(!weekByDate.has(day))weekByDate.set(day,weekCode(day));
+  return weekByDate.get(day);
+ };
+ const all=new Set([...active].map(weekOf));
+ const categories=new Map(CATS.map(cat=>[cat,new Set()]));
+ for(const log of completedLogs())categories.get(ex(log.id).cat)?.add(weekOf(log.date));
+ return CACHE.activityWeeks={active,all,categories};
+}
 function streakMetrics(){
- const active=activityDates(),d=dateFrom(today());let streak=0;
+ const weeks=activityWeeks(),active=weeks.active,d=dateFrom(today());let streak=0;
  if(!active.has(stamp(d)))d.setDate(d.getDate()-1);
  while(active.has(stamp(d))){streak++;d.setDate(d.getDate()-1);}
- let activeWeeks=0;const monday=dateFrom(today());monday.setDate(monday.getDate()-((monday.getDay()+6)%7));
- for(let i=0;i<12;i++){const a=new Date(monday);a.setDate(a.getDate()-7*i);const b=new Date(a);b.setDate(b.getDate()+7);if([...active].some(x=>dateFrom(x)>=a&&dateFrom(x)<b))activeWeeks++;}
+ let activeWeeks=0;const monday=dateFrom(weekCode(today())),week=new Date(monday);
+ for(let i=0;i<12;i++){if(weeks.all.has(stamp(week)))activeWeeks++;week.setDate(week.getDate()-7);}
  const categories={};
- for(const cat of CATS){let count=0;const day=new Date(monday);const catsByDay=new Set(completedLogs().filter(l=>ex(l.id).cat===cat).map(l=>l.date));
- for(let i=0;i<100;i++){const a=new Date(day),b=new Date(a);b.setDate(b.getDate()+7);if([...catsByDay].some(x=>dateFrom(x)>=a&&dateFrom(x)<b))count++;else if(i===0){}else break;day.setDate(day.getDate()-7);}categories[cat]=count;}
+ for(const [cat,activeCategoryWeeks] of weeks.categories){
+  let count=0;const day=new Date(monday);
+  for(let i=0;i<100;i++){
+   if(activeCategoryWeeks.has(stamp(day)))count++;
+   else if(i>0)break;
+   day.setDate(day.getDate()-7);
+  }
+  categories[cat]=count;
+ }
  return {daily:streak,activeWeeks,categories};
 }
 function maxConsecutiveDays(dayStrings){
@@ -789,13 +809,13 @@ function maxConsecutiveDays(dayStrings){
 }
 function weekCode(day){const d=dateFrom(day);d.setDate(d.getDate()-((d.getDay()+6)%7));return stamp(d);}
 function streakBadges(){
- const results=[],days=[...activityDates()];
+ const results=[],weeks=activityWeeks();
  const milestones=(name,prefix,val,limits,xpBase)=>limits.filter(l=>val>=l).forEach((l,i)=>results.push({id:prefix+':'+l,name:`${name} · ${l}`,xp:xpBase+i*15}));
  // Never award a movement streak if there is no genuine physical activity.
- if(completedLogs().length)milestones('Daily movement/recovery streak','day-streak',maxConsecutiveDays(days),[3,7,14,30,60,100],15);
- function maxWeeks(dayList){const codes=unique(dayList.filter(validDate).map(weekCode)).sort();let prior=null,run=0,best=0;for(const x of codes){if(prior){const d=dateFrom(prior);d.setDate(d.getDate()+7);run=stamp(d)===x?run+1:1;}else run=1;best=Math.max(best,run);prior=x;}return best;}
- if(completedLogs().length)milestones('Consecutive active weeks','week-streak',maxWeeks(days),[2,4,8,12,26,52],20);
- for(const cat of CATS)milestones(`${cat} consistency`,cat+'-weeks',maxWeeks(completedLogs().filter(l=>ex(l.id).cat===cat).map(l=>l.date)),[2,4,8,12],15);
+ if(completedLogs().length)milestones('Daily movement/recovery streak','day-streak',maxConsecutiveDays([...weeks.active]),[3,7,14,30,60,100],15);
+ function maxWeeks(weekSet){const codes=[...weekSet].sort();let prior=null,run=0,best=0;for(const x of codes){if(prior){const d=dateFrom(prior);d.setDate(d.getDate()+7);run=stamp(d)===x?run+1:1;}else run=1;best=Math.max(best,run);prior=x;}return best;}
+ if(completedLogs().length)milestones('Consecutive active weeks','week-streak',maxWeeks(weeks.all),[2,4,8,12,26,52],20);
+ for(const [cat,activeCategoryWeeks] of weeks.categories)milestones(`${cat} consistency`,cat+'-weeks',maxWeeks(activeCategoryWeeks),[2,4,8,12],15);
  return results;
 }
 function achievementCounts(){const ids=new Set(earnedMilestones().map(m=>m.id));return {milestones:ids.size,discovered:DATA.filter(e=>isSeen(e.id)).length,legacyClaims:S.claimed?.length||0};}

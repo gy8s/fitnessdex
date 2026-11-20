@@ -61,7 +61,7 @@ function boot(initial,cardioForSave,Clock=Date){
  const window={scrollTo(){},dispatchEvent(e){emitted.push(e.type)},fdCardioForSave:cardioForSave};
  const fn=new Function('window','document','localStorage','Event','alert','confirm','console','Date',
   codeScripts[0]+'\n'+codeScripts[1]+
-  '\nreturn {state:()=>S,save,choose,openDexFamily,openPathNode,submitLog,deleteLog,checkpoint,recoveryRows,restoreCheckpoint,validBackup,editLog,toggleHunt,logsInWindow,importData,today,localTime};');
+  '\nreturn {state:()=>S,save,choose,openDexFamily,openPathNode,submitLog,deleteLog,checkpoint,recoveryRows,restoreCheckpoint,validBackup,editLog,toggleHunt,logsInWindow,importData,today,localTime,streakMetrics,streakBadges};');
  const app=fn(window,doc,storage,function Event(type){this.type=type;},m=>alerts.push(m),()=>true,console,Clock);
  const now=new Clock();
  for(const [id,val] of [['date',app.today()],['clock',app.localTime(now)],['notes',''],['session','standalone']])doc.getElementById(id).value=val;
@@ -89,6 +89,19 @@ for(const edited of [false,true]){
  const issued=new Date(2026,10,19,12,30,15).toISOString();
  const hits=timer.app.logsInWindow({issuedAt:issued,periodStart:issued,periodEnd:timerNow.toISOString(),ex:'e045'});
  assert.equal(hits.length,edited?0:1);
+}
+{
+ const logs=[
+  ['e004','2026-10-21'],['e004','2026-11-04'],['e045','2026-11-10'],['e004','2026-11-11'],['e045','2026-11-17']
+ ].map(([id,date],i)=>({
+  at:'streak-'+i,id,date,performedAt:new Date(date+'T12:00:00').toISOString(),
+  ...(id==='e004'?{mode:'bodysets',sets:[{reps:8}]}:{mode:'distance',value:1.3,minutes:16})
+ }));
+ const check=boot({logs,recoveryDays:['2026-11-03','2026-11-18']},null,TimerClock);
+ assert.deepEqual(check.app.streakMetrics(),{
+  daily:2,activeWeeks:4,categories:{'Calisthenics':2,'Weight training':0,'Flexibility & mobility':0,'Cardio':2}
+ });
+ assert.deepEqual(check.app.streakBadges().map(a=>a.id),['week-streak:2','Calisthenics-weeks:2','Cardio-weeks:2']);
 }
 const b=boot(sample());
 assert.equal(b.app.state().logs.length,1,'Existing records did not load');
