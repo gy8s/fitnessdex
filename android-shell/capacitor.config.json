@@ -1,0 +1,16 @@
+{
+  "appId": "io.github.gy8s.fitnessdex",
+  "appName": "FitnessDex",
+  "webDir": "www",
+  "loggingBehavior": "none",
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "insetsHandling": "disable"
+    }
+  },
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https"
+  }
+}

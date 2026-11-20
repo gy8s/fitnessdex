@@ -6,27 +6,50 @@ const CARE_STREAKS=[3,7,14,30,60,90];
 const CARE_STREAK_XP=[15,35,80,160,320,500];
 const careBlank=()=>({water:{baseGoal:2000,goals:[],entries:[]},supplements:{items:[],taken:[]}});
 const care=()=>S.v9||careBlank();
-const waterGoal=(d,m=care())=>m.water.goals.find(x=>x.date===d)?.ml||m.water.baseGoal;
+const defaultWaterGoal=(d,water)=>water.baseGoalHistory?.find(x=>d<x.before)?.ml??water.baseGoal;
+const waterGoal=(d,m=care())=>m.water.goals.find(x=>x.date===d)?.ml??defaultWaterGoal(d,m.water);
+// Each entry records the value in force before its change date.
+function recordPrevious(history,before,previous){
+ const index=history.findIndex(x=>x.before>=before);
+ if(index===-1)history.push({...previous,before});
+ else history.splice(index,history.length-index,{...history[index],before});
+}
 const drinks=(d,m=care())=>m.water.entries.filter(x=>x.date===d).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
 const amount=(d,m=care())=>drinks(d,m).reduce((sum,e)=>sum+e.ml,0);
 const fmt=x=>x>=1000?(x/1000).toLocaleString('en-GB',{maximumFractionDigits:2})+' L':x+' ml';
 const atTime=x=>new Date(x).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 const waterMet=(d,m=care())=>amount(d,m)>=waterGoal(d,m);
-function spaced(d,m=care()){
- const stamps=drinks(d,m).filter(x=>x.ml>=150).map(x=>Date.parse(x.at));
- if(!waterMet(d,m)||stamps.length<3)return false;
+const spaced=(d,m=care())=>waterMet(d,m)&&spacedDrinks(drinks(d,m));
+function spacedDrinks(rows){
+ const stamps=rows.filter(x=>x.ml>=150).map(x=>Date.parse(x.at)).sort((a,b)=>a-b);
+ if(stamps.length<3)return false;
  for(let i=0;i<stamps.length-2;i++)for(let j=i+1;j<stamps.length-1;j++){
   if(stamps[j]-stamps[i]<3600000)continue;
   if(stamps.some((x,k)=>k>j&&x-stamps[j]>=3600000&&x-stamps[i]>=10800000))return true;
  }
  return false;
 }
-const due=(d,m=care())=>m.supplements.items.filter(x=>stamp(new Date(x.createdAt))<=d&&(!x.archivedAt||stamp(new Date(x.archivedAt))>d)&&x.days.includes(dateFrom(d).getDay())).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99')||a.name.localeCompare(b.name));
+function scheduledItems(d,m){
+ const weekday=dateFrom(d).getDay(),rows=[];
+ for(const item of m.supplements.items){
+  if(stamp(new Date(item.createdAt))>d||item.archivedAt&&stamp(new Date(item.archivedAt))<=d)continue;
+  const schedule=item.scheduleHistory?.find(x=>d<x.before)||item;
+  if(schedule.days.includes(weekday))rows.push(schedule===item?item:{...item,days:schedule.days,time:schedule.time});
+ }
+ return rows;
+}
+const due=(d,m=care())=>scheduledItems(d,m).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99')||a.name.localeCompare(b.name));
 const taken=(id,d,m=care())=>m.supplements.taken.find(x=>x.supplementId===id&&x.date===d);
-function checkIns(d,m=care()){
- const routine=due(d,m),hits=routine.map(x=>taken(x.id,d,m));
- return {due:routine.length,done:hits.filter(Boolean).length,all:routine.length>0&&hits.every(Boolean),
-  onTime:routine.length>0&&hits.every(Boolean)&&routine.some(x=>!!x.time)&&routine.filter(x=>x.time).every(x=>taken(x.id,d,m)?.onTime===true)};
+function checkIns(d,m=care(),byDay){
+ const routine=scheduledItems(d,m);
+ let done=0,timed=0,onTime=0;
+ for(const item of routine){
+  const hit=byDay?byDay.get(d)?.get(item.id):taken(item.id,d,m);
+  if(hit)done++;
+  if(item.time){timed++;if(hit?.onTime===true)onTime++;}
+ }
+ const all=routine.length>0&&done===routine.length;
+ return {due:routine.length,done,all,onTime:all&&timed>0&&timed===onTime};
 }
 function longestStreak(ds){
  let run=0,best=0,prev='';
@@ -43,7 +66,7 @@ function scheduledStreak(ds,m){
   if(previous){
    const cursor=dateFrom(previous);cursor.setDate(cursor.getDate()+1);
    while(stamp(cursor)<date){
-    if(due(stamp(cursor),m).length){missed=true;break;}
+    if(scheduledItems(stamp(cursor),m).length){missed=true;break;}
     cursor.setDate(cursor.getDate()+1);
    }
   }
@@ -52,12 +75,30 @@ function scheduledStreak(ds,m){
  return best;
 }
 function careRewards(m=care()){
- const dates=new Set([...m.water.entries.map(x=>x.date),...m.supplements.taken.map(x=>x.date)]);
+ const waterByDay=new Map();
+ for(const entry of m.water.entries){
+  if(!waterByDay.has(entry.date))waterByDay.set(entry.date,[]);
+  waterByDay.get(entry.date).push(entry);
+ }
+ const takenByDay=new Map();
+ for(const entry of m.supplements.taken){
+  if(!takenByDay.has(entry.date))takenByDay.set(entry.date,new Map());
+  const day=takenByDay.get(entry.date);
+  if(!day.has(entry.supplementId))day.set(entry.supplementId,entry);
+ }
+ const dates=new Set([...waterByDay.keys(),...takenByDay.keys()]);
+ const goals=new Map(m.water.goals.map(x=>[x.date,x.ml]));
+ const currentDay=today();
  let xp=0;const waterDays=[],supplementDays=[];
  for(const day of dates){
-  if(day>today())continue;
-  if(waterMet(day,m)){waterDays.push(day);xp+=10;if(spaced(day,m))xp+=5;if(waterGoal(day,m)>=2500)xp+=5;}
-  const check=checkIns(day,m);
+  if(day>currentDay)continue;
+  const rows=waterByDay.get(day)||[],goal=goals.get(day)??defaultWaterGoal(day,m.water);
+  if(rows.reduce((sum,entry)=>sum+entry.ml,0)>=goal){
+   waterDays.push(day);xp+=10;
+   if(spacedDrinks(rows))xp+=5;
+   if(goal>=2500)xp+=5;
+  }
+  const check=checkIns(day,m,takenByDay);
   if(check.all){supplementDays.push(day);xp+=5;if(check.onTime)xp+=2;}
  }
  const waterStreak=longestStreak(waterDays),supplementStreak=scheduledStreak(supplementDays,m);
@@ -65,6 +106,7 @@ function careRewards(m=care()){
  return {xp,waterStreak,supplementStreak,waterDays:waterDays.length,supplementDays:supplementDays.length};
 }
 window.fdCareXP=()=>careRewards().xp;
+window.fdCareWaterGoal=waterGoal;
 window.fdCareStatus=()=>({ml:amount(today()),goal:waterGoal(today()),supp:checkIns(today())});
 let carePage='home',careEdit=null;
 function carePersist(mutate,message){
@@ -72,18 +114,18 @@ function carePersist(mutate,message){
  if(!S.v9)S.v9=careBlank();
  mutate(S.v9);
  if(!validCareState(S.v9)){S=JSON.parse(before);toast('Invalid daily care entry. Nothing changed.');return false;}
- if(!save()){S=JSON.parse(before);return false;}
+ if(!save(true)){S=JSON.parse(before);return false;}
  resetDerived();render();if(message)toast(message);
  return true;
 }
-const top=(sub,title,detail,back=true)=>'<div class="fd-care-top">'+(back?'<button class="fd-care-back" onclick="fdCareHome()">‹ Daily care</button>':'')+'<small>'+sub+'</small><h1>'+title+'</h1><p>'+detail+'</p></div>';
+const top=(title,detail,back=true)=>'<div class="fd-care-top">'+(back?'<button class="fd-care-back" onclick="fdCareHome()">‹ Daily care</button>':'')+'<h1>'+title+'</h1>'+(detail?'<p>'+detail+'</p>':'')+'</div>';
 const gauge=(value,max)=>'<div class="fd-care-gauge"><span style="width:'+Math.min(100,Math.max(0,Math.round(value/Math.max(1,max)*100)))+'%"></span></div>';
 const cardioLogged=day=>completedLogs().some(l=>l.date===day&&ex(l.id)?.cat==='Cardio'&&(logMetrics(l).minutes>=20||logMetrics(l).distance>=3));
 const goalChoices=choice=>[1000,1500,2000,2250,2500,2750,3000,3500,4000,4500,5000].map(x=>'<option value="'+x+'" '+(x===choice?'selected':'')+'>'+fmt(x)+'</option>').join('');
 
 function careHomePage(){
  const d=today(),w=amount(d),g=waterGoal(d),s=checkIns(d);
- return '<section class="fd-care-page">'+top('DAILY CARE','Small habits, every day','Water and supplement check-ins. No nutrition tracking.',false)+
+ return '<section class="fd-care-page">'+top('Daily care','',false)+
  '<button class="fd-care-option" onclick="fdCareWater()"><span class="fd-care-icon water">◉</span><span><strong>Hydration</strong><small>'+fmt(w)+' of '+fmt(g)+'</small>'+gauge(w,g)+'</span><b>›</b></button>'+
  '<button class="fd-care-option" onclick="fdCareSupplements()"><span class="fd-care-icon supp">◇</span><span><strong>Supplements</strong><small>'+(s.due?s.done+' of '+s.due+' scheduled today':'Register a supplement routine')+'</small></span><b>›</b></button>'+
  '<button class="fd-care-reminder-link" onclick="fdReminderOpen()"><span aria-hidden="true">◷</span><span><strong>Notifications</strong><small>Set up water and supplement reminders</small></span><b aria-hidden="true">›</b></button>'+
@@ -91,9 +133,10 @@ function careHomePage(){
 }
 function careWaterPage(){
  const d=today(),m=care(),w=amount(d,m),g=waterGoal(d,m),rows=drinks(d,m);
- return '<section class="fd-care-page">'+top('WATER','Hydration','Log water as you drink it. More is not always better.')+
+ const activeGoal=Math.min(5000,defaultWaterGoal(d,m.water)+500);
+ return '<section class="fd-care-page">'+top('Hydration')+
  '<div class="fd-care-water-hero"><small>WATER TODAY</small><div><strong>'+fmt(w)+'</strong><span> / '+fmt(g)+'</span></div>'+gauge(w,g)+'<p>'+(waterMet(d,m)?'Daily target reached':fmt(Math.max(0,g-w))+' until your target')+'</p></div>'+
- (cardioLogged(d)&&g<Math.min(5000,m.water.baseGoal+500)?'<div class="fd-care-active-suggest"><strong>Cardio logged today</strong><p>For a longer or sweaty session, you might prefer a higher water goal. You decide.</p><button onclick="fdCareActiveGoal()">Use '+fmt(Math.min(5000,m.water.baseGoal+500))+' goal</button></div>':'')+
+ (cardioLogged(d)&&g<activeGoal?'<div class="fd-care-active-suggest"><strong>Cardio logged today</strong><p>For a longer or sweaty session, you might prefer a higher water goal. You decide.</p><button onclick="fdCareActiveGoal()">Use '+fmt(activeGoal)+' goal</button></div>':'')+
  '<div class="fd-care-section-title">Add water</div><div class="fd-care-add-row">'+[250,500,750].map(x=>'<button onclick="fdCareAddWater('+x+')"><b>+'+x+'</b><small>ml</small></button>').join('')+'</div>'+
  '<details class="fd-care-details"><summary>Custom amount or earlier drink</summary>'+
  '<label for="fd-care-ml">Water (ml)</label><input type="number" inputmode="numeric" id="fd-care-ml" min="50" max="1500" step="50" value="250">'+
@@ -117,7 +160,7 @@ function routineRow(x,date){
 }
 function careSuppPage(){
  const m=care(),d=today(),all=m.supplements.items.filter(x=>!x.archivedAt),list=due(d,m),other=all.filter(x=>!list.includes(x)),state=checkIns(d,m);
- return '<section class="fd-care-page">'+top('SUPPLEMENTS','Your routine','Register each routine once; tap when you have taken it.')+
+ return '<section class="fd-care-page">'+top('Supplements')+
  '<div class="fd-care-supp-hero"><div><strong>'+state.done+'</strong><span> / '+state.due+'</span></div><p>scheduled check-ins today</p>'+gauge(state.done,state.due)+'</div>'+
  '<div class="fd-care-section-title">Scheduled today</div>'+
  '<div class="fd-care-routines">'+(list.length?list.map(x=>routineRow(x,d)).join(''):'<p class="fd-care-note">No supplements scheduled today.</p>')+'</div>'+
@@ -130,7 +173,7 @@ function careSuppPage(){
 }
 function careEditPage(){
  const x=care().supplements.items.find(v=>v.id===careEdit);
- return '<section class="fd-care-page">'+top('SUPPLEMENT ROUTINE',x?'Edit routine':'Register supplement','Set your preferred schedule. FitnessDex does not recommend doses or medically optimal times.')+
+ return '<section class="fd-care-page">'+top(x?'Edit routine':'Register supplement','Choose your own schedule. Follow product or clinician guidance.')+
  '<div class="fd-care-form"><label for="fd-care-name">Supplement name</label><input id="fd-care-name" maxlength="70" value="'+esc(x?.name||'')+'" placeholder="e.g. Vitamin D">'+
  '<label for="fd-care-note">Dose or note (optional)</label><input id="fd-care-note" maxlength="100" value="'+esc(x?.note||'')+'" placeholder="Follow product directions">'+
  '<label for="fd-care-time">Your usual time (optional)</label><input type="time" id="fd-care-time" value="'+esc(x?.time||'')+'">'+
@@ -148,7 +191,10 @@ function careAchievements(){
 }
 window.fdCareIsEditing=()=>carePage==='editor';
 window.fdCareView=()=>carePage==='water'?careWaterPage():carePage==='supplements'?careSuppPage():carePage==='editor'?careEditPage():careHomePage();
-const careShow=next=>{carePage=next;tab='care';render();window.scrollTo({top:0,behavior:'instant'});};
+const careShow=next=>{
+ if(tab!=='care'&&!window.fdCanLeaveExercise?.())return;
+ carePage=next;tab='care';editId=null;activeSessionId=null;render();window.scrollTo({top:0,behavior:'instant'});
+};
 window.fdCareHome=()=>careShow('home');
 window.fdCareWater=()=>careShow('water');
 window.fdCareSupplements=()=>careShow('supplements');
@@ -157,7 +203,7 @@ function addWater(ml,when){
  if(!Number.isInteger(ml)||ml<50||ml>1500||!Number.isFinite(when.getTime())||stamp(when)!==today()||when.getTime()>Date.now()+60000)return toast('Choose 50–1,500 ml and a valid time today.');
  if(drinks(today()).length>=30)return toast('Maximum 30 water entries per day.');
  carePersist(m=>{
-  if(!m.water.goals.some(x=>x.date===today()))m.water.goals.push({date:today(),ml:m.water.baseGoal});
+  if(!m.water.goals.some(x=>x.date===today()))m.water.goals.push({date:today(),ml:defaultWaterGoal(today(),m.water)});
   m.water.entries.push({id:'water-'+uid(),date:today(),at:when.toISOString(),ml});
  },fmt(ml)+' water logged');
 }
@@ -179,10 +225,15 @@ window.fdCareChangeGoal=()=>{
 window.fdCareChangeDefault=()=>{
  const goal=Number(document.getElementById('fd-care-basegoal')?.value);
  if(!Number.isInteger(goal)||goal<1000||goal>5000)return toast('Choose a target between 1 and 5 L.');
- carePersist(m=>{m.water.baseGoal=goal;},'Default target updated');
+ if(goal===care().water.baseGoal)return;
+ const tomorrow=dateFrom(today());tomorrow.setDate(tomorrow.getDate()+1);
+ carePersist(m=>{
+  recordPrevious(m.water.baseGoalHistory??=[],stamp(tomorrow),{ml:m.water.baseGoal});
+  m.water.baseGoal=goal;
+ },'Default target updated');
 };
 window.fdCareActiveGoal=()=>{
- const goal=Math.min(5000,care().water.baseGoal+500);
+ const goal=Math.min(5000,defaultWaterGoal(today(),care().water)+500);
  carePersist(m=>{const x=m.water.goals.find(x=>x.date===today());if(x)x.ml=goal;else m.water.goals.push({date:today(),ml:goal});},'Active-day water goal updated');
 };
 window.fdCareNewSupp=()=>{careEdit=null;careShow('editor');};
@@ -195,8 +246,11 @@ window.fdCareSaveSupp=()=>{
  if(!careEdit&&care().supplements.items.length>=30)return toast('Maximum 30 registered routines.');
  const successful=carePersist(m=>{
   const existing=m.supplements.items.find(x=>x.id===careEdit);
-  if(existing)Object.assign(existing,{name,note,time:t,days});
-  else m.supplements.items.push({id:'supp-'+uid(),name,note,time:t,days,createdAt:new Date().toISOString(),archivedAt:null});
+  if(!existing){m.supplements.items.push({id:'supp-'+uid(),name,note,time:t,days,createdAt:new Date().toISOString(),archivedAt:null});return;}
+  if(stamp(new Date(existing.createdAt))<today()&&(t!==existing.time||days.length!==existing.days.length||days.some(day=>!existing.days.includes(day)))){
+   recordPrevious(existing.scheduleHistory??=[],today(),{time:existing.time,days:existing.days});
+  }
+  Object.assign(existing,{name,note,time:t,days});
  },careEdit?'Routine updated':'Supplement registered');
  if(successful){careEdit=null;careShow('supplements');}
 };

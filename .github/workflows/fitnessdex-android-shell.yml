@@ -1,0 +1,213 @@
+name: FitnessDex Android shell proof (no APK release)
+
+on:
+  push:
+    branches: [stage2/android-shell-20261114]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-shell:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Existing FitnessDex source regression checks
+        run: |
+          node tests/smoke.cjs
+          node android-shell/tests/check-cardio-recorder.cjs
+      - name: Export a disposable profile from the unmodified PWA in Chrome
+        working-directory: android-shell
+        run: |
+          npm install --prefix "$RUNNER_TEMP/fitnessdex-browser-test" --no-audit --no-fund playwright@1.58.2
+          "$RUNNER_TEMP/fitnessdex-browser-test/node_modules/.bin/playwright" install --only-shell chromium
+          NODE_PATH="$RUNNER_TEMP/fitnessdex-browser-test/node_modules" node tests/export-pwa-backup.cjs tests/results/FitnessDex_PWA_migration.json
+      - name: Install pinned shell dependencies
+        working-directory: android-shell
+        run: npm ci --no-audit --no-fund
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.79.0
+      - name: Start isolated Supabase Auth, mail and cloud saves for the emulator
+        run: bash android-shell/tests/start-auth-backend.sh
+      - name: Generate local Android web assets
+        working-directory: android-shell
+        run: |
+          npm run build:web
+          npm run test:bundle
+      - name: Generate experimental native shell and compile debug probe
+        working-directory: android-shell
+        run: |
+          npx cap sync android
+          node scripts/configure-native.cjs
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+      - name: Build the earlier WebView-storage prototype with the same CI debug key
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/fitnessdex-legacy" 50afec50ed03f13e280de21be5b6ea7b75320181
+          legacy="$RUNNER_TEMP/fitnessdex-legacy/android-shell"
+          cmp android-shell/package.json "$legacy/package.json"
+          ln -s "$PWD/android-shell/node_modules" "$legacy/node_modules"
+          cd "$legacy"
+          npm run build:web
+          npx cap add android
+          npx cap sync android
+          cp native/*.java android/app/src/main/java/io/github/gy8s/fitnessdex/
+          cd android
+          grep -qx '        versionCode 1' app/build.gradle
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+      - name: Enable fast Android emulator support
+        run: |
+          if [ ! -e /dev/kvm ]; then
+            echo 'ERROR: GitHub runner has no Android virtualization support (/dev/kvm missing).'
+            exit 1
+          fi
+          # CI runners can reject udevadm even though /dev/kvm is present.
+          # Grant only this ephemeral runner process access to hardware acceleration.
+          sudo chmod a+rw /dev/kvm
+          ls -l /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - name: Build and verify both signed release test APKs
+        working-directory: android-shell
+        run: bash tests/sign-upgrade-builds.sh
+      - name: Start on Android emulator and inspect for crashes
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          FITNESSDEX_LEGACY_BUILD: ${{ runner.temp }}/fitnessdex-legacy
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: false
+          script: >-
+            signed=0; bash android-shell/tests/check-signed-upgrade.sh || signed=$?;
+            debug=0; bash android-shell/tests/emulator-smoke.sh || debug=$?;
+            test "$signed" -eq 0 && test "$debug" -eq 0
+      - name: Save only test evidence (no APK)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-shell-test-evidence
+          if-no-files-found: ignore
+          path: |
+            android-shell/tests/results/fitnessdex-shell.png
+            android-shell/tests/results/signed-upgrade.png
+            android-shell/tests/results/activity-dump.txt
+            android-shell/tests/results/android-logcat.txt
+            android-shell/tests/results/visual/
+            android-shell/package-lock.json
+
+  permanent-signing-proof:
+    if: github.repository == 'gy8s/fitnessdex' && github.ref == 'refs/heads/stage2/android-shell-20261114' && (vars.FITNESSDEX_VERIFY_PERMANENT_SIGNING == 'true' || (github.event_name == 'push' && github.event.head_commit.message == 'Build the signed FitnessDex phone copy'))
+    environment: fitnessdex-android-signing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Build unsigned APKs and prepare disposable emulator data
+        working-directory: android-shell
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --prefix "$RUNNER_TEMP/fitnessdex-browser-test" --no-audit --no-fund playwright@1.58.2
+          "$RUNNER_TEMP/fitnessdex-browser-test/node_modules/.bin/playwright" install --only-shell chromium
+          NODE_PATH="$RUNNER_TEMP/fitnessdex-browser-test/node_modules" node tests/export-pwa-backup.cjs tests/results/FitnessDex_PWA_migration.json
+          bash scripts/build-update-apks.sh "$RUNNER_TEMP/fitnessdex-signing-proof"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Android SDK path required}}"
+          if [ ! -x "$sdk/build-tools/36.0.0/apksigner" ]; then
+            "$sdk/cmdline-tools/latest/bin/sdkmanager" 'build-tools;36.0.0'
+          fi
+          test -x "$sdk/build-tools/36.0.0/apksigner"
+          sudo chmod a+rw /dev/kvm
+      - name: Sign both APKs with the protected FitnessDex certificate
+        working-directory: android-shell
+        env:
+          FITNESSDEX_KEYSTORE_BASE64: ${{ secrets.FITNESSDEX_KEYSTORE_BASE64 }}
+          FITNESSDEX_STORE_PASSWORD: ${{ secrets.FITNESSDEX_STORE_PASSWORD }}
+          FITNESSDEX_CERT_SHA256: ${{ vars.FITNESSDEX_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          : "${FITNESSDEX_KEYSTORE_BASE64:?Add the keystore environment secret}"
+          : "${FITNESSDEX_STORE_PASSWORD:?Add the keystore password environment secret}"
+          : "${FITNESSDEX_CERT_SHA256:?Add the independently recorded certificate fingerprint}"
+          umask 077
+          export FITNESSDEX_KEYSTORE="$(mktemp "$RUNNER_TEMP/fitnessdex-release.XXXXXX.p12")"
+          export FITNESSDEX_KEY_ALIAS=fitnessdex
+          trap 'rm -f "$FITNESSDEX_KEYSTORE"' EXIT
+          printf '%s' "$FITNESSDEX_KEYSTORE_BASE64" | base64 --decode > "$FITNESSDEX_KEYSTORE"
+          unset FITNESSDEX_KEYSTORE_BASE64
+          bash scripts/sign-update-apks.sh "$RUNNER_TEMP/fitnessdex-signing-proof"
+      - name: Verify permanent-key install, upgrade, and saved data on the emulator
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: false
+          script: bash android-shell/tests/check-signed-upgrade.sh
+
+      - name: Encrypt the verified phone APK for private delivery
+        run: |
+          set -euo pipefail
+          umask 077
+          proof="$RUNNER_TEMP/fitnessdex-signing-proof"
+          cert="$(mktemp)"
+          trap 'rm -f "$cert"' EXIT
+          cat > "$cert" <<'CERTIFICATE'
+          -----BEGIN CERTIFICATE-----
+          MIIESDCCArCgAwIBAgIUEjOCp7BAQiVofoA+kRpwMuM8uq0wDQYJKoZIhvcNAQEL
+          BQAwLTErMCkGA1UEAwwiRml0bmVzc0RleCAwLjguMTAgcmVsZWFzZSBkZWxpdmVy
+          eTAeFw0yNjExMTcwOTM1MTJaFw0yNjEyMTcwOTM1MTJaMC0xKzApBgNVBAMMIkZp
+          dG5lc3NEZXggMC44LjEwIHJlbGVhc2UgZGVsaXZlcnkwggGiMA0GCSqGSIb3DQEB
+          AQUAA4IBjwAwggGKAoIBgQDoVNyASv275Mdp+oOV1RGJ0iXeJ+adJK1SXnu1sRF8
+          4fQ5rVTG0iK/GMwD4EFpJ6bJjxlIRrsdQkSRQLKrQSB3lNIMEvmxiE+46vvgnTDQ
+          qbMjZWaQSwD4QK9A3y96rFy8O1MsH/AARXagLy5DJ6dBVU6F8+i1l1SHRjPzUoaa
+          c+KswLFSqnA1k2MW7NI6G0iwdC7FDo3zCB2IYASlKg+pIf2p+qsg+e/06AYe27g1
+          DDg+aFh6WPuAxpvSo8iEGb0SZggidFUv/NaoQUterSTANtnE3gWBsehsuq7org8I
+          zUtoot8rZeNoIldWGr8UbC3GSB2WR+k5jhqwVrMFvfhYL12v7oST3Yql6ml3nhsX
+          lD+X9DAdHzI7HYhxEeN5tfimUN0Hq6OQ6ClOwr+oKtZN52ry45eg7RCtAr5Zrpyq
+          i8QIpV/je6y3byvdpuvmKvJvMn5eUXpSobyt4YEDqJuws2OS3E7MbT6S/bAbMvOb
+          TB8sig5BrXrQU6TgFCIkAl0CAwEAAaNgMF4wHQYDVR0OBBYEFFwQFDPJYkN6ns/F
+          /VvlghLwDoY9MB8GA1UdIwQYMBaAFFwQFDPJYkN6ns/F/VvlghLwDoY9MA8GA1Ud
+          EwEB/wQFMAMBAf8wCwYDVR0PBAQDAgUgMA0GCSqGSIb3DQEBCwUAA4IBgQCPWwje
+          OsBPyr0Lbj033SnRvdznjd3HLksJ8LU3MC0vxmzkgBhgGnsIOcazrAOJqsr7jlUC
+          bXJEhvOXMpDnCGP7GfCjEg12xeagQwznLWR+N6snpjYauK8oya0kXrund4XRaOex
+          2Zqiz/s/qnkkCG5sXsvhuuk8bzLmbA9YbROOYl07C4IN1EJaj+1e5mfh0aAL7q3U
+          aPG0RqlV4vrWVtluOBY+RCMRm5ujypairs5sfUvH4gZnu7jIoXqd9WkU3oMlNLxf
+          +SKe8UlH6QEW/ETQBBQ91qxb6V7TZx83gv2V/+ul5k0safFpVxYONOwnC/O1+2P+
+          6gMk/qb/OCGaeCOeGK6DAcv5+djDrvxNF1cjfLYmMCkeW1jIpJ+2xRb1pgHAPw2M
+          O3/mX5SNrRfj48seKEB2YUISRv7xgqmS7EDAamq6OKD3ikhRU0C1oJlfc6M2vFUc
+          b4Sq/S1v41BW4+4uPW6G4Te/Vd9tOn7TONV9b+DOHs8KleY8CnGEh3Wc6ys=
+          -----END CERTIFICATE-----
+          CERTIFICATE
+          openssl cms -encrypt -binary -aes-256-cbc -stream -outform DER \
+            -in "$proof/after.apk" -out "$proof/FitnessDex-Android.apk.cms" "$cert"
+      - name: Store the encrypted phone APK for delivery
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fitnessdex-private-phone-copy
+          path: ${{ runner.temp }}/fitnessdex-signing-proof/FitnessDex-Android.apk.cms
+          if-no-files-found: error
+          retention-days: 1

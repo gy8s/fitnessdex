@@ -1,5 +1,5 @@
 {
-  "version": "0.8.7",
-  "released": "2026-11-14",
-  "notes": "Background Web Push reminders, authenticated device subscriptions, cloud-backed scheduled delivery, and a server-queued closed-app test. Notifications remain opt-in and private."
+  "version": "0.8.9",
+  "released": "2026-11-16",
+  "notes": "Android Back navigates within FitnessDex. Leaving an unsaved exercise asks before discarding it."
 }

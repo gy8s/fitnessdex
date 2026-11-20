@@ -40,7 +40,7 @@ function inWindow(str){
 function waterPending(){
  const d=today(),w=S.v9?.water;
  if(!w)return true;
- const goal=w.goals?.find(x=>x.date===d)?.ml||w.baseGoal||2000;
+ const goal=window.fdCareWaterGoal?.(d)||w.goals?.find(x=>x.date===d)?.ml||w.baseGoal||2000;
  const rows=(w.entries||[]).filter(x=>x.date===d);
  if(rows.reduce((sum,x)=>sum+(Number(x.ml)||0),0)>=goal)return false;
  // Do not nudge just after someone has logged a drink.
@@ -95,7 +95,7 @@ async function check(){
 function view(){
  const s=read(),available=supported(),permission=available?Notification.permission:'unsupported',active=s.enabled&&permission==='granted';
  const slots=s.slots.map((t,i)=>'<label>Reminder '+(i+1)+'<input type="time" id="fd-reminder-slot-'+i+'" value="'+t+'"></label>').join('');
- return '<section class="fd-care-page fd-reminders-page"><div class="fd-care-top"><button class="fd-care-back" onclick="navigate(\'more\')">‹ More</button><small>DAILY CARE</small><h1>Reminders</h1><p>Gentle prompts to keep your routines on track. Nothing is enabled without your permission.</p></div>'+
+ return '<section class="fd-care-page fd-reminders-page"><div class="fd-care-top"><button class="fd-care-back" onclick="navigate(\'more\')">‹ More</button><h1>Reminders</h1></div>'+
  '<div class="fd-reminder-status '+(active?'is-on':'')+'"><span class="fd-reminder-status-icon" aria-hidden="true">'+(active?'✓':'◌')+'</span><span><strong>'+(active?'Reminders enabled':permission==='denied'?'Notifications blocked':available?'Reminders off':'Not supported here')+'</strong><small>'+(active?'On this device · while FitnessDex is running':permission==='denied'?'Allow notifications in Android or browser settings to enable them':available?'You are in control of when you receive them':'This browser cannot display FitnessDex system notifications')+'</small></span></div>'+
  '<div class="fd-reminder-panel"><h2>What should I remind you about?</h2><label class="fd-reminder-check"><input type="checkbox" id="fd-reminder-water" '+(s.water?'checked':'')+'><span><strong>Water</strong><small>Skip when your daily target is met or you drank recently</small></span></label>'+
  '<div class="fd-reminder-times">'+slots+'</div>'+
@@ -142,6 +142,17 @@ render=function(){
   return;
  }
  previousRender();
+};
+window.fdRefreshReminderPermission=()=>{
+ const fields=['fd-reminder-water','fd-reminder-supp',...[0,1,2].map(i=>'fd-reminder-slot-'+i)];
+ const drafts=fields.map(id=>document.getElementById(id)).filter(Boolean).map(input=>({
+  id:input.id,value:input.value,checked:input.checked
+ }));
+ render();
+ for(const draft of drafts){
+  const input=document.getElementById(draft.id);
+  if(input){input.value=draft.value;input.checked=draft.checked;}
+ }
 };
 function openSection(section){
  if(section==='water')window.fdCareWater?.();
