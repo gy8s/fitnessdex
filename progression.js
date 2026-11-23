@@ -31,7 +31,17 @@ const model=()=>S.v8&&Array.isArray(S.v8.tracks)&&Array.isArray(S.v8.sessions)?S
 const byTrack=id=>model().tracks.find(x=>x.id===id);
 const variants=id=>{const e=ex(id);return e?DATA.filter(x=>x.cat===e.cat&&x.family===e.family&&x.mode===e.mode):[];};
 const trackSessions=id=>model().sessions.filter(s=>s.trackId===id).sort((a,b)=>Date.parse(a.completedAt)-Date.parse(b.completedAt));
-const refLog=id=>S.logs.find(l=>logId(l)===id);
+function refLog(id){
+ if(!CACHE.progressionLogs){
+  const index=new Map();
+  for(const log of S.logs){
+   const key=logId(log);
+   if(!index.has(key))index.set(key,log);
+  }
+  CACHE.progressionLogs=index;
+ }
+ return CACHE.progressionLogs.get(id);
+}
 const settledSession=s=>Array.isArray(s.setRefs)&&s.setRefs.some(r=>refLog(r.logId)?.sets?.[r.setIndex]);
 const sessions=id=>trackSessions(id).filter(settledSession);
 const readSet=r=>refLog(r.logId)?.sets?.[r.setIndex];
@@ -108,7 +118,7 @@ function chooseExercise(id){
 function scrollTop(){window.scrollTo({top:0,behavior:'instant'});}
 function list(){
  const list=model().tracks.slice().reverse();
- return '<section class="fd-p-page"><div class="fd-p-heading"><small>TRAINING MODE</small><h1>Your progressions</h1><p>Every real set counts. Develop repetitions, variations, or both.</p></div>'+
+ return '<section class="fd-p-page"><div class="fd-p-heading"><h1>Progressions</h1></div>'+
   '<div class="fd-p-list">'+list.map(t=>'<button class="fd-p-card" onclick="fdProgHub(\''+t.id+'\')"><strong>'+escP(ex(t.baseId)?.name||t.baseId)+'</strong><span>'+escP(FOCI[t.focus])+' · '+sessions(t.id).length+' saved sessions</span><b>›</b></button>').join('')+'</div>'+
   (!list.length?'<p class="hint">No progression tracks yet. Choose an exercise to begin one.</p>':'')+
   '<button class="fd-p-primary" onclick="navigate(\'log\')">Choose an exercise</button></section>';
@@ -117,7 +127,7 @@ function setup(){
  const e=ex(view.exercise),last=observedBest(e.id);
  const choices=variants(e.id).filter(x=>x.id!==e.id);
  return '<section class="fd-p-page"><button class="fd-p-back" onclick="fdProgBack()">‹ Back</button>'+
-  '<div class="fd-p-heading"><small>NEW PROGRESSION</small><h1>'+escP(e.name)+'</h1><p>Choose how to develop this movement. Targets are adjustable, and every variation remains independent.</p></div>'+
+  '<div class="fd-p-heading"><small>NEW PROGRESSION</small><h1>'+escP(e.name)+'</h1></div>'+
   '<div class="fd-p-form"><label for="fd-p-focus">What do you want to develop?</label><select id="fd-p-focus" onchange="fdProgFocusChanged(this.value)">'+Object.keys(FOCI).map(x=>'<option value="'+x+'">'+FOCI[x]+'</option>').join('')+'</select>'+
   '<div class="fd-p-variant-config" id="fd-p-variant-config" hidden><label for="fd-p-variant">A variation to practice</label><select id="fd-p-variant">'+choices.map(x=>'<option value="'+x.id+'">'+escP(x.name)+'</option>').join('')+'</select>'+
   (choices.length?'':'<p class="hint">No other variation with comparable logging units is available for this movement.</p>')+'</div>'+
@@ -136,21 +146,21 @@ function historyChart(t){
 }
 function hub(){
  const t=byTrack(view.id);if(!t)return list();
- const done=sessions(t.id),badges=awards().filter(x=>x.earned);
+ const done=sessions(t.id),allAwards=awards(),badges=allAwards.filter(x=>x.earned);
  const best=observedBest(t.baseId),primary=metricsFor(t,t.baseId);
  const supports=plateau(t,t.baseId)?support(t):[];
  return '<section class="fd-p-page"><button class="fd-p-back" onclick="fdProgBack()">‹ Progressions</button>'+
-  '<div class="fd-p-heading"><small>'+escP(FOCI[t.focus])+'</small><h1>'+escP(ex(t.baseId).name)+'</h1><p>Only your completed sets determine improvement. Session targets are suggestions you can change.</p></div>'+
+  '<div class="fd-p-heading"><small>'+escP(FOCI[t.focus])+'</small><h1>'+escP(ex(t.baseId).name)+'</h1><p>Adjust the suggested targets as needed.</p></div>'+
   '<div class="fd-p-stats"><div><strong>'+done.length+'</strong><span>Sessions</span></div><div><strong>'+best+'</strong><span>Best recorded set</span></div><div><strong>+'+primary.level+'</strong><span>Target increases</span></div></div>'+
   (draft?.trackId===t.id?'<button class="fd-p-primary" onclick="fdProgResume()">Resume unfinished session</button>':draft?'<div class="fd-p-support"><strong>Another session is unfinished</strong><p>You can resume it or discard that unsaved draft before starting here.</p><button onclick="fdProgResume()">Resume unfinished session</button><button onclick="fdProgDiscardDraft()">Discard unfinished draft</button></div>':'<button class="fd-p-primary" onclick="fdProgBegin()">Begin next session</button>')+
   '<p class="fd-p-help">Targets increase after two successful sessions of each variation. Three difficult sessions can ease the targets. Switching variations does not erase progress.</p>'+
   (supports.length?'<div class="fd-p-support"><strong>Possible plateau</strong><p>Several comparable attempts have not improved. Try one optional supporting exercise, or take an easier session.</p><button onclick="fdProgSupport(\''+supports[0].id+'\')">Try '+escP(supports[0].name)+'</button></div>':'')+
-  '<details class="fd-p-fold"><summary>Persistence awards · '+badges.length+' earned</summary>'+awardRows()+'</details>'+
+ '<details class="fd-p-fold"><summary>Persistence awards · '+badges.length+' earned</summary>'+awardRows(allAwards)+'</details>'+
   '<details class="fd-p-fold"><summary>Performance history</summary>'+historyChart(t)+'</details>'+
   '<details class="fd-p-fold"><summary>Training balance & rest</summary>'+  '<label for="fd-p-focus-update">Training focus</label><select id="fd-p-focus-update">'+Object.keys(FOCI).map(x=>'<option value="'+x+'" '+(x===t.focus?'selected':'')+'>'+FOCI[x]+'</option>').join('')+'</select>'+  '<label for="fd-p-variant-update">Practice variation</label><select id="fd-p-variant-update">'+variants(t.baseId).filter(x=>x.id!==t.baseId).map(x=>'<option value="'+x.id+'" '+(x.id===t.variantId?'selected':'')+'>'+escP(x.name)+'</option>').join('')+'</select>'+  '<label for="fd-p-count-update">Sets per session</label><select id="fd-p-count-update">'+[3,5].map(x=>'<option value="'+x+'" '+(x===t.setCount?'selected':'')+'>'+x+' sets</option>').join('')+'</select>'+  '<label for="fd-p-rest-update">Rest timer</label><select id="fd-p-rest-update">'+[60,90,120,180].map(x=>'<option value="'+x+'" '+(x===t.restSec?'selected':'')+'>'+x+' seconds</option>').join('')+'</select>'+  '<button onclick="fdProgUpdatePlan()">Save plan settings</button><button onclick="fdProgNewTrack()">Start a separate progression</button></details></section>';
 }
-function awardRows(){
- return BADGES.map((a,i)=>{const x=awards()[i];return '<div class="fd-p-award"><span class="'+(x.earned?'earned':'')+'">'+(x.earned?'◆':'○')+'</span><div><b>'+a.name+'</b><small>'+a.detail+'</small></div></div>';}).join('');
+function awardRows(items=awards()){
+ return items.map(x=>'<div class="fd-p-award"><span class="'+(x.earned?'earned':'')+'">'+(x.earned?'◆':'○')+'</span><div><b>'+x.name+'</b><small>'+x.detail+'</small></div></div>').join('');
 }
 function plan(t){
  const count=t.setCount||3,focus=t.focus,base=t.baseId,variant=t.variantId||base;
@@ -198,7 +208,7 @@ function chooseVariant(){
 function rest(){
  if(!draft)return list();
  const left=Math.max(0,Math.ceil((draft.restUntil-Date.now())/1000)),previous=draft.actual[draft.actual.length-1],miss=previous&&!previous.skipped&&previous.reps<previous.target;
- return '<section class="fd-p-page fd-p-restscreen"><button class="fd-p-back" onclick="fdProgPause()">‹ Save for later</button><div class="fd-p-heading"><small>RECOVER</small><h1>Rest before your next set</h1></div>'+
+ return '<section class="fd-p-page fd-p-restscreen"><button class="fd-p-back" onclick="fdProgPause()">‹ Save for later</button><div class="fd-p-heading"><h1>Rest before your next set</h1></div>'+
   '<strong class="fd-p-restclock" id="fd-p-rest-count">'+formatTime(left)+'</strong>'+
   (previous&&!previous.skipped?'<div class="fd-v3-rest-status '+(miss?'is-adjusted':'is-met')+'"><span aria-hidden="true">'+(miss?'↗':'✓')+'</span><div><strong>Set logged · '+previous.reps+' / '+previous.target+' reps</strong><small>'+(miss?'You can switch to another variation next.':'Target met. Recover before continuing.')+'</small></div></div>':'')+
   (miss?'<p class="fd-p-help">Missed targets don’t erase your session. Rest or change variation as needed.</p>':'<p class="fd-p-help">Rest as needed. You can continue or end the session without penalty.</p>')+
@@ -328,6 +338,23 @@ window.fdProgContinue=()=>{if(!draft)return;stopTick();draft.restUntil=null;view
 window.fdProgAddRest=()=>{if(!draft)return;draft.restUntil=Math.max(Date.now(),draft.restUntil||0)+30000;draftSave();render();};
 window.fdProgFinishEarly=()=>{if(!draft)return;stopTick();view.kind='review';render();};
 window.fdProgPause=()=>{if(!draft)return;stopTick();draftSave();view={kind:'hub',id:draft.trackId,exercise:byTrack(draft.trackId)?.baseId};tab='progression';render();scrollTop();};
+window.fdCanLeaveProgression=()=>{
+ if(!draft||!['session','rest','variants','review'].includes(view.kind))return true;
+ if(!confirm('Discard this progression session? Your sets won’t be saved.'))return false;
+ const track=byTrack(draft.trackId);
+ draftClear();
+ view=track?{kind:'hub',id:track.id,exercise:track.baseId}:{kind:'list',id:null,exercise:null};
+ return true;
+};
+window.fdProgressionBack=()=>{
+ if(view.kind==='list')return false;
+ if(view.kind==='variants'){window.fdProgReturnSet();return true;}
+ const previousView=view;
+ if(!window.fdCanLeaveProgression())return true;
+ if(view===previousView)window.fdProgBack();
+ else{render();scrollTop();}
+ return true;
+};
 window.fdProgSupport=id=>{
  const t=byTrack(view.id);if(!t||!support(t).some(s=>s.id===id))return;
  // A supporting exercise remains optional and is logged as a standalone record.
@@ -377,6 +404,10 @@ const priorAchievements=achievements;
 achievements=function(){return priorAchievements()+'<section class="fd-p-award-collection"><h2>Progression persistence</h2><p class="hint">These awards recognise real sessions and returning after breaks, not perfect completion of every target.</p>'+awardRows()+'</section>';};
 // If navigation leaves the programme, retain an unfinished session locally but stop its timer.
 const oldNavigate=navigate;
-navigate=function(next){if(next!=='progression'){stopTick();if(draft)draftSave();}oldNavigate(next);};
+navigate=function(next){
+ const moved=oldNavigate(next);
+ if(moved&&next!=='progression'){stopTick();if(draft)draftSave();}
+ return moved;
+};
 draftLoad();
 })();

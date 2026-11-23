@@ -29,16 +29,25 @@ assert(read('push-client.js').includes('fdPushBackgroundTest'),'Queued server pu
 assert(sw.includes("self.addEventListener('notificationclick'"),'Notifications must navigate correctly when tapped');
 new vm.Script(sw,{filename:'sw.js'});
 
-function boot(initial){
+function boot(initial,cardioForSave,Clock=Date){
  const keys=new Map();
  if(initial)keys.set('fitnessdex-v01',JSON.stringify(initial));
- let failWrites=false;
+ let failWrites=false, rejectProfileWrite=()=>false;
+ const profileWrites=[], reminderWrites=[];
  const storage={
   getItem:key=>keys.get(key)??null,
-  setItem:(key,val)=>{if(failWrites&&key==='fitnessdex-v01')throw new Error('Simulated device quota error');keys.set(key,String(val));},
+  setItem:(key,val,refreshReminders)=>{
+   if(key==='fitnessdex-v01'){
+    const snapshot=JSON.parse(val);
+    if(failWrites||rejectProfileWrite(snapshot))throw new Error('Simulated device quota error');
+    profileWrites.push(snapshot);
+    reminderWrites.push(refreshReminders);
+   }
+   keys.set(key,String(val));
+  },
   removeItem:key=>keys.delete(key)
  };
- function node(){return {value:'',innerHTML:'',style:{},dataset:{},classList:{toggle(){}},addEventListener(){},focus(){},setAttribute(){},textContent:''};}
+ function node(){return {value:'',innerHTML:'',style:{},dataset:{},classList:{toggle(){}},addEventListener(){},focus(){},scrollIntoView(){},setAttribute(){},textContent:''};}
  const nodes=new Map(),nav=['home','log','dex','more'].map(tab=>({dataset:{tab},classList:{toggle(){}},addEventListener(){}}));
  const doc={
   body:{dataset:{}},getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);},
@@ -49,19 +58,50 @@ function boot(initial){
   }
  };
  const emitted=[],alerts=[];
- const window={scrollTo(){},dispatchEvent(e){emitted.push(e.type)}};
- const fn=new Function('window','document','localStorage','Event','alert','confirm','console',
+ const window={scrollTo(){},dispatchEvent(e){emitted.push(e.type)},fdCardioForSave:cardioForSave};
+ const fn=new Function('window','document','localStorage','Event','alert','confirm','console','Date',
   codeScripts[0]+'\n'+codeScripts[1]+
-  '\nreturn {state:()=>S,save,submitLog,deleteLog,checkpoint,recoveryRows,restoreCheckpoint,validBackup,editLog,today,localTime};');
- const app=fn(window,doc,storage,function Event(type){this.type=type;},m=>alerts.push(m),()=>true,console);
- const now=new Date();
+  '\nreturn {state:()=>S,save,choose,openDexFamily,openPathNode,submitLog,deleteLog,checkpoint,recoveryRows,restoreCheckpoint,validBackup,editLog,toggleHunt,logsInWindow,importData,today,localTime,streakMetrics,streakBadges};');
+ const app=fn(window,doc,storage,function Event(type){this.type=type;},m=>alerts.push(m),()=>true,console,Clock);
+ const now=new Clock();
  for(const [id,val] of [['date',app.today()],['clock',app.localTime(now)],['notes',''],['session','standalone']])doc.getElementById(id).value=val;
- return {app,doc,keys,alerts,emitted,setFail:v=>{failWrites=v;}};
+ return {app,doc,keys,alerts,emitted,profileWrites,reminderWrites,setFail:v=>{failWrites=v;},rejectWrite:fn=>{rejectProfileWrite=fn;}};
 }
 function sample(){
  const now=new Date(),date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
  return {logs:[{at:'old-workout-1',id:'e004',mode:'bodysets',date,performedAt:new Date().toISOString(),sets:[{reps:6}],notes:'original',sessionId:null}],
  claimed:[],assign:{},tally:{},v3:{active:[],completed:[],nextSerial:0},v4:{hunts:[],lastResult:null},v5:{workouts:[],dismissed:[]},v6:{baselineWeek:{alcohol:null,smoking:null,takeaway:null},days:[],awards:[]}};
+}
+const timerFinish=new Date(2026,10,19,12,30,45);
+const timerNow=new Date(2026,10,19,12,32,10);
+class TimerClock extends Date {
+ constructor(...args){super(...(args.length?args:[timerNow.getTime()]));}
+ static now(){return timerNow.getTime();}
+}
+for(const edited of [false,true]){
+ const timer=boot(null,()=>({id:'timed-walk',finished:true,total:null,finishedAt:timerFinish.getTime()}),TimerClock);
+ timer.app.choose('e045');
+ for(const [id,value] of Object.entries({date:'2026-11-19',clock:edited?'12:29':'12:30',value:'1.2',extra:'15',session:'standalone'}))
+  timer.doc.getElementById(id).value=value;
+ timer.app.submitLog();
+ const performed=timer.app.state().logs.at(-1).performedAt;
+ assert.equal(performed,(edited?new Date(2026,10,19,12,29):timerFinish).toISOString(),'Timed walks must preserve the exact finish or respect the manual edit');
+ const issued=new Date(2026,10,19,12,30,15).toISOString();
+ const hits=timer.app.logsInWindow({issuedAt:issued,periodStart:issued,periodEnd:timerNow.toISOString(),ex:'e045'});
+ assert.equal(hits.length,edited?0:1);
+}
+{
+ const logs=[
+  ['e004','2026-10-21'],['e004','2026-11-04'],['e045','2026-11-10'],['e004','2026-11-11'],['e045','2026-11-17']
+ ].map(([id,date],i)=>({
+  at:'streak-'+i,id,date,performedAt:new Date(date+'T12:00:00').toISOString(),
+  ...(id==='e004'?{mode:'bodysets',sets:[{reps:8}]}:{mode:'distance',value:1.3,minutes:16})
+ }));
+ const check=boot({logs,recoveryDays:['2026-11-03','2026-11-18']},null,TimerClock);
+ assert.deepEqual(check.app.streakMetrics(),{
+  daily:2,activeWeeks:4,categories:{'Calisthenics':2,'Weight training':0,'Flexibility & mobility':0,'Cardio':2}
+ });
+ assert.deepEqual(check.app.streakBadges().map(a=>a.id),['week-streak:2','Calisthenics-weeks:2','Cardio-weeks:2']);
 }
 const b=boot(sample());
 assert.equal(b.app.state().logs.length,1,'Existing records did not load');
@@ -75,6 +115,7 @@ b.setFail(false);b.app.submitLog();
 assert.equal(b.app.state().logs.length,2,'Successful save failed to add a real exercise record');
 assert(b.keys.has('fitnessdex-v01'),'Record not persisted to device');
 assert(b.emitted.includes('fitnessdex:saved'),'Successful save must dispatch sync event');
+assert.equal(b.reminderWrites.at(-1),false,'Ordinary activity saves must leave reminders alone');
 const added=b.app.state().logs.find(l=>l.at!=='old-workout-1');
 const beforeDelete=JSON.stringify(b.app.state());
 b.setFail(true);b.app.deleteLog(added.at);
@@ -85,21 +126,158 @@ assert(b.app.recoveryRows().length>0,'Pre-change recovery snapshot missing');
 b.app.restoreCheckpoint(0);
 assert.equal(b.app.state().logs.length,2,'Recovery checkpoint failed to restore deleted record');
 assert(b.app.validBackup(b.app.state()),'Recovery restored invalid data');
+assert.equal(b.reminderWrites.at(-1),true,'Recovering a profile must refresh reminders');
+
+const legacy=boot(sample());
+const oldProfile={logs:sample().logs};
+legacy.keys.set('fitnessdex-recovery-checkpoints-v1',JSON.stringify([{
+ at:new Date().toISOString(),label:'Old app version',data:JSON.stringify(oldProfile)
+}]));
+legacy.app.restoreCheckpoint(0);
+assert.deepEqual(legacy.app.state().logs,oldProfile.logs);
+assert(legacy.app.validBackup(legacy.app.state()),'Legacy recovery must work before the app restarts');
+assert.deepEqual(JSON.parse(legacy.keys.get('fitnessdex-v01')),legacy.app.state());
+
+const importGuard=boot(sample());
+const malformed=sample();
+malformed.v5.workouts=[null];
+const unmodifiedImportSave=importGuard.keys.get('fitnessdex-v01');
+assert.equal(importGuard.app.validBackup(malformed),false);
+assert(importGuard.app.validBackup({logs:malformed.logs}),'Backups from before workout grouping must still load');
+const malformedJSON=JSON.stringify(malformed);
+importGuard.app.importData({size:malformedJSON.length,text:async()=>malformedJSON}).then(()=>{
+ assert.match(importGuard.alerts.at(-1),/Saved workout 1.*incomplete/);
+ assert.equal(importGuard.keys.get('fitnessdex-v01'),unmodifiedImportSave,'Invalid nested data must not reach disk');
+}).catch(error=>{console.error(error);process.exitCode=1;});
+
+const swim=boot(null);
+swim.app.choose('e051');
+for(const [field,value] of [['value','20'],['extra','0.05'],['lengths','2.5']])swim.doc.getElementById(field).value=value;
+swim.app.submitLog();
+const swimSnapshot=JSON.parse(swim.keys.get('fitnessdex-v01'));
+assert.equal(swimSnapshot.logs[0].lengths,2.5);
+assert(swim.app.validBackup(swimSnapshot),'A fractional pool length must survive backup validation');
+swim.doc.getElementById('extra').value='1001';
+swim.app.submitLog();
+assert.match(swim.alerts.at(-1),/optional distance/);
+assert.equal(swim.app.state().logs.length,1,'The logger must reject entries that cannot be restored');
+const badBackup=structuredClone(swimSnapshot);
+badBackup.logs[0].distance=1001;
+const badText=JSON.stringify(badBackup);
+swim.app.importData({size:badText.length,text:async()=>badText}).then(()=>{
+ assert.match(swim.alerts.at(-1),/Backup record 1 \(Swimming.*optional distance/);
+ assert.equal(swim.keys.get('fitnessdex-v01'),JSON.stringify(swimSnapshot));
+}).catch(error=>{console.error(error);process.exitCode=1;});
+
+const pin=boot(null);
+pin.setFail(true);
+pin.app.toggleHunt('e004');
+assert.deepEqual(pin.app.state().v4.hunts,[],'Failed pin must roll back');
+pin.setFail(false);
+pin.app.toggleHunt('e004');
+assert.deepEqual(JSON.parse(pin.keys.get('fitnessdex-v01')).v4.hunts,['e004']);
+
+const exactTime=new Date();
+exactTime.setHours(12,0,0,0);
+class FixedClock extends Date {
+ constructor(...args){super(...(args.length?args:[exactTime.getTime()]));}
+ static now(){return exactTime.getTime();}
+}
+const timingStart=new Date(+exactTime-3600000).toISOString();
+const timingProfile=sample();
+timingProfile.logs=[];
+const timingChallenge={cid:'same-time',type:'weekly',kind:'reps',ex:'e004',goal:8,unit:'reps',label:'Same time',
+ periodKey:'weekly:same-time',periodStart:timingStart,issuedAt:timingStart,
+ periodEnd:new Date(+exactTime+1).toISOString(),slot:0};
+timingProfile.v3.active.push(timingChallenge);
+const timing=boot(timingProfile,null,FixedClock);
+timing.app.submitLog();
+assert(timing.app.state().v3.completed.some(c=>c.cid==='same-time'),'Count a workout saved in the same millisecond');
+assert.equal(timing.app.logsInWindow({...timingChallenge,periodEnd:exactTime.toISOString()}).length,0,'The exact deadline stays excluded');
+
+const challengeStart=new Date(Date.now()-2*60*60*1000).toISOString();
+const challengeProfile=sample();
+challengeProfile.logs=[];
+challengeProfile.v3.active.push({
+ cid:'save-regression',type:'weekly',kind:'reps',ex:'e004',goal:8,unit:'reps',label:'Save regression',
+ periodKey:'weekly:save-regression',periodStart:challengeStart,issuedAt:challengeStart,
+ periodEnd:new Date(Date.now()+24*60*60*1000).toISOString(),slot:0
+});
+const challenge=boot(challengeProfile);
+const challengeActivity=new Date(Date.now()-60*1000);
+const challengeDate=challengeActivity.getFullYear()+'-'+String(challengeActivity.getMonth()+1).padStart(2,'0')+'-'+String(challengeActivity.getDate()).padStart(2,'0');
+challenge.doc.getElementById('date').value=challengeDate;
+challenge.doc.getElementById('clock').value=challenge.app.localTime(challengeActivity);
+const priorProfile=challenge.keys.get('fitnessdex-v01');
+const priorState=JSON.stringify(challenge.app.state());
+challenge.profileWrites.length=0;
+challenge.emitted.length=0;
+challenge.rejectWrite(snapshot=>Boolean(snapshot.v4.lastResult));
+challenge.app.submitLog();
+assert(challenge.alerts.length,'The failed workout save should be reported');
+assert.equal(JSON.stringify(challenge.app.state()),priorState,'Failed challenge save should roll back the workout and reward');
+assert.equal(challenge.keys.get('fitnessdex-v01'),priorProfile,'No intermediate workout or challenge reward should reach storage');
+assert.equal(challenge.profileWrites.length,0,'A failed workout should commit no profile snapshots');
+assert.deepEqual(challenge.emitted,[],'A failed workout should emit no cloud sync event');
+challenge.rejectWrite(()=>false);
+challenge.app.submitLog();
+assert.equal(challenge.profileWrites.length,1,'One workout and its rewards should commit together');
+assert.deepEqual(challenge.emitted,['fitnessdex:saved']);
+const savedChallengeProfile=JSON.parse(challenge.keys.get('fitnessdex-v01'));
+assert.equal(savedChallengeProfile.logs.length,1);
+assert(savedChallengeProfile.v3.completed.some(c=>c.cid==='save-regression'&&c.rewardXP===85));
+assert.equal(savedChallengeProfile.v4.lastResult.logId,savedChallengeProfile.logs[0].at);
+assert(savedChallengeProfile.v4.lastResult.challengeNames.includes('Save regression'));
+assert.equal(JSON.stringify(challenge.app.state()),JSON.stringify(savedChallengeProfile));
+const reopenedChallenge=boot(savedChallengeProfile);
+assert.equal(reopenedChallenge.app.state().logs.length,1);
+assert(reopenedChallenge.app.state().v3.completed.some(c=>c.cid==='save-regression'));
 
 const empty=boot(null);
 assert.equal(empty.app.state().logs.length,0,'Existing empty profile broken');
 assert(empty.app.validBackup(empty.app.state()),'Old profile backward compatibility broken');
+const hike=boot(sample(),()=>({id:'tracked-hike',finished:true,total:240,today:240,day:today,source:'24189eb3-1363-4f80-9bed-ef37d7faa770'}));
+const today=hike.app.today();
+hike.app.choose('e149');
+hike.doc.getElementById('value').value='1.4';
+hike.doc.getElementById('extra').value='21';
+hike.setFail(true);
+hike.app.submitLog();
+assert.equal(hike.app.state().logs.length,1,'A failed recorder save changed the history');
+hike.setFail(false);
+hike.app.submitLog();
+const savedHike=hike.app.state().logs.find(l=>l.at==='tracked-hike');
+assert.equal(savedHike.cardioSteps.total,240);
+assert.equal(savedHike.minutes,21);
+assert.equal(savedHike.value,1.4);
+assert(hike.app.validBackup(hike.app.state()),'Saved hike failed the backup validator');
+assert.match(hike.app.state().v4.lastResult.summary,/240 steps.*15:00\/km/);
+const dexTree=boot(null);
+dexTree.app.openDexFamily('Calisthenics','Push-ups');
+const dexSource=dexTree.doc.getElementById('app').innerHTML;
+assert.match(dexSource,/aria-label="Step 3">03/);
+assert.match(dexSource,/data-skill="e004" data-stage="2" data-parents="e002 e003"/);
+assert.match(dexSource,/Incline push-up or Knee push-up/);
+dexTree.app.openPathNode('e004');
+assert.match(dexTree.doc.getElementById('app').innerHTML,/Build your push-up · Step 3/);
+dexTree.app.openDexFamily('Flexibility & mobility','General mobility');
+const squatTree=dexTree.doc.getElementById('app').innerHTML;
+assert.match(squatTree,/data-skill="e148" data-stage="1" data-parents="e147"/);
+assert(squatTree.indexOf('Supported deep squat hold')<squatTree.indexOf('Unsupported deep squat hold'));
+
+
 console.log('FitnessDex smoke checks passed: version, PWA assets, JS syntax, old saves, failed/successful activity saves, deletion rollback, recovery.');
 
 
 /* 0.8.2: exercise-copy, quick draft, undo and old-history regression. */
-function bootConvenience(){
+function bootConvenience(extraLogs=[],savedKeys){
+ let elapsed=0;
  const now=new Date(),date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
  const entries=Array.from({length:210},(_,i)=>({at:'older-walk-'+i,id:'e045',mode:'distance',date,performedAt:new Date(Date.now()-(i+60)*60000).toISOString(),value:0.5,notes:'older walking record '+i}));
  entries.push({at:'recent-pushups',id:'e004',mode:'bodysets',date,performedAt:new Date(Date.now()-15000).toISOString(),sets:[{reps:7},{reps:6}],notes:'unique newest push-ups'});
- const seed={...sample(),logs:entries};
- const keys=new Map([['fitnessdex-v01',JSON.stringify(seed)]]),nodes=new Map();
- const fakeNode=id=>({id,value:'',checked:true,innerHTML:'',textContent:'',dataset:{},style:{},classList:{toggle(){},add(){},remove(){}},parentNode:{insertBefore(){}},addEventListener(){},appendChild(){},focus(){},setSelectionRange(){},scrollIntoView(){},closest(){return true},setAttribute(){},options:[]});
+ const seed={...sample(),logs:[...entries,...extraLogs]};
+ const keys=savedKeys??new Map([['fitnessdex-v01',JSON.stringify(seed)]]),nodes=new Map();
+ const fakeNode=id=>({id,value:'',checked:true,innerHTML:'',textContent:'',dataset:{},style:{},classList:{toggle(){},add(){},remove(){}},parentNode:{insertBefore(){}},addEventListener(){},appendChild(){},dispatchEvent(event){doc.handlers[event.type]?.({target:this})},focus(){},setSelectionRange(){},scrollIntoView(){},closest(){return true},setAttribute(){},options:[]});
  const appNode=fakeNode('app'),buttons=['home','log','dex','more'].map(tab=>({...fakeNode(tab),dataset:{tab}}));
  const doc={
   body:{dataset:{}},head:{appendChild(){}},hidden:false,handlers:{},
@@ -116,12 +294,90 @@ function bootConvenience(){
  const win={handlers:{},addEventListener(k,cb){this.handlers[k]=cb},scrollTo(){},dispatchEvent(){}};
  const modules=['workouts.js','habits.js','log-flow.js','ui-shell.js','campaigns.js','progression.js','set-ui.js','daily-care.js','quick-tools.js'];
  const code='const queueMicrotask=fn=>{};\n'+codeScripts[0]+'\n'+codeScripts[1]+'\n'+modules.map(read).join('\n')+
-  '\nreturn {state:()=>S,tab:()=>tab,history,submitLog,validBackup};';
- const app=new Function('window','document','localStorage','alert','confirm','Event','console',code)(win,doc,localStorage,
-  msg=>{throw Error('Unexpected alert: '+msg)},()=>true,function Event(type){this.type=type},console);
- return {app,win,doc,keys,date};
+  '\nreturn {state:()=>S,tab:()=>tab,history,navigate,choose,submitLog,validBackup,prefillSets,timeTrackTotals,logsInWindow,resetDerived};';
+ const app=new Function('window','document','localStorage','alert','confirm','Event','console','performance',code)(win,doc,localStorage,
+  msg=>{throw Error('Unexpected alert: '+msg)},()=>true,function Event(type){this.type=type},console,{now:()=>elapsed});
+ return {app,win,doc,keys,date,advance:ms=>{elapsed+=ms}};
 }
 const convenience=bootConvenience(),cv=convenience,cvApp=cv.app,cvWin=cv.win;
+function prepareSaveRegression(test){
+ test.win.fdRepeatLast();
+ const now=new Date();
+ test.doc.getElementById('date').value=test.date;
+ test.doc.getElementById('clock').value=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+ test.doc.getElementById('session').value='standalone';
+ test.doc.handlers.input({target:{closest:()=>true}});
+}
+{
+ const test=bootConvenience();
+ prepareSaveRegression(test);
+ let attempted=false;
+ test.win.dispatchEvent=event=>{
+  if(event.type==='fitnessdex:saved'&&!attempted){attempted=true;test.app.submitLog();}
+ };
+ test.app.submitLog();
+ test.app.submitLog();
+ assert(attempted,'The test must simulate a second Save during the first write');
+ assert.equal(test.app.state().logs.length,212,'Repeated saves must commit only one activity');
+}
+{
+ const test=bootConvenience();
+ prepareSaveRegression(test);
+ // Interrupt the process after the profile is written but before WebView removes its draft.
+ test.win.fdClearQuickDraft=()=>{throw Error('Simulated process exit');};
+ assert.throws(()=>test.app.submitLog(),/Simulated process exit/);
+ const reopened=bootConvenience([],test.keys);
+ assert.equal(reopened.app.state().logs.length,212,'The completed activity must survive reopening');
+ assert(!reopened.win.fdQuickDraftHome().includes('Unfinished activity'),'A committed activity must not be offered for replay');
+}
+{
+ const edit=bootConvenience();
+ const rows=['8','12'].map((reps,i)=>{
+  const fields={'.reps':{value:reps},'.fd-set-mark':{classList:{toggle(){}},setAttribute(){}},'.fd-set-index':{textContent:String(i+1)}};
+  const row={classList:{toggle(){}},querySelector:selector=>fields[selector],remove(){rows.splice(rows.indexOf(row),1);}};
+  fields['.reps'].closest=()=>row;
+  return row;
+ });
+ const query=edit.doc.querySelectorAll.bind(edit.doc);
+ edit.doc.querySelectorAll=selector=>selector==='#setrows .setrow'?rows:query(selector);
+ edit.win.fdRepeatLast();
+ const saved=()=>JSON.parse(edit.keys.get('fitnessdex-quick-log-draft-v1')).sets.map(x=>x.reps);
+ assert.deepEqual(saved(),['8','12']);
+ edit.win.fdSetToggle({closest:()=>rows[0]});
+ assert.deepEqual(saved(),['','12'],'A cleared set must stay cleared after resuming');
+ edit.win.fdSetRemove({closest:()=>rows[1]});
+ assert.deepEqual(saved(),[''],'A removed set must stay removed after resuming');
+}
+{
+ const test=bootConvenience(),profile=test.app.state(),ui=test.win;
+ const localDay=offset=>{
+  const d=new Date();d.setDate(d.getDate()+offset);
+  return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+ };
+ const days=Array.from({length:7},(_,i)=>localDay(i-7));
+ const at=(day,time)=>new Date(day+'T'+time+':00').toISOString();
+ const item={id:'supp-test',name:'Routine',note:'',time:'08:00',days:[0,1,2,3,4,5,6],createdAt:at(days[0],'00:00'),archivedAt:null};
+ profile.v9={
+  water:{baseGoal:2000,goals:[],entries:days.flatMap(day=>[0,1].map(i=>({id:'water-'+day+'-'+i,date:day,at:at(day,i?'14:00':'10:00'),ml:1000})))},
+  supplements:{items:[item],taken:days.map(day=>({id:'taken-'+day,supplementId:item.id,date:day,at:at(day,'08:00'),onTime:true}))}
+ };
+ assert(test.app.validBackup(profile),'Legacy Daily Care history must load');
+ const earned=ui.fdCareXP();
+ test.doc.getElementById('fd-care-basegoal').value='2500';ui.fdCareChangeDefault();
+ test.doc.getElementById('fd-care-basegoal').value='3000';ui.fdCareChangeDefault();
+ assert.equal(ui.fdCareWaterGoal(localDay(0)),2000);
+ assert.equal(ui.fdCareWaterGoal(localDay(1)),3000);
+ ui.fdCareEditSupp(item.id);
+ test.doc.getElementById('fd-care-name').value=item.name;
+ test.doc.getElementById('fd-care-time').value='';
+ for(let i=0;i<7;i++)test.doc.getElementById('fd-care-week-'+i).checked=i===6;
+ ui.fdCareSaveSupp();
+ assert.equal(ui.fdCareXP(),earned,'Updating a routine or default target must keep earned XP');
+ assert(test.app.validBackup(profile),'Daily Care timeline must export as a valid backup');
+ const invalid=structuredClone(profile);
+ invalid.v9.supplements.items[0].scheduleHistory[0].days=[7];
+ assert(!test.app.validBackup(invalid),'Malformed historic schedules must be rejected');
+}
 assert.equal(cvApp.state().logs.length,211,'Existing activity records lost on boot');
 assert(cv.doc.getElementById('app').innerHTML.includes('Repeat last activity'),'Recent exercise shortcut missing');
 cvWin.fdRepeatLast();
@@ -147,7 +403,257 @@ cvWin.fdUndoLastLog();
 assert(!cvApp.state().logs.some(l=>l.at===loggedId),'Undo failed to remove the latest saved log');
 assert.equal(cvApp.state().logs.length,211,'Undo must preserve earlier exercises');
 assert(cvApp.validBackup(cvApp.state()),'Undo produced an invalid backup');
+cvApp.navigate('history');
+const historyPage=cv.doc.getElementById('app').innerHTML;
+const historySearch=cv.doc.getElementById('fd-history-query');
+const historyResults=cv.doc.getElementById('fd-history-results');
+const historyLogs=cvApp.state().logs;
+let historyCopies=0;
+historyLogs.slice=function(...args){historyCopies++;return Array.prototype.slice.apply(this,args);};
+historySearch.value='older walking';
+cvWin.fdHistoryApply();
+assert.match(historyResults.innerHTML,/210 matching records/);
+historySearch.value='older walking record 209';
+cvWin.fdHistoryApply();
+assert.match(historyResults.innerHTML,/1 matching records/);
+assert.match(historyResults.innerHTML,/deleteLog\('older-walk-209'\)/);
+assert.equal(cv.doc.getElementById('app').innerHTML,historyPage,'Filtering History must keep the search form and tools in place');
+assert.equal(historyCopies,0,'Filtering History must reuse the sorted records');
+cvWin.fdHistoryReset();
+assert.equal(historySearch.value,'');
+assert.match(historyResults.innerHTML,/Page 1 of 2/);
+cvWin.fdHistoryPageBy(1);
+assert.match(historyResults.innerHTML,/Page 2 of 2/);
+assert.doesNotMatch(historyResults.innerHTML,/>Next<\/button>/);
+cvWin.fdHistoryPageBy(-1);
+assert.match(historyResults.innerHTML,/Page 1 of 2/);
+delete historyLogs.slice;
+const originalHistory=historyLogs.slice();
+for(let i=0;i<1900;i++){
+ const row=originalHistory[0];
+ const date=new Date(2020,0,1+i%70,9);
+ historyLogs.push({...row,date:date.toLocaleDateString('sv-SE'),performedAt:date.toISOString(),at:'older-page-'+i,notes:'Long history'});
+}
+cvApp.navigate('history');
+cvWin.fdHistoryPage=9;
+cvWin.fdHistoryPageBy(1);
+assert.match(historyResults.innerHTML,/Page 11 of 11/);
+assert.match(historyResults.innerHTML,/Showing 2001–2111/);
+assert.doesNotMatch(historyResults.innerHTML,/>Next<\/button>/);
+cvWin.fdHistoryReset();
+
+const date=new Date(2025,8,10,7);
+const day=date.toLocaleDateString('sv-SE');
+const nextDate=new Date(2025,8,11,8,55);
+const at=(id,mode,key,d,extra)=>({id,mode,at:key,date:d.toLocaleDateString('sv-SE'),performedAt:d.toISOString(),...extra});
+cvApp.state().logs=[
+ at('e025','sets','standalone',date,{sets:[{weight:60,reps:5},{weight:60,reps:5},{weight:60,reps:5}]}),
+ at('e045','distance','cardio',nextDate,{value:2,minutes:20}),
+ at('e031','sets','at-deadline',new Date(2025,8,12,9),{sets:[{weight:60,reps:5},{weight:60,reps:5},{weight:60,reps:5}]}),
+ at('e051','duration','backdated-swim',new Date(2025,8,10,8),{value:21,stroke:'Breaststroke'}),
+ at('e123','duration','first-swim',new Date(2025,8,10,7,30),{value:20}),
+ {id:'e025',mode:'sets',at:'no-time',date:day,sets:[{weight:60,reps:5},{weight:60,reps:5},{weight:60,reps:5}]}
+];
+cvApp.resetDerived();
+assert.equal(cvApp.timeTrackTotals()['workout-before-09'],2,'Standalone working sets and 20 minutes of cardio qualify');
+assert.equal(cvApp.timeTrackTotals()['workout-before-10'],3,'An activity at exactly 09:00 can qualify before 10:00');
+const issue=new Date(2025,8,10,7,30).toISOString(), deadline=new Date(2025,8,10,9).toISOString();
+assert.deepEqual(cvApp.logsInWindow({issuedAt:issue,periodStart:issue,periodEnd:deadline,ex:'e123',category:'Cardio'}).map(row=>row.at),
+ ['backdated-swim','first-swim'],'Date index must preserve stored order and aliases');
+assert.deepEqual(cvApp.logsInWindow({issuedAt:issue,periodStart:issue,periodEnd:deadline,ex:'e123'},new Date(2025,8,10,8).getTime()).map(row=>row.at),
+ ['first-swim'],'The end timestamp remains exclusive');
+cvApp.state().logs=originalHistory;
+cvApp.resetDerived();
 console.log('Convenience smoke checks passed: repeat, draft, full-history search, save and undo.');
+
+const held=(id,value,age,side)=>{
+ const performed=new Date(Date.now()-age*60000);
+ return {at:id+'-'+age,id,mode:id==='e117'?'range':'time',value,side,performedAt:performed.toISOString(),
+  date:[performed.getFullYear(),String(performed.getMonth()+1).padStart(2,'0'),String(performed.getDate()).padStart(2,'0')].join('-')};
+};
+const overview=bootConvenience([
+ held('e036',28,2),held('e036',35,10),
+ held('e084',18,2,'left'),held('e084',24,3,'left'),held('e084',45,4,'right'),
+ held('e117',3,2),held('e117',-2,4),
+ {...held('e025',null,2),mode:'sets',sets:[{weight:42.5,reps:5},{weight:40,reps:6}]},
+ {...held('e025',null,10),mode:'sets',sets:[{weight:35,reps:5}]},
+ {...held('e075',null,2,'left'),mode:'bodysets',sets:[{reps:4}]},
+ {...held('e075',null,1,'right'),mode:'bodysets',sets:[{reps:9}]}
+]);
+const overviewPage=()=>overview.doc.getElementById('app').innerHTML;
+const input=id=>overview.doc.getElementById(id);
+const beforeCopy=overview.app.state().logs.length;
+overview.app.choose('e036');
+assert.match(overviewPage(),/Foundation<\/span><span>Step 2 of 2/);
+assert.match(overviewPage(),/<dt>Last<\/dt><dd>28 s.*<dt>Best<\/dt><dd>35 s<\/dd>.*Copy 28 s/);
+assert(overviewPage().indexOf('Save activity')<overviewPage().indexOf('How to do this exercise'));
+overview.win.fdCopyLastHold();
+assert.equal(input('value').value,'28');
+assert.equal(JSON.parse(overview.keys.get('fitnessdex-quick-log-draft-v1')).fields.value,'28');
+assert.equal(overview.app.state().logs.length,beforeCopy);
+overview.app.choose('e084');
+assert.match(overviewPage(),/View skill tree.*Front split preparation · Step 1 of 3.*Forward fold preparation · Step 1 of 2/);
+assert.doesNotMatch(overviewPage(),/fd-copy-last-hold/);
+input('side').value='left';
+overview.win.fdRefreshLogComparison();
+assert.match(input('fd-log-previous').innerHTML,/<dt>Last \(left\)<\/dt><dd>18 s.*<dt>Best<\/dt><dd>24 s<\/dd>/);
+overview.win.fdCopyLastHold();
+assert.equal(input('value').value,'18');
+assert.equal(JSON.parse(overview.keys.get('fitnessdex-quick-log-draft-v1')).copiedSide,'left');
+input('side').value='right';
+overview.win.fdChangeLogSide();
+assert.match(input('fd-log-previous').innerHTML,/<dt>Last \(right\)<\/dt><dd>45 s/);
+assert.equal(input('value').value,'');
+overview.win.fdCopyLastHold();
+assert.equal(input('value').value,'45');
+input('side').value='both';
+overview.win.fdChangeLogSide();
+assert.equal(input('fd-log-previous').innerHTML,'');
+overview.win.fdCopyLastHold();
+assert.equal(input('value').value,'','A side with no history must not retain another side’s copied result');
+input('value').value='25';
+overview.win.fdToggleHold();
+assert.equal(input('side').disabled,true);
+input('side').value='right';
+overview.win.fdChangeLogSide();
+assert.equal(input('side').value,'both');
+overview.advance(150);
+overview.win.fdToggleHold();
+assert.equal(input('value').value,'25');
+assert.equal(input('side').disabled,false);
+overview.win.fdToggleHold();
+overview.advance(1800);
+overview.win.fdToggleHold();
+assert.equal(input('value').value,'1');
+input('side').value='right';
+overview.win.fdChangeLogSide();
+assert.equal(input('value').value,'');
+overview.win.fdOpenLogSkillTree(0);
+assert.equal(overview.app.tab(),'dex');
+assert.match(overviewPage(),/Front splits.*Front split preparation/);
+overview.app.choose('e117');
+assert.match(overviewPage(),/<dt>Best<\/dt><dd>-2 cm gap<\/dd>/);
+overview.app.choose('e004');
+assert.match(overviewPage(),/Build your push-up · Step 3 of 5.*One-arm and leverage · Step 1 of 4/);
+overview.win.fdQuickLog();
+assert.match(overviewPage(),/<dt>Last<\/dt><dd>7 reps in one set.*Copy 2 sets/);
+overview.app.prefillSets();
+assert.match(input('setrows').innerHTML,/value="7".*value="6"/);
+overview.app.choose('e025');
+overview.win.fdQuickLog();
+assert.match(overviewPage(),/<dt>Last<\/dt><dd>42\.5 kg × 5.*Copy 2 sets/);
+assert.equal((overviewPage().match(/Copy 2 sets/g)||[]).length,1);
+overview.app.prefillSets();
+assert.match(input('setrows').innerHTML,/value="42\.5".*value="40"/);
+overview.app.choose('e075');
+overview.win.fdQuickLog();
+assert.doesNotMatch(overviewPage(),/Copy \d+ sets?/);
+input('side').value='left';
+overview.win.fdRefreshLogComparison();
+assert.match(input('fd-log-previous').innerHTML,/<dt>Last \(left\)<\/dt><dd>4 reps in one set.*Copy 1 set/);
+overview.app.prefillSets();
+assert.match(input('setrows').innerHTML,/value="4"/);
+input('side').value='right';
+overview.win.fdChangeLogSide();
+assert.doesNotMatch(input('setrows').innerHTML,/value="4"/);
+assert.equal(overview.app.state().logs.length,beforeCopy);
+overview.app.choose('e085');
+assert.doesNotMatch(overviewPage(),/fd-copy-last-hold/);
+const historyMarkup=overview.app.history();
+assert(historyMarkup.indexOf('fd-history-query')<historyMarkup.indexOf('fd-history-entries'));
+assert(historyMarkup.indexOf('fd-history-entries')<historyMarkup.indexOf('id="fd-history-tools"'));
+assert.match(historyMarkup,/<details id="fd-history-tools" class="fd-log-details fd-history-tools">/);
+console.log('Exercise selection checks passed: skill paths, last and best, exact-side timed copies, and strength/bodyweight copies.');
+
+function finishHold(seconds){
+ overview.app.choose('e036');
+ const now=new Date();
+ const clock=[now.getHours(),now.getMinutes()].map(n=>String(n).padStart(2,'0')).join(':');
+ for(const [id,value] of Object.entries({date:overview.date,clock,value:String(seconds),notes:'',session:'standalone'}))
+  overview.doc.getElementById(id).value=value;
+ overview.app.submitLog();
+}
+finishHold(35);
+assert.match(overviewPage(),/\+7 s since last time/);
+assert.doesNotMatch(overviewPage(),/New personal best/);
+finishHold(42);
+assert.match(overviewPage(),/\+7 s since last time/);
+assert.match(overviewPage(),/New personal best/);
+finishHold(42);
+assert.match(overviewPage(),/Same as last time/);
+assert.doesNotMatch(overviewPage(),/New personal best/);
+
+const habitUI=bootConvenience();
+const habitView=()=>habitUI.doc.getElementById('app').innerHTML;
+const habits=habitUI.app.state().v6;
+const habitDate=(offset)=>{
+ const d=new Date(habitUI.date+'T12:00:00');
+ d.setDate(d.getDate()+offset);
+ return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+};
+const habitRow=(category,date=habitUI.date)=>habitUI.app.state().v6.days.find(row=>row.category===category&&row.date===date);
+const streak=(category,days)=>assert.match(habitView(),new RegExp('id="fd-habit-title-'+category+'">[^<]+</h2><span class="fd-habit-streak"><strong>'+days+'</strong>'));
+for(const [category,days] of [['alcohol',6],['takeaway',29]]){
+ for(let i=1;i<=days;i++)habits.days.push({category,date:habitDate(-i),quantity:0});
+}
+habits.days.push({category:'smoking',date:habitDate(-1),quantity:2});
+habits.baselineWeek.smoking=12;
+habits.awards.push({id:'smoking-streak-3',at:habitDate(-1)});
+habitUI.app.navigate('more');
+assert.match(habitView(),/<strong>Habits<\/strong>/);
+habitUI.win.fdHabitsOpen();
+assert.match(habitView(),/<h1>Habits<\/h1>.*Alcohol-free.*Smoke-free.*Takeaway-free/);
+assert.equal((habitView().match(/class="fd-habit-day /g)||[]).length,21);
+assert.match(habitView(),/Start a new chain today/);
+assert.match(habitView(),/None today/);
+streak('alcohol',6);
+streak('takeaway',29);
+habitUI.win.fdHabitsNoneToday();
+for(const category of ['alcohol','smoking','takeaway'])assert.equal(habitRow(category).quantity,0);
+assert.equal(habits.days.length,39,'Bulk check-in must add three records');
+assert.match(habitView(),/7-day milestone.*30-day milestone/);
+assert.match(habitView(),/7 alcohol-free days in the last 30/);
+assert.equal(habits.awards.filter(a=>a.id==='alcohol-streak-7').length,1);
+streak('alcohol',7);
+streak('smoking',1);
+streak('takeaway',30);
+habitUI.win.fdHabitsNoneToday();
+assert.equal(habits.days.length,39,'Repeated taps must not duplicate check-ins');
+habitUI.win.fdHabitsAnswer('alcohol',true);
+assert.deepEqual(habitRow('alcohol'),{category:'alcohol',date:habitUI.date,quantity:1,amountUnspecified:true});
+streak('alcohol',0);
+streak('takeaway',30);
+assert.match(habitView(),/6 alcohol-free days in the last 30/);
+assert.doesNotMatch(habitView(),/None today/);
+habitUI.win.fdHabitsNoneToday();
+assert.equal(habitRow('alcohol').quantity,1,'Bulk check-in must preserve an existing Yes');
+
+habitUI.win.fdHabitsDateChange(habitDate(-1));
+assert.match(habitView(),/Smoked\?<small>2 cigarettes/);
+habitUI.win.fdHabitsAnswer('smoking',true);
+assert.equal(habitRow('smoking',habitDate(-1)).quantity,2,'Existing exact quantities must be preserved');
+habitUI.win.fdHabitsRemove('takeaway');
+assert.equal(habitRow('takeaway',habitDate(-1)),undefined);
+assert.match(habitView(),new RegExp('id="fd-habit-day-takeaway-'+habitDate(-1)+'" class="fd-habit-day unlogged"'));
+streak('takeaway',1);
+habitUI.win.fdHabitsAnswer('takeaway',false);
+streak('takeaway',30);
+assert.equal(habits.awards.filter(a=>a.id==='takeaway-streak-30').length,1);
+habitUI.win.fdHabitsDateChange(habitDate(-12));
+assert.match(habitView(),new RegExp('id="fd-habit-day-takeaway-'+habitDate(-12)+'"'));
+assert.doesNotMatch(habitView(),/aria-current="date"/);
+habitUI.win.fdHabitsDateChange(habitUI.date);
+assert.match(habitView(),/aria-current="date"/);
+assert.equal(habits.baselineWeek.smoking,12);
+assert(habits.awards.some(a=>a.id==='smoking-streak-3'));
+habitUI.win.fdHabitsBack();
+assert.equal(habitUI.app.tab(),'more');
+const savedHabits=JSON.parse(habitUI.keys.get('fitnessdex-v01'));
+assert(habitUI.app.validBackup(savedHabits));
+assert.equal(savedHabits.v6.days.find(row=>row.date===habitUI.date&&row.category==='alcohol').amountUnspecified,true);
+console.log('Habits checks passed: three independent chains, quick check-in, corrections, milestones, and compatible history.');
+
+
 
 
 /* v0.8.5: the browser notification prompt must be user-initiated. */
@@ -180,3 +686,95 @@ function verifyReminders(){
  })();
 }
 verifyReminders().catch(e=>{console.error(e);process.exitCode=1;});
+
+function checkCampaignReturns(){
+ const validDate=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value));
+ const validator=codeScripts[1].split('function validCampaignState(')[1].split('function validProgressionState(')[0];
+ function fixture(){
+  let day='2026-07-29',canSave=true;
+  const date=()=>day,window={scrollTo(){}};
+  const model={v7:{campaigns:[{id:'run5k',started:'2026-07-01',managed:true}]},logs:[]};
+  const validate=new Function('validDate','today','return function validCampaignState('+validator)(validDate,date);
+  const run=new Function('window','S','today','validDate','logWhen','logMetrics','n','ex','save','validCampaignState','confirm','navigate','render','toast','choose','tab',
+   read('campaigns.js')+'\nreturn window;');
+  run(window,model,date,validDate,log=>Date.parse(log.date),log=>({distance:log.value}),Number,id=>({name:id,mode:id==='e046'?'distance':'bodysets'}),()=>canSave,validate,()=>true,()=>{},()=>{},()=>{},()=>{},'campaigns');
+  function log(date,id='e046'){
+   model.logs.push({id,date,value:1});
+  }
+  for(const dates of [['01','03','05'],['08','10','12'],['15','17','19'],['22','24','26']]){
+   dates.forEach(d=>log('2026-07-'+d));
+   log('2026-07-'+dates[0],'e109');
+  }
+  window.fdCampaignOpen('run5k');
+  const body=()=>window.fdCampaignsView();
+  const act=name=>{
+   window['fdCampaign'+name]('run5k');
+   assert(validate(JSON.parse(JSON.stringify(model.v7))),name+' generated invalid campaign data');
+  };
+  return {model,log,body,act,setDay:d=>{day=d;},failSave:()=>{canSave=false;},validate};
+ }
+
+ const brief=fixture();
+ assert.match(brief.body(),/4\/16/);
+ brief.act('Pause');
+ brief.setDay('2026-08-02');brief.act('Resume');
+ assert.match(brief.body(),/This week/);
+ assert.match(brief.body(),/5<\/strong><span>Current \/ final week/);
+ assert.match(brief.body(),/1\/4<\/strong><span>Chapter medals/);
+ assert.equal(brief.model.logs.length,16);
+
+ const repeated=fixture();
+ repeated.act('Pause');repeated.setDay('2026-08-05');
+ assert.match(repeated.body(),/Repeat week 4/);
+ repeated.act('Resume');
+ assert.match(repeated.body(),/4<\/strong><span>Current \/ final week/);
+ repeated.log('2026-08-05');repeated.log('2026-08-05','e109');repeated.log('2026-08-07');repeated.log('2026-08-09');
+ repeated.setDay('2026-08-09');
+ assert.match(repeated.body(),/4\/16/,'Repeating an earned week must not credit it twice');
+
+ const deload=fixture();
+ deload.act('Pause');deload.setDay('2026-08-12');deload.act('Resume');
+ assert.match(deload.body(),/Return week/);
+ deload.setDay('2026-08-19');
+ assert.match(deload.body(),/This week/);
+ assert.match(deload.body(),/4<\/strong><span>Current \/ final week/);
+
+ const baseline=fixture();
+ baseline.act('Pause');baseline.setDay('2026-08-26');baseline.act('Resume');
+ assert.match(baseline.body(),/Log baseline/);
+ baseline.act('BaselineDone');
+ assert.match(baseline.body(),/Log baseline/,'A baseline must have a real session');
+ baseline.log('2026-08-26');
+ assert.match(baseline.body(),/Begin return week/);
+ baseline.act('BaselineDone');assert.match(baseline.body(),/Return week/);
+
+ const missed=fixture();
+ missed.setDay('2026-08-03');missed.log('2026-08-03');
+ assert.match(missed.body(),/Return needed/,'Logging again cannot silently skip a full missed training week');
+
+ const planned=fixture();
+ planned.act('Recovery');planned.setDay('2026-08-04');
+ assert.match(planned.body(),/Recovery week/);
+ planned.setDay('2026-08-05');
+ assert.match(planned.body(),/5<\/strong><span>Current \/ final week/);
+ assert.match(planned.body(),/This week/);
+ assert.match(planned.body(),/4\/16/);
+
+ const ended=fixture();
+ ended.act('End');assert.match(ended.body(),/>Ended<\/h2>/);
+ ended.act('Restart');assert.match(ended.body(),/Restart scheduled/);
+ ended.setDay('2026-07-30');
+ assert.match(ended.body(),/0\/16/);
+ assert.match(ended.body(),/4 qualifying weeks in earlier attempts/);
+ assert.match(ended.body(),/1\/4<\/strong><span>Chapter medals/);
+
+ const legacy=fixture();
+ assert(legacy.validate({campaigns:[{id:'run5k',started:'2026-07-01'}]}));
+ assert(!legacy.validate({campaigns:[{id:'run5k',started:'2026-07-01',breaks:[{from:'2026-07-29',resumed:'2026-07-28'}]}]}));
+ legacy.failSave();legacy.act('Pause');
+ assert.equal(legacy.model.v7.campaigns[0].breaks,undefined,'Failed storage write must restore campaign state');
+ console.log('Campaign checks passed: short pauses, repeats, deloads, baseline, recovery, restart and compatible saves.');
+}
+checkCampaignReturns();
+require('./mobility-catalogue.cjs');
+require('./cloud-sync.cjs');
