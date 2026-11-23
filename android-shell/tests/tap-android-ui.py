@@ -24,7 +24,7 @@ def tap_center(node):
     return True
 
 
-def tap(pattern, attempts, notification=False):
+def tap(pattern, attempts, notification=False, prefer_clickable_parent=False):
     nodes = []
     last_error = None
     for _ in range(attempts):
@@ -58,6 +58,12 @@ def tap(pattern, attempts, notification=False):
                     continue
                 # Tap the message itself; a row's centre can land on a different control.
                 node = label_node
+            if prefer_clickable_parent and not notification:
+                ancestor = node
+                while ancestor in parents and ancestor.get("clickable") != "true":
+                    ancestor = parents[ancestor]
+                if ancestor.get("clickable") == "true":
+                    node = ancestor
             if tap_center(node):
                 print(f"Tapped Android UI: {next(label for label in labels if pattern.fullmatch(label))}")
                 return True
@@ -74,4 +80,5 @@ def tap(pattern, attempts, notification=False):
 if __name__ == "__main__":
     expression = re.compile(sys.argv[1], re.IGNORECASE)
     sys.exit(0 if tap(expression, int(sys.argv[2]) if len(sys.argv) > 2 else 5,
-                      notification=len(sys.argv) > 3 and sys.argv[3] == "notification") else 1)
+                      notification="notification" in sys.argv[3:],
+                      prefer_clickable_parent="clickable-parent" in sys.argv[3:]) else 1)

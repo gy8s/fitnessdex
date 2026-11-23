@@ -21,11 +21,22 @@ swipe_vertical() {
         "$((width / 2))" "$((height * $2 / 100))" 500
 }
 open_history() {
-    tap 'More' 20
-    if ! tap 'History & data( Edit, export or import records.*)?' 2; then
+    # A WebView label may have a smaller touch rectangle than its clickable
+    # parent. Confirm that the History view actually opened rather than
+    # accepting a tap that left the old Home screen visible.
+    local attempt
+    for attempt in 1 2 3; do
+        python3 android-shell/tests/tap-android-ui.py 'More' 12 clickable-parent || true
+        if tap 'History & data( Edit, export or import records.*)?' 6; then
+            return 0
+        fi
         swipe_vertical 75 33
-        tap 'History & data( Edit, export or import records.*)?'
-    fi
+        if tap 'History & data( Edit, export or import records.*)?' 6; then
+            return 0
+        fi
+    done
+    echo 'ERROR: History was not reachable from More on the signed APK' >&2
+    return 1
 }
 export_backup() {
     if ! tap 'Data tools' 2; then
